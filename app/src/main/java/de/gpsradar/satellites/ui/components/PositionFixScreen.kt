@@ -79,6 +79,7 @@ import de.gpsradar.satellites.model.Coordinates
 import de.gpsradar.satellites.model.FixType
 import de.gpsradar.satellites.model.GpsLocationState
 import de.gpsradar.satellites.model.Navigation
+import de.gpsradar.satellites.model.Track
 import de.gpsradar.satellites.model.Waypoint
 import de.gpsradar.satellites.model.WaypointCodec
 import de.gpsradar.satellites.model.cacheTypeEmoji
@@ -96,6 +97,8 @@ fun PositionFixScreen(
     state: GpsLocationState,
     waypoints: List<Waypoint>,
     activeWaypointId: Long?,
+    tracks: List<Track>,
+    activeTrackId: Long?,
     onAddCurrentPosition: (name: String, code: String?) -> Unit,
     onAddManual: (name: String, code: String?, latitude: Double, longitude: Double) -> Unit,
     onUpdateWaypoint: (Waypoint) -> Unit,
@@ -103,6 +106,8 @@ fun PositionFixScreen(
     onToggleFound: (Long) -> Unit,
     onDeleteWaypoint: (Long) -> Unit,
     onSetActiveWaypoint: (Long?) -> Unit,
+    onDeleteTrack: (Long) -> Unit,
+    onSetActiveTrack: (Long?) -> Unit,
     onImportWaypoints: (Uri) -> String,
     onExportGpx: (Uri) -> Boolean,
     onExportJson: (Uri) -> Boolean,
@@ -150,6 +155,15 @@ fun PositionFixScreen(
             onImportWaypoints = onImportWaypoints,
             onExportGpx = onExportGpx,
             onExportJson = onExportJson
+        )
+
+        // Tracks / Routen
+        TracksCard(
+            state = state,
+            tracks = tracks,
+            activeTrackId = activeTrackId,
+            onDeleteTrack = onDeleteTrack,
+            onSetActiveTrack = onSetActiveTrack
         )
 
         // Constellations Summary Card
@@ -860,6 +874,242 @@ private fun WaypointsCard(
         )
     }
 }
+
+@Composable
+private fun TracksCard(
+    state: GpsLocationState,
+    tracks: List<Track>,
+    activeTrackId: Long?,
+    onDeleteTrack: (Long) -> Unit,
+    onSetActiveTrack: (Long?) -> Unit
+) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = CardNavy),
+        shape = RoundedCornerShape(14.dp),
+        modifier = Modifier.fillMaxWidth().testTag("tracks_card")
+    ) {
+        Column(modifier = Modifier.padding(14.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Explore,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Tracks (${tracks.size})",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            val activeTrack = tracks.find { it.id == activeTrackId }
+            if (activeTrack != null) {
+                ActiveTrackSummary(
+                    state = state,
+                    track = activeTrack,
+                    onStop = { onSetActiveTrack(null) }
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+            }
+
+            if (tracks.isEmpty()) {
+                Text(
+                    text = "Noch keine Tracks importiert. GPX-Tracks und -Routen werden als zusammenhängende Linie übernommen (nicht als einzelne Wegpunkte).",
+                    fontSize = 12.sp,
+                    color = Color(0xFFCBD5E1)
+                )
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    tracks.forEach { trk ->
+                        TrackRow(
+                            track = trk,
+                            isActive = trk.id == activeTrackId,
+                            onClick = { onSetActiveTrack(if (trk.id == activeTrackId) null else trk.id) },
+                            onDelete = { onDeleteTrack(trk.id) }
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ActiveTrackSummary(
+    state: GpsLocationState,
+    track: Track,
+    onStop: () -> Unit
+) {
+    val lat = state.latitude
+    val lon = state.longitude
+
+    if (lat == null || lon == null) {
+        Text(
+            text = "Warte auf GPS-Fix, um dem Track zu folgen …",
+            fontSize = 12.sp,
+            color = Color(0xFFCBD5E1)
+        )
+        return
+    }
+
+    val idx = track.nearestIndex(lat, lon)
+    val target = track.points[idx]
+    val distance = Navigation.distanceMeters(lat, lon, target.latitude, target.longitude)
+    val bearing = Navigation.initialBearingDegrees(lat, lon, target.latitude, target.longitude)
+    val arrowRotation = (bearing - state.compassHeading).toFloat()
+    val remaining = track.remainingMeters(idx)
+    val finished = idx == track.points.lastIndex && distance < 30.0
+
+    Surface(
+        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .background(Color(0xFF0F1E42), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Navigation,
+                    contentDescription = "Richtung zum nächsten Trackpunkt",
+                    tint = if (finished) SignalGreen else MaterialTheme.colorScheme.primary,
+                    modifier = Modifier
+                        .size(28.dp)
+                        .rotate(arrowRotation)
+                )
+            }
+            Spacer(modifier = Modifier.width(14.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = track.name,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+                Text(
+                    text = if (finished) {
+                        "Ziel erreicht"
+                    } else {
+                        formatDistance(distance)
+                    },
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = if (finished) SignalGreen else Color.White
+                )
+                Text(
+                    text = "Richtung ${String.format(Locale.US, "%.0f°", bearing)} (${getCompassDirection(bearing.toFloat())})",
+                    fontSize = 11.sp,
+                    color = Color(0xFFCBD5E1)
+                )
+                Text(
+                    text = "Punkt ${idx + 1} von ${track.points.size} · Rest ${formatDistance(remaining)}",
+                    fontSize = 11.sp,
+                    color = Color(0xFFCBD5E1)
+                )
+
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = "Track folgen beenden",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.clickable { onStop() }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun TrackRow(
+    track: Track,
+    isActive: Boolean,
+    onClick: () -> Unit,
+    onDelete: () -> Unit
+) {
+    Surface(
+        color = if (isActive) {
+            MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+        } else {
+            Color(0xFF0F1E42)
+        },
+        shape = RoundedCornerShape(10.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .testTag("track_row_${track.id}")
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.Explore,
+                contentDescription = null,
+                tint = if (isActive) MaterialTheme.colorScheme.primary else Color(0xFF94A3B8),
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(modifier = Modifier.width(10.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = track.name,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color.White
+                )
+                Text(
+                    text = "${track.points.size} Punkte · ${formatDistance(track.lengthMeters)}",
+                    fontSize = 10.sp,
+                    color = Color(0xFF94A3B8)
+                )
+            }
+            if (isActive) {
+                Text(
+                    text = "Folgen",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+            }
+            IconButton(
+                onClick = onDelete,
+                modifier = Modifier.size(28.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = "Track löschen",
+                    tint = Color(0xFF94A3B8),
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+        }
+    }
+}
+
+private fun formatDistance(meters: Double): String =
+    if (meters < 1000.0) {
+        String.format(Locale.US, "%.0f m", meters)
+    } else {
+        String.format(Locale.US, "%.2f km", meters / 1000.0)
+    }
 
 @Composable
 private fun ActiveTargetSummary(

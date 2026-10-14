@@ -9,17 +9,18 @@ import org.json.JSONObject
  */
 object WaypointCodec {
 
-    data class ParseResult(val waypoints: List<Waypoint>, val skipped: Int)
-
-    /** Mindestabstand (Meter) zwischen übernommenen Track-/Routenpunkten. */
-    private const val MIN_TRACK_POINT_DISTANCE = 200.0
+    data class ParseResult(
+        val waypoints: List<Waypoint>,
+        val tracks: List<Track>,
+        val skipped: Int
+    )
 
     fun parse(text: String): ParseResult {
         val t = text.trim()
         return when {
             t.startsWith("<") -> parseGpx(t)
             t.startsWith("[") || t.startsWith("{") -> parseJson(t)
-            else -> ParseResult(emptyList(), 0)
+            else -> ParseResult(emptyList(), emptyList(), 0)
         }
     }
 
@@ -59,6 +60,7 @@ object WaypointCodec {
 
     private fun parseGpx(text: String): ParseResult {
         val waypoints = mutableListOf<Waypoint>()
+        val tracks = mutableListOf<Track>()
         var skipped = 0
 
         // 1) Wegpunkte (<wpt>)
@@ -106,35 +108,41 @@ object WaypointCodec {
             )
         }
 
-        // 2) Tracks (<trk>/<trkseg>/<trkpt>)
+        // 2) Tracks (<trk>/<trkseg>/<trkpt>) – bleiben als zusammenhängende Linie erhalten
         val trkRegex = Regex("<trk\\b[^>]*>(.*?)</trk>", RegexOption.DOT_MATCHES_ALL)
         for (trk in trkRegex.findAll(text)) {
             val trkBody = trk.groupValues[1]
             val trackName = extractTag(trkBody, "name")?.ifBlank { null } ?: "Track"
-            val points = mutableListOf<Pair<Double, Double>>()
-            val trkptRegex = Regex("<trkpt\\b([^>]*)>")
-            for (pt in trkptRegex.findAll(trkBody)) {
+            val points = mutableListOf<TrackPoint>()
+            for (pt in Regex("<trkpt\\b([^>]*)>").findAll(trkBody)) {
                 val latLon = parseLatLon(pt.groupValues[1])
-                if (latLon == null) skipped++ else points.add(latLon)
+                if (latLon == null) skipped++ else points.add(TrackPoint(latLon.first, latLon.second))
             }
-            addThinnedWaypoints(waypoints, points, trackName)
+            if (points.size >= 2) {
+                tracks.add(Track(id = System.currentTimeMillis() + tracks.size + 1_000_000L, name = trackName, points = points))
+            } else {
+                skipped++
+            }
         }
 
-        // 3) Routen (<rte>/<rtept>)
+        // 3) Routen (<rte>/<rtept>) – ebenfalls als Linie erhalten
         val rteRegex = Regex("<rte\\b[^>]*>(.*?)</rte>", RegexOption.DOT_MATCHES_ALL)
         for (rte in rteRegex.findAll(text)) {
             val rteBody = rte.groupValues[1]
             val routeName = extractTag(rteBody, "name")?.ifBlank { null } ?: "Route"
-            val points = mutableListOf<Pair<Double, Double>>()
-            val rteptRegex = Regex("<rtept\\b([^>]*)>")
-            for (pt in rteptRegex.findAll(rteBody)) {
+            val points = mutableListOf<TrackPoint>()
+            for (pt in Regex("<rtept\\b([^>]*)>").findAll(rteBody)) {
                 val latLon = parseLatLon(pt.groupValues[1])
-                if (latLon == null) skipped++ else points.add(latLon)
+                if (latLon == null) skipped++ else points.add(TrackPoint(latLon.first, latLon.second))
             }
-            addThinnedWaypoints(waypoints, points, routeName)
+            if (points.size >= 2) {
+                tracks.add(Track(id = System.currentTimeMillis() + tracks.size + 1_000_000L, name = routeName, points = points))
+            } else {
+                skipped++
+            }
         }
 
-        return ParseResult(waypoints, skipped)
+        return ParseResult(waypoints, tracks, skipped)
     }
 
     private fun parseLatLon(attrs: String): Pair<Double, Double>? {
@@ -143,49 +151,6 @@ object WaypointCodec {
         return if (lat != null && lon != null && lat in -90.0..90.0 && lon in -180.0..180.0) {
             lat to lon
         } else null
-    }
-
-    /** Übernimmt die ausgedünnten Punkte eines Tracks/einer Route als Wegpunkte. */
-    private fun addThinnedWaypoints(
-        waypoints: MutableList<Waypoint>,
-        points: List<Pair<Double, Double>>,
-        baseName: String
-    ) {
-        if (points.isEmpty()) return
-        val thinned = thinOut(points, MIN_TRACK_POINT_DISTANCE)
-        val total = thinned.size
-        thinned.forEachIndexed { index, (lat, lon) ->
-            val name = when {
-                total == 1 -> baseName
-                index == 0 -> "$baseName · Start"
-                index == total - 1 -> "$baseName · Ziel"
-                else -> "$baseName · ${index + 1}"
-            }
-            waypoints.add(
-                Waypoint(
-                    id = System.currentTimeMillis() + waypoints.size,
-                    name = name,
-                    latitude = lat,
-                    longitude = lon
-                )
-            )
-        }
-    }
-
-    /** Behält nur Punkte, die mindestens [minDistanceMeters] auseinanderliegen; Endpunkt bleibt erhalten. */
-    private fun thinOut(points: List<Pair<Double, Double>>, minDistanceMeters: Double): List<Pair<Double, Double>> {
-        val result = mutableListOf<Pair<Double, Double>>()
-        for (p in points) {
-            val last = result.lastOrNull()
-            if (last == null || Navigation.distanceMeters(last.first, last.second, p.first, p.second) >= minDistanceMeters) {
-                result.add(p)
-            }
-        }
-        val lastPoint = points.lastOrNull()
-        if (lastPoint != null && result.lastOrNull() != lastPoint) {
-            result.add(lastPoint)
-        }
-        return result
     }
 
     private fun extractTag(xml: String, tag: String): String? {
@@ -237,9 +202,9 @@ object WaypointCodec {
             try {
                 val obj = JSONObject(text)
                 val arr = obj.optJSONArray("waypoints")
-                if (arr != null) jsonArrayToWaypoints(arr) else ParseResult(emptyList(), 0)
+                if (arr != null) jsonArrayToWaypoints(arr) else ParseResult(emptyList(), emptyList(), 0)
             } catch (e2: Exception) {
-                ParseResult(emptyList(), 0)
+                ParseResult(emptyList(), emptyList(), 0)
             }
         }
     }
@@ -276,6 +241,6 @@ object WaypointCodec {
                 )
             )
         }
-        return ParseResult(waypoints, skipped)
+        return ParseResult(waypoints, emptyList(), skipped)
     }
 }

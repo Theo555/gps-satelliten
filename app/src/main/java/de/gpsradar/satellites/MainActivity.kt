@@ -97,6 +97,8 @@ fun GpsAppMainScreen(
     val selectedSatellite by viewModel.selectedSatellite.collectAsState()
     val waypoints by viewModel.waypoints.collectAsState()
     val activeWaypointId by viewModel.activeWaypointId.collectAsState()
+    val tracks by viewModel.tracks.collectAsState()
+    val activeTrackId by viewModel.activeTrackId.collectAsState()
 
     var currentTab by remember { mutableStateOf(AppTab.RADAR) }
 
@@ -283,6 +285,8 @@ fun GpsAppMainScreen(
                             state = gpsState,
                             waypoints = waypoints,
                             activeWaypointId = activeWaypointId,
+                            tracks = tracks,
+                            activeTrackId = activeTrackId,
                             onAddCurrentPosition = { name, code -> viewModel.addWaypointAtCurrentPosition(name, code) },
                             onAddManual = { name, code, lat, lon -> viewModel.addWaypoint(name, code, lat, lon) },
                             onUpdateWaypoint = { wp -> viewModel.updateWaypoint(wp) },
@@ -290,6 +294,8 @@ fun GpsAppMainScreen(
                             onToggleFound = { id -> viewModel.toggleFound(id) },
                             onDeleteWaypoint = { id -> viewModel.deleteWaypoint(id) },
                             onSetActiveWaypoint = { id -> viewModel.setActiveWaypoint(id) },
+                            onDeleteTrack = { id -> viewModel.deleteTrack(id) },
+                            onSetActiveTrack = { id -> viewModel.setActiveTrack(id) },
                             onImportWaypoints = { uri -> viewModel.importWaypoints(uri) },
                             onExportGpx = { uri -> viewModel.exportGpx(uri) },
                             onExportJson = { uri -> viewModel.exportJson(uri) }

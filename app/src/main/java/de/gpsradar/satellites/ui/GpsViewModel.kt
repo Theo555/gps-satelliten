@@ -11,6 +11,8 @@ import de.gpsradar.satellites.model.Constellation
 import de.gpsradar.satellites.model.GpsLocationState
 import de.gpsradar.satellites.model.Navigation
 import de.gpsradar.satellites.model.SatelliteInfo
+import de.gpsradar.satellites.model.Track
+import de.gpsradar.satellites.model.TrackPoint
 import de.gpsradar.satellites.model.Waypoint
 import de.gpsradar.satellites.model.WaypointCodec
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -42,6 +44,9 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
     val activeWaypointId = MutableStateFlow<Long?>(
         prefs.getLong("active_waypoint_id", -1L).takeIf { it >= 0L }
     )
+
+    val tracks = MutableStateFlow<List<Track>>(loadTracks())
+    val activeTrackId = MutableStateFlow<Long?>(null)
 
     // Filtered and sorted satellite list
     val displayedSatellites: StateFlow<List<SatelliteInfo>> = combine(
@@ -134,11 +139,26 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setActiveWaypoint(id: Long?) {
         activeWaypointId.value = id
+        if (id != null) activeTrackId.value = null
         if (id == null) {
             prefs.edit().remove("active_waypoint_id").apply()
         } else {
             prefs.edit().putLong("active_waypoint_id", id).apply()
         }
+    }
+
+    fun setActiveTrack(id: Long?) {
+        activeTrackId.value = id
+        if (id != null) {
+            activeWaypointId.value = null
+            prefs.edit().remove("active_waypoint_id").apply()
+        }
+    }
+
+    fun deleteTrack(id: Long) {
+        tracks.value = tracks.value.filterNot { it.id == id }
+        if (activeTrackId.value == id) activeTrackId.value = null
+        persistTracks()
     }
 
     fun updateWaypoint(updated: Waypoint) {
@@ -179,22 +199,28 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
         } ?: return "Datei konnte nicht gelesen werden"
 
         val result = WaypointCodec.parse(text)
-        if (result.waypoints.isEmpty()) {
+        if (result.waypoints.isEmpty() && result.tracks.isEmpty()) {
             return if (result.skipped > 0) {
-                "Keine gültigen Zielpunkte gefunden"
+                "Keine gültigen Zielpunkte oder Tracks gefunden"
             } else {
-                "Keine Zielpunkte in der Datei gefunden"
+                "Keine Zielpunkte oder Tracks in der Datei gefunden"
             }
         }
 
-        waypoints.value = waypoints.value + result.waypoints
-        persistWaypoints()
-
-        return if (result.skipped > 0) {
-            "${result.waypoints.size} Zielpunkte importiert, ${result.skipped} übersprungen"
-        } else {
-            "${result.waypoints.size} Zielpunkte importiert"
+        if (result.waypoints.isNotEmpty()) {
+            waypoints.value = waypoints.value + result.waypoints
+            persistWaypoints()
         }
+        if (result.tracks.isNotEmpty()) {
+            tracks.value = tracks.value + result.tracks
+            persistTracks()
+        }
+
+        val parts = mutableListOf<String>()
+        if (result.waypoints.isNotEmpty()) parts.add("${result.waypoints.size} Zielpunkt(e)")
+        if (result.tracks.isNotEmpty()) parts.add("${result.tracks.size} Track(s)")
+        val suffix = if (result.skipped > 0) ", ${result.skipped} übersprungen" else ""
+        return parts.joinToString(" und ") + " importiert" + suffix
     }
 
     fun exportGpx(uri: Uri): Boolean {
@@ -259,6 +285,51 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
                     terrain = if (o.has("terrain")) o.optDouble("terrain") else null,
                     cacheType = if (o.has("cacheType")) o.getString("cacheType") else null,
                     found = o.optBoolean("found", false)
+                )
+            }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    private fun persistTracks() {
+        val arr = JSONArray()
+        tracks.value.forEach { trk ->
+            arr.put(
+                JSONObject().apply {
+                    put("id", trk.id)
+                    put("name", trk.name)
+                    val pts = JSONArray()
+                    trk.points.forEach { p ->
+                        pts.put(
+                            JSONObject().apply {
+                                put("lat", p.latitude)
+                                put("lon", p.longitude)
+                            }
+                        )
+                    }
+                    put("points", pts)
+                }
+            )
+        }
+        prefs.edit().putString("tracks", arr.toString()).apply()
+    }
+
+    private fun loadTracks(): List<Track> {
+        val raw = prefs.getString("tracks", null) ?: return emptyList()
+        return try {
+            val arr = JSONArray(raw)
+            (0 until arr.length()).map { i ->
+                val o = arr.getJSONObject(i)
+                val ptsArr = o.getJSONArray("points")
+                val points = (0 until ptsArr.length()).map { j ->
+                    val p = ptsArr.getJSONObject(j)
+                    TrackPoint(p.getDouble("lat"), p.getDouble("lon"))
+                }
+                Track(
+                    id = o.getLong("id"),
+                    name = o.getString("name"),
+                    points = points
                 )
             }
         } catch (e: Exception) {
