@@ -11,6 +11,9 @@ object WaypointCodec {
 
     data class ParseResult(val waypoints: List<Waypoint>, val skipped: Int)
 
+    /** Mindestabstand (Meter) zwischen übernommenen Track-/Routenpunkten. */
+    private const val MIN_TRACK_POINT_DISTANCE = 200.0
+
     fun parse(text: String): ParseResult {
         val t = text.trim()
         return when {
@@ -58,17 +61,18 @@ object WaypointCodec {
         val waypoints = mutableListOf<Waypoint>()
         var skipped = 0
 
+        // 1) Wegpunkte (<wpt>)
         val wptRegex = Regex("<wpt\\b([^>]*)>(.*?)</wpt>", RegexOption.DOT_MATCHES_ALL)
         for (m in wptRegex.findAll(text)) {
             val attrs = m.groupValues[1]
             val body = m.groupValues[2]
 
-            val lat = Regex("lat=\"([^\"]+)\"").find(attrs)?.groupValues?.get(1)?.toDoubleOrNull()
-            val lon = Regex("lon=\"([^\"]+)\"").find(attrs)?.groupValues?.get(1)?.toDoubleOrNull()
-            if (lat == null || lon == null || lat !in -90.0..90.0 || lon !in -180.0..180.0) {
+            val latLon = parseLatLon(attrs)
+            if (latLon == null) {
                 skipped++
                 continue
             }
+            val (lat, lon) = latLon
 
             val rawName = extractTag(body, "name") ?: "Ziel"
             val desc = extractTag(body, "desc")
@@ -101,7 +105,87 @@ object WaypointCodec {
                 )
             )
         }
+
+        // 2) Tracks (<trk>/<trkseg>/<trkpt>)
+        val trkRegex = Regex("<trk\\b[^>]*>(.*?)</trk>", RegexOption.DOT_MATCHES_ALL)
+        for (trk in trkRegex.findAll(text)) {
+            val trkBody = trk.groupValues[1]
+            val trackName = extractTag(trkBody, "name")?.ifBlank { null } ?: "Track"
+            val points = mutableListOf<Pair<Double, Double>>()
+            val trkptRegex = Regex("<trkpt\\b([^>]*)>")
+            for (pt in trkptRegex.findAll(trkBody)) {
+                val latLon = parseLatLon(pt.groupValues[1])
+                if (latLon == null) skipped++ else points.add(latLon)
+            }
+            addThinnedWaypoints(waypoints, points, trackName)
+        }
+
+        // 3) Routen (<rte>/<rtept>)
+        val rteRegex = Regex("<rte\\b[^>]*>(.*?)</rte>", RegexOption.DOT_MATCHES_ALL)
+        for (rte in rteRegex.findAll(text)) {
+            val rteBody = rte.groupValues[1]
+            val routeName = extractTag(rteBody, "name")?.ifBlank { null } ?: "Route"
+            val points = mutableListOf<Pair<Double, Double>>()
+            val rteptRegex = Regex("<rtept\\b([^>]*)>")
+            for (pt in rteptRegex.findAll(rteBody)) {
+                val latLon = parseLatLon(pt.groupValues[1])
+                if (latLon == null) skipped++ else points.add(latLon)
+            }
+            addThinnedWaypoints(waypoints, points, routeName)
+        }
+
         return ParseResult(waypoints, skipped)
+    }
+
+    private fun parseLatLon(attrs: String): Pair<Double, Double>? {
+        val lat = Regex("lat=\"([^\"]+)\"").find(attrs)?.groupValues?.get(1)?.toDoubleOrNull()
+        val lon = Regex("lon=\"([^\"]+)\"").find(attrs)?.groupValues?.get(1)?.toDoubleOrNull()
+        return if (lat != null && lon != null && lat in -90.0..90.0 && lon in -180.0..180.0) {
+            lat to lon
+        } else null
+    }
+
+    /** Übernimmt die ausgedünnten Punkte eines Tracks/einer Route als Wegpunkte. */
+    private fun addThinnedWaypoints(
+        waypoints: MutableList<Waypoint>,
+        points: List<Pair<Double, Double>>,
+        baseName: String
+    ) {
+        if (points.isEmpty()) return
+        val thinned = thinOut(points, MIN_TRACK_POINT_DISTANCE)
+        val total = thinned.size
+        thinned.forEachIndexed { index, (lat, lon) ->
+            val name = when {
+                total == 1 -> baseName
+                index == 0 -> "$baseName · Start"
+                index == total - 1 -> "$baseName · Ziel"
+                else -> "$baseName · ${index + 1}"
+            }
+            waypoints.add(
+                Waypoint(
+                    id = System.currentTimeMillis() + waypoints.size,
+                    name = name,
+                    latitude = lat,
+                    longitude = lon
+                )
+            )
+        }
+    }
+
+    /** Behält nur Punkte, die mindestens [minDistanceMeters] auseinanderliegen; Endpunkt bleibt erhalten. */
+    private fun thinOut(points: List<Pair<Double, Double>>, minDistanceMeters: Double): List<Pair<Double, Double>> {
+        val result = mutableListOf<Pair<Double, Double>>()
+        for (p in points) {
+            val last = result.lastOrNull()
+            if (last == null || Navigation.distanceMeters(last.first, last.second, p.first, p.second) >= minDistanceMeters) {
+                result.add(p)
+            }
+        }
+        val lastPoint = points.lastOrNull()
+        if (lastPoint != null && result.lastOrNull() != lastPoint) {
+            result.add(lastPoint)
+        }
+        return result
     }
 
     private fun extractTag(xml: String, tag: String): String? {
