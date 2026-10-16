@@ -96,6 +96,14 @@ fun GpsAppMainScreen(
     viewModel: GpsViewModel = viewModel()
 ) {
     val context = LocalContext.current
+    val versionName = remember {
+        @Suppress("DEPRECATION")
+        try {
+            context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "?"
+        } catch (e: Exception) {
+            "?"
+        }
+    }
     val gpsState by viewModel.rawGpsState.collectAsState()
     val displayedSatellites by viewModel.displayedSatellites.collectAsState()
     val selectedFilter by viewModel.selectedFilter.collectAsState()
@@ -191,7 +199,7 @@ fun GpsAppMainScreen(
                             color = Color.White
                         )
                         Text(
-                            text = if (gpsState.isDemoMode) "Simulation aktiv" else "GNSS Empfänger",
+                            text = (if (gpsState.isDemoMode) "Simulation aktiv" else "GNSS Empfänger") + " · v$versionName",
                             fontSize = 11.sp,
                             color = if (gpsState.isDemoMode) AccentCyan else Color(0xFF94A3B8)
                         )
