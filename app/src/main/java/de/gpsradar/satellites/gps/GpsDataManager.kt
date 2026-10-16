@@ -206,19 +206,9 @@ class GpsDataManager(private val context: Context) : SensorEventListener {
                 // Ignore missing provider
             }
 
-            try {
-                if (locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)) {
-                    locationManager.requestLocationUpdates(
-                        LocationManager.NETWORK_PROVIDER,
-                        2000L,
-                        2.0f,
-                        locationListener,
-                        Looper.getMainLooper()
-                    )
-                }
-            } catch (e: Exception) {
-                // Ignore
-            }
+            // Hinweis: Absichtlich KEIN NETWORK_PROVIDER.
+            // Die öffentliche Version soll rein offline mit GNSS arbeiten und
+            // keine Funkzellen-/WLAN-Daten an Google Play Services senden.
         }
 
         // Check if after 3.5 seconds we have 0 satellites (e.g. emulator or inside concrete building)
