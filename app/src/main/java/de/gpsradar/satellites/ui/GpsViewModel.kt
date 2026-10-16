@@ -4,8 +4,12 @@ import android.app.Application
 import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
 import org.json.JSONArray
 import org.json.JSONObject
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import de.gpsradar.satellites.gps.GpsDataManager
 import de.gpsradar.satellites.model.Constellation
 import de.gpsradar.satellites.model.GpsLocationState
@@ -15,11 +19,13 @@ import de.gpsradar.satellites.model.Track
 import de.gpsradar.satellites.model.TrackPoint
 import de.gpsradar.satellites.model.Waypoint
 import de.gpsradar.satellites.model.WaypointCodec
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 
 enum class SatelliteSort(val label: String) {
     SIGNAL_DESC("Signalstärke (C/N₀)"),
@@ -27,6 +33,10 @@ enum class SatelliteSort(val label: String) {
     ELEVATION_DESC("Höhenwinkel"),
     SVID_ASC("Satelliten-ID")
 }
+
+private const val MIN_RECORD_DISTANCE_M = 5.0
+private const val TRACK_ADVANCE_THRESHOLD_M = 25.0
+private const val TRACK_SNAP_THRESHOLD_M = 100.0
 
 class GpsViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -47,6 +57,14 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
 
     val tracks = MutableStateFlow<List<Track>>(loadTracks())
     val activeTrackId = MutableStateFlow<Long?>(null)
+    val activeTrackProgress = MutableStateFlow<Int>(0)
+
+    private val _isRecording = MutableStateFlow(false)
+    val isRecording: StateFlow<Boolean> = _isRecording
+    private val _recordingPoints = MutableStateFlow<List<TrackPoint>>(emptyList())
+    val recordingPoints: StateFlow<List<TrackPoint>> = _recordingPoints
+    private var recordingJob: Job? = null
+    private var trackFollowJob: Job? = null
 
     // Filtered and sorted satellite list
     val displayedSatellites: StateFlow<List<SatelliteInfo>> = combine(
@@ -139,7 +157,10 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setActiveWaypoint(id: Long?) {
         activeWaypointId.value = id
-        if (id != null) activeTrackId.value = null
+        if (id != null) {
+            activeTrackId.value = null
+            cancelTrackFollowing()
+        }
         if (id == null) {
             prefs.edit().remove("active_waypoint_id").apply()
         } else {
@@ -148,16 +169,103 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun setActiveTrack(id: Long?) {
+        cancelTrackFollowing()
         activeTrackId.value = id
         if (id != null) {
             activeWaypointId.value = null
             prefs.edit().remove("active_waypoint_id").apply()
+
+            // Startpunkt festlegen: nah am Track -> nächstgelegener Punkt, sonst Anfang.
+            val track = tracks.value.find { it.id == id }
+            var start = 0
+            if (track != null && track.points.isNotEmpty()) {
+                val st = rawGpsState.value
+                val lat = st.latitude
+                val lon = st.longitude
+                if (lat != null && lon != null) {
+                    val nearest = track.nearestIndex(lat, lon)
+                    val d = Navigation.distanceMeters(
+                        lat, lon,
+                        track.points[nearest].latitude, track.points[nearest].longitude
+                    )
+                    if (d < TRACK_SNAP_THRESHOLD_M) start = nearest
+                }
+            }
+            activeTrackProgress.value = start
+            startTrackFollowing(id)
+        } else {
+            activeTrackProgress.value = 0
         }
+    }
+
+    private fun startTrackFollowing(trackId: Long) {
+        trackFollowJob = viewModelScope.launch {
+            rawGpsState.collect { st ->
+                if (activeTrackId.value != trackId) return@collect
+                val track = tracks.value.find { it.id == trackId } ?: return@collect
+                val lat = st.latitude ?: return@collect
+                val lon = st.longitude ?: return@collect
+                val idx = activeTrackProgress.value
+                if (idx >= track.points.lastIndex) return@collect
+                val target = track.points[idx]
+                val d = Navigation.distanceMeters(lat, lon, target.latitude, target.longitude)
+                if (d < TRACK_ADVANCE_THRESHOLD_M) {
+                    activeTrackProgress.value = idx + 1
+                }
+            }
+        }
+    }
+
+    private fun cancelTrackFollowing() {
+        trackFollowJob?.cancel()
+        trackFollowJob = null
+    }
+
+    fun startRecording() {
+        if (_isRecording.value) return
+        _recordingPoints.value = emptyList()
+        _isRecording.value = true
+        recordingJob = viewModelScope.launch {
+            rawGpsState.collect { state ->
+                val lat = state.latitude ?: return@collect
+                val lon = state.longitude ?: return@collect
+                val last = _recordingPoints.value.lastOrNull()
+                val farEnough = last == null ||
+                    Navigation.distanceMeters(last.latitude, last.longitude, lat, lon) >= MIN_RECORD_DISTANCE_M
+                if (farEnough) {
+                    _recordingPoints.value = _recordingPoints.value + TrackPoint(lat, lon)
+                }
+            }
+        }
+    }
+
+    fun stopRecording(): String {
+        recordingJob?.cancel()
+        recordingJob = null
+        _isRecording.value = false
+        val points = _recordingPoints.value
+        _recordingPoints.value = emptyList()
+        if (points.size < 2) {
+            return "Zu wenige Punkte für einen Track"
+        }
+        val name = "Aufzeichnung ${SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.GERMANY).format(Date())}"
+        val track = Track(
+            id = System.currentTimeMillis(),
+            name = name,
+            points = points
+        )
+        tracks.value = tracks.value + track
+        persistTracks()
+        return "Track mit ${points.size} Punkten gespeichert"
     }
 
     fun deleteTrack(id: Long) {
         tracks.value = tracks.value.filterNot { it.id == id }
-        if (activeTrackId.value == id) activeTrackId.value = null
+        if (activeTrackId.value == id) {
+            activeTrackId.value = null
+            cancelTrackFollowing()
+            activeTrackProgress.value = 0
+        }
         persistTracks()
     }
 
@@ -185,10 +293,28 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun toggleFound(id: Long) {
-        waypoints.value = waypoints.value.map { wp ->
+        val wasActive = activeWaypointId.value == id
+        val updated = waypoints.value.map { wp ->
             if (wp.id == id) wp.copy(found = !wp.found) else wp
         }
+        waypoints.value = updated
         persistWaypoints()
+
+        // Nach dem Markieren als "gefunden" automatisch das nächste Ziel aktivieren.
+        val nowFound = updated.find { it.id == id }?.found == true
+        if (wasActive && nowFound) {
+            val remaining = updated.filter { !it.found }
+            val next = remaining.minByOrNull { wp ->
+                val lat = rawGpsState.value.latitude
+                val lon = rawGpsState.value.longitude
+                if (lat != null && lon != null) {
+                    Navigation.distanceMeters(lat, lon, wp.latitude, wp.longitude)
+                } else {
+                    Double.MAX_VALUE
+                }
+            }
+            setActiveWaypoint(next?.id)
+        }
     }
 
     fun importWaypoints(uri: Uri): String {
@@ -225,7 +351,7 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
 
     fun exportGpx(uri: Uri): Boolean {
         return try {
-            val content = WaypointCodec.toGpx(waypoints.value)
+            val content = WaypointCodec.toGpx(waypoints.value, tracks.value)
             getApplication<Application>().contentResolver.openOutputStream(uri)?.use {
                 it.write(content.toByteArray(Charsets.UTF_8))
             } != null

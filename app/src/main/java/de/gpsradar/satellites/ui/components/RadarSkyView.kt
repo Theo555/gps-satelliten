@@ -78,6 +78,7 @@ fun RadarSkyView(
     onFilterSelected: (Constellation?) -> Unit,
     onToggleHeadingUp: () -> Unit,
     onSatelliteClick: (SatelliteInfo) -> Unit,
+    targetBearing: Float? = null,
     modifier: Modifier = Modifier
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "radar_sweep")
@@ -167,7 +168,8 @@ fun RadarSkyView(
                 rotationDegrees = rotationDeg,
                 isHeadingUp = state.isHeadingUp,
                 sweepAngle = sweepAngle,
-                onSatelliteClick = onSatelliteClick
+                onSatelliteClick = onSatelliteClick,
+                targetBearing = targetBearing
             )
         }
 
@@ -189,7 +191,8 @@ private fun RadarCanvas(
     rotationDegrees: Float,
     isHeadingUp: Boolean,
     sweepAngle: Float,
-    onSatelliteClick: (SatelliteInfo) -> Unit
+    onSatelliteClick: (SatelliteInfo) -> Unit,
+    targetBearing: Float? = null
 ) {
     val gridColor = RadarGrid
     val textPaint = remember {
@@ -418,6 +421,42 @@ private fun RadarCanvas(
                 android.graphics.Color.WHITE
             }
             drawContext.canvas.nativeCanvas.drawText(svidText, sx, sy + 10f, textPaint)
+        }
+
+        // Zielrichtungs-Pfeil (aktives Ziel)
+        targetBearing?.let { bearing ->
+            val effAngle = (bearing - rotationDegrees) * (PI.toFloat() / 180f)
+            val dirX = sin(effAngle)
+            val dirY = -cos(effAngle)
+            val tipX = center.x + outerRadius * dirX
+            val tipY = center.y + outerRadius * dirY
+            val tailX = center.x + (outerRadius * 0.55f) * dirX
+            val tailY = center.y + (outerRadius * 0.55f) * dirY
+
+            val arrowColor = Color(0xFFFFB300)
+            drawLine(
+                color = arrowColor,
+                start = Offset(tailX, tailY),
+                end = Offset(tipX, tipY),
+                strokeWidth = 3.dp.toPx()
+            )
+
+            val wingLen = 12.dp.toPx()
+            val wingSpread = 6.dp.toPx()
+            val perpX = cos(effAngle)
+            val perpY = sin(effAngle)
+            drawLine(
+                color = arrowColor,
+                start = Offset(tipX, tipY),
+                end = Offset(tipX - wingLen * dirX + wingSpread * perpX, tipY - wingLen * dirY + wingSpread * perpY),
+                strokeWidth = 3.dp.toPx()
+            )
+            drawLine(
+                color = arrowColor,
+                start = Offset(tipX, tipY),
+                end = Offset(tipX - wingLen * dirX - wingSpread * perpX, tipY - wingLen * dirY - wingSpread * perpY),
+                strokeWidth = 3.dp.toPx()
+            )
         }
 
         // If Heading-Up mode is active: Draw compass arrow at top

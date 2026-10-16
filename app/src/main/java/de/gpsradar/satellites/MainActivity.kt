@@ -38,6 +38,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -47,6 +48,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -54,6 +56,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
+import de.gpsradar.satellites.model.Navigation
 import de.gpsradar.satellites.ui.GpsViewModel
 import de.gpsradar.satellites.ui.components.NavigationScreen
 import de.gpsradar.satellites.ui.components.PermissionAndStatusBanner
@@ -102,8 +105,29 @@ fun GpsAppMainScreen(
     val activeWaypointId by viewModel.activeWaypointId.collectAsState()
     val tracks by viewModel.tracks.collectAsState()
     val activeTrackId by viewModel.activeTrackId.collectAsState()
+    val activeTrackProgress by viewModel.activeTrackProgress.collectAsState()
+    val isRecording by viewModel.isRecording.collectAsState()
+    val recordingPoints by viewModel.recordingPoints.collectAsState()
 
     var currentTab by remember { mutableStateOf(AppTab.RADAR) }
+
+    // Bildschirm wach halten, solange ein Ziel oder Track aktiv ist.
+    val keepScreenOn = activeWaypointId != null || activeTrackId != null
+    val view = LocalView.current
+    SideEffect { view.keepScreenOn = keepScreenOn }
+
+    // Peilung zum aktiven Ziel für den Radar-Pfeil.
+    val activeWaypoint = waypoints.find { it.id == activeWaypointId }
+    val targetBearing: Float? = remember(gpsState.latitude, gpsState.longitude, activeWaypoint?.id) {
+        val lat = gpsState.latitude
+        val lon = gpsState.longitude
+        val wp = activeWaypoint
+        if (lat != null && lon != null && wp != null) {
+            Navigation.initialBearingDegrees(lat, lon, wp.latitude, wp.longitude).toFloat()
+        } else {
+            null
+        }
+    }
 
     // Permission launcher for Location permissions
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -260,7 +284,8 @@ fun GpsAppMainScreen(
                             selectedFilter = selectedFilter,
                             onFilterSelected = { viewModel.setFilter(it) },
                             onToggleHeadingUp = { viewModel.toggleOrientationMode() },
-                            onSatelliteClick = { viewModel.selectSatellite(it) }
+                            onSatelliteClick = { viewModel.selectSatellite(it) },
+                            targetBearing = targetBearing
                         )
                     }
                     AppTab.SIGNALS -> {
@@ -295,6 +320,7 @@ fun GpsAppMainScreen(
                             activeWaypointId = activeWaypointId,
                             tracks = tracks,
                             activeTrackId = activeTrackId,
+                            activeTrackProgress = activeTrackProgress,
                             onAddCurrentPosition = { name, code -> viewModel.addWaypointAtCurrentPosition(name, code) },
                             onAddManual = { name, code, lat, lon -> viewModel.addWaypoint(name, code, lat, lon) },
                             onUpdateWaypoint = { wp -> viewModel.updateWaypoint(wp) },
@@ -306,7 +332,11 @@ fun GpsAppMainScreen(
                             onSetActiveTrack = { id -> viewModel.setActiveTrack(id) },
                             onImportWaypoints = { uri -> viewModel.importWaypoints(uri) },
                             onExportGpx = { uri -> viewModel.exportGpx(uri) },
-                            onExportJson = { uri -> viewModel.exportJson(uri) }
+                            onExportJson = { uri -> viewModel.exportJson(uri) },
+                            isRecording = isRecording,
+                            recordingPointCount = recordingPoints.size,
+                            onStartRecording = { viewModel.startRecording() },
+                            onStopRecording = { viewModel.stopRecording() }
                         )
                     }
                 }

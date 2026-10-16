@@ -80,6 +80,7 @@ fun NavigationScreen(
     activeWaypointId: Long?,
     tracks: List<Track>,
     activeTrackId: Long?,
+    activeTrackProgress: Int,
     onAddCurrentPosition: (name: String, code: String?) -> Unit,
     onAddManual: (name: String, code: String?, latitude: Double, longitude: Double) -> Unit,
     onUpdateWaypoint: (Waypoint) -> Unit,
@@ -92,6 +93,10 @@ fun NavigationScreen(
     onImportWaypoints: (Uri) -> String,
     onExportGpx: (Uri) -> Boolean,
     onExportJson: (Uri) -> Boolean,
+    isRecording: Boolean,
+    recordingPointCount: Int,
+    onStartRecording: () -> Unit,
+    onStopRecording: () -> String,
     modifier: Modifier = Modifier
 ) {
     val scrollState = rememberScrollState()
@@ -125,6 +130,11 @@ fun NavigationScreen(
             state = state,
             tracks = tracks,
             activeTrackId = activeTrackId,
+            activeTrackProgress = activeTrackProgress,
+            isRecording = isRecording,
+            recordingPointCount = recordingPointCount,
+            onStartRecording = onStartRecording,
+            onStopRecording = onStopRecording,
             onDeleteTrack = onDeleteTrack,
             onSetActiveTrack = onSetActiveTrack
         )
@@ -225,7 +235,8 @@ private fun WaypointsCard(
                 ActiveTargetSummary(
                     state = state,
                     waypoint = active,
-                    onOpenMap = { openInMap(context, active) }
+                    onOpenMap = { openInMap(context, active) },
+                    onStop = { onSetActiveWaypoint(null) }
                 )
                 Spacer(modifier = Modifier.height(10.dp))
             }
@@ -389,9 +400,16 @@ private fun TracksCard(
     state: GpsLocationState,
     tracks: List<Track>,
     activeTrackId: Long?,
+    activeTrackProgress: Int,
+    isRecording: Boolean,
+    recordingPointCount: Int,
+    onStartRecording: () -> Unit,
+    onStopRecording: () -> String,
     onDeleteTrack: (Long) -> Unit,
     onSetActiveTrack: (Long?) -> Unit
 ) {
+    val context = LocalContext.current
+
     Card(
         colors = CardDefaults.cardColors(containerColor = CardNavy),
         shape = RoundedCornerShape(14.dp),
@@ -422,11 +440,62 @@ private fun TracksCard(
 
             Spacer(modifier = Modifier.height(10.dp))
 
+            if (isRecording) {
+                Surface(
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(10.dp)
+                                .background(Color(0xFFEF4444), CircleShape)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Aufzeichnung läuft … ($recordingPointCount Punkte)",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color.White,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Button(
+                            onClick = {
+                                val msg = onStopRecording()
+                                Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                            }
+                        ) {
+                            Text("Beenden")
+                        }
+                    }
+                }
+            } else {
+                OutlinedButton(
+                    onClick = onStartRecording,
+                    modifier = Modifier.fillMaxWidth().testTag("start_recording_btn")
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Navigation,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Spur aufzeichnen")
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
             val activeTrack = tracks.find { it.id == activeTrackId }
             if (activeTrack != null) {
                 ActiveTrackSummary(
                     state = state,
                     track = activeTrack,
+                    trackProgress = activeTrackProgress,
                     onStop = { onSetActiveTrack(null) }
                 )
                 Spacer(modifier = Modifier.height(10.dp))
@@ -458,6 +527,7 @@ private fun TracksCard(
 private fun ActiveTrackSummary(
     state: GpsLocationState,
     track: Track,
+    trackProgress: Int,
     onStop: () -> Unit
 ) {
     val lat = state.latitude
@@ -472,7 +542,7 @@ private fun ActiveTrackSummary(
         return
     }
 
-    val idx = track.nearestIndex(lat, lon)
+    val idx = trackProgress.coerceIn(0, track.points.lastIndex)
     val target = track.points[idx]
     val distance = Navigation.distanceMeters(lat, lon, target.latitude, target.longitude)
     val bearing = Navigation.initialBearingDegrees(lat, lon, target.latitude, target.longitude)
@@ -624,7 +694,8 @@ private fun formatDistance(meters: Double): String =
 private fun ActiveTargetSummary(
     state: GpsLocationState,
     waypoint: Waypoint,
-    onOpenMap: () -> Unit
+    onOpenMap: () -> Unit,
+    onStop: () -> Unit
 ) {
     val lat = state.latitude
     val lon = state.longitude
@@ -716,6 +787,15 @@ private fun ActiveTargetSummary(
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.clickable { onOpenMap() }
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Ziel-Navigation beenden",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.clickable { onStop() }
                 )
             }
         }

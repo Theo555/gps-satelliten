@@ -39,7 +39,9 @@ object WaypointCodec {
 
     // ---------- GPX ----------
 
-    fun toGpx(waypoints: List<Waypoint>): String {
+    fun toGpx(waypoints: List<Waypoint>): String = toGpx(waypoints, emptyList())
+
+    fun toGpx(waypoints: List<Waypoint>, tracks: List<Track>): String {
         val sb = StringBuilder()
         sb.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
         sb.append("<gpx version=\"1.1\" creator=\"GPS Satelliten\" xmlns=\"http://www.topografix.com/GPX/1/1\">\n")
@@ -53,6 +55,20 @@ object WaypointCodec {
             wp.code?.let { sb.append("    <desc>").append(escapeXml(it)).append("</desc>\n") }
             wp.cacheType?.let { sb.append("    <type>").append(escapeXml(it)).append("</type>\n") }
             sb.append("  </wpt>\n")
+        }
+        tracks.forEach { trk ->
+            sb.append("  <trk>\n")
+            sb.append("    <name>").append(escapeXml(trk.name)).append("</name>\n")
+            sb.append("    <trkseg>\n")
+            trk.points.forEach { p ->
+                sb.append("      <trkpt lat=\"")
+                    .append(String.format(Locale.US, "%.6f", p.latitude))
+                    .append("\" lon=\"")
+                    .append(String.format(Locale.US, "%.6f", p.longitude))
+                    .append("\"/>\n")
+            }
+            sb.append("    </trkseg>\n")
+            sb.append("  </trk>\n")
         }
         sb.append("</gpx>\n")
         return sb.toString()

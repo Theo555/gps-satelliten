@@ -3,6 +3,7 @@ package de.gpsradar.satellites.ui.components
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -26,6 +27,7 @@ import androidx.compose.material.icons.filled.GpsFixed
 import androidx.compose.material.icons.filled.Height
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.Public
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.Card
@@ -78,12 +80,25 @@ fun PositionFixScreen(
         FixStatusCard(state = state)
 
         // Coordinates Card
-        CoordinatesCard(state = state, onCopyCoordinates = {
-            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-            val text = "${state.formattedCoordinatesDecimal}\n${state.formattedCoordinatesDms}\n${state.formattedCoordinatesDdm}"
-            clipboard.setPrimaryClip(ClipData.newPlainText("GPS Position", text))
-            Toast.makeText(context, "Koordinaten in die Zwischenablage kopiert", Toast.LENGTH_SHORT).show()
-        })
+        CoordinatesCard(
+            state = state,
+            onCopyCoordinates = {
+                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                val text = "${state.formattedCoordinatesDecimal}\n${state.formattedCoordinatesDms}\n${state.formattedCoordinatesDdm}"
+                clipboard.setPrimaryClip(ClipData.newPlainText("GPS Position", text))
+                Toast.makeText(context, "Koordinaten in die Zwischenablage kopiert", Toast.LENGTH_SHORT).show()
+            },
+            onSharePosition = {
+                val lat = state.latitude ?: return@CoordinatesCard
+                val lon = state.longitude ?: return@CoordinatesCard
+                val text = "Ich bin hier: ${state.formattedCoordinatesDecimal}\nhttps://maps.google.com/?q=$lat,$lon"
+                val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(Intent.EXTRA_TEXT, text)
+                }
+                context.startActivity(Intent.createChooser(sendIntent, "Position teilen"))
+            }
+        )
 
         // Dynamics Grid (Altitude, Accuracy, Speed, Bearing)
         DynamicsGrid(state = state)
@@ -183,7 +198,8 @@ private fun FixStatusCard(state: GpsLocationState) {
 @Composable
 private fun CoordinatesCard(
     state: GpsLocationState,
-    onCopyCoordinates: () -> Unit
+    onCopyCoordinates: () -> Unit,
+    onSharePosition: () -> Unit
 ) {
     Card(
         colors = CardDefaults.cardColors(containerColor = CardNavy),
@@ -213,16 +229,29 @@ private fun CoordinatesCard(
                 }
 
                 if (state.latitude != null && state.longitude != null) {
-                    IconButton(
-                        onClick = onCopyCoordinates,
-                        modifier = Modifier.size(32.dp).testTag("copy_coords_btn")
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.ContentCopy,
-                            contentDescription = "Kopieren",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(18.dp)
-                        )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(
+                            onClick = onCopyCoordinates,
+                            modifier = Modifier.size(32.dp).testTag("copy_coords_btn")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.ContentCopy,
+                                contentDescription = "Kopieren",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                        IconButton(
+                            onClick = onSharePosition,
+                            modifier = Modifier.size(32.dp).testTag("share_coords_btn")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Share,
+                                contentDescription = "Teilen",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
                     }
                 }
             }
