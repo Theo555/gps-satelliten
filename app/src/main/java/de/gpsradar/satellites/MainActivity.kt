@@ -107,12 +107,13 @@ fun GpsAppMainScreen(
     val activeTrackId by viewModel.activeTrackId.collectAsState()
     val activeTrackProgress by viewModel.activeTrackProgress.collectAsState()
     val isRecording by viewModel.isRecording.collectAsState()
+    val isRecordingPaused by viewModel.isRecordingPaused.collectAsState()
     val recordingPoints by viewModel.recordingPoints.collectAsState()
 
     var currentTab by remember { mutableStateOf(AppTab.RADAR) }
 
-    // Bildschirm wach halten, solange ein Ziel oder Track aktiv ist.
-    val keepScreenOn = activeWaypointId != null || activeTrackId != null
+    // Bildschirm wach halten, solange ein Ziel/Track aktiv ist oder aufgezeichnet wird.
+    val keepScreenOn = activeWaypointId != null || activeTrackId != null || isRecording
     val view = LocalView.current
     SideEffect { view.keepScreenOn = keepScreenOn }
 
@@ -334,9 +335,14 @@ fun GpsAppMainScreen(
                             onExportGpx = { uri -> viewModel.exportGpx(uri) },
                             onExportJson = { uri -> viewModel.exportJson(uri) },
                             isRecording = isRecording,
+                            isRecordingPaused = isRecordingPaused,
                             recordingPointCount = recordingPoints.size,
                             onStartRecording = { viewModel.startRecording() },
-                            onStopRecording = { viewModel.stopRecording() }
+                            onStopRecording = { name -> viewModel.stopRecording(name) },
+                            onDefaultRecordingName = { viewModel.defaultRecordingName() },
+                            onPauseRecording = { viewModel.pauseRecording() },
+                            onResumeRecording = { viewModel.resumeRecording() },
+                            onReverseTrack = { id -> viewModel.reverseTrack(id) }
                         )
                     }
                 }

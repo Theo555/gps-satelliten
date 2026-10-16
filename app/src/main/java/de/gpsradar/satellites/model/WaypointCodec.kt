@@ -1,6 +1,9 @@
 package de.gpsradar.satellites.model
 
+import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
+import java.util.TimeZone
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -65,7 +68,19 @@ object WaypointCodec {
                     .append(String.format(Locale.US, "%.6f", p.latitude))
                     .append("\" lon=\"")
                     .append(String.format(Locale.US, "%.6f", p.longitude))
-                    .append("\"/>\n")
+                    .append("\">")
+                if (p.elevationMeters != null || p.timeMillis != null) {
+                    sb.append("\n")
+                    p.elevationMeters?.let {
+                        sb.append("        <ele>").append(String.format(Locale.US, "%.1f", it)).append("</ele>\n")
+                    }
+                    p.timeMillis?.let {
+                        sb.append("        <time>").append(formatGpxTime(it)).append("</time>\n")
+                    }
+                    sb.append("      </trkpt>\n")
+                } else {
+                    sb.append("</trkpt>\n")
+                }
             }
             sb.append("    </trkseg>\n")
             sb.append("  </trk>\n")
@@ -129,11 +144,8 @@ object WaypointCodec {
         for (trk in trkRegex.findAll(text)) {
             val trkBody = trk.groupValues[1]
             val trackName = extractTag(trkBody, "name")?.ifBlank { null } ?: "Track"
-            val points = mutableListOf<TrackPoint>()
-            for (pt in Regex("<trkpt\\b([^>]*)>").findAll(trkBody)) {
-                val latLon = parseLatLon(pt.groupValues[1])
-                if (latLon == null) skipped++ else points.add(TrackPoint(latLon.first, latLon.second))
-            }
+            val (points, ptSkipped) = parseTrackPoints(trkBody, "trkpt")
+            skipped += ptSkipped
             if (points.size >= 2) {
                 tracks.add(Track(id = System.currentTimeMillis() + tracks.size + 1_000_000L, name = trackName, points = points))
             } else {
@@ -146,11 +158,8 @@ object WaypointCodec {
         for (rte in rteRegex.findAll(text)) {
             val rteBody = rte.groupValues[1]
             val routeName = extractTag(rteBody, "name")?.ifBlank { null } ?: "Route"
-            val points = mutableListOf<TrackPoint>()
-            for (pt in Regex("<rtept\\b([^>]*)>").findAll(rteBody)) {
-                val latLon = parseLatLon(pt.groupValues[1])
-                if (latLon == null) skipped++ else points.add(TrackPoint(latLon.first, latLon.second))
-            }
+            val (points, ptSkipped) = parseTrackPoints(rteBody, "rtept")
+            skipped += ptSkipped
             if (points.size >= 2) {
                 tracks.add(Track(id = System.currentTimeMillis() + tracks.size + 1_000_000L, name = routeName, points = points))
             } else {
@@ -172,6 +181,47 @@ object WaypointCodec {
     private fun extractTag(xml: String, tag: String): String? {
         val m = Regex("<$tag\\b[^>]*>(.*?)</$tag>", RegexOption.DOT_MATCHES_ALL).find(xml)
         return m?.groupValues?.get(1)?.trim()?.ifBlank { null }?.let { unescapeXml(it) }
+    }
+
+    private fun parseTrackPoints(xml: String, tag: String): Pair<List<TrackPoint>, Int> {
+        val points = mutableListOf<TrackPoint>()
+        var skipped = 0
+        val ptRegex = Regex("<$tag\\b([^>]*?)/>|<$tag\\b([^>]*)>(.*?)</$tag>", RegexOption.DOT_MATCHES_ALL)
+        for (m in ptRegex.findAll(xml)) {
+            val attrs = if (m.groupValues[1].isNotBlank()) m.groupValues[1] else m.groupValues[2]
+            val body = m.groupValues[3]
+            val latLon = parseLatLon(attrs)
+            if (latLon == null) {
+                skipped++
+                continue
+            }
+            val ele = if (body.isNotEmpty()) extractTag(body, "ele")?.toDoubleOrNull() else null
+            val timeStr = if (body.isNotEmpty()) extractTag(body, "time") else null
+            val time = timeStr?.let { parseGpxTime(it) }
+            points.add(TrackPoint(latLon.first, latLon.second, ele, time))
+        }
+        return points to skipped
+    }
+
+    private fun formatGpxTime(millis: Long): String {
+        val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US)
+        sdf.timeZone = TimeZone.getTimeZone("UTC")
+        return sdf.format(Date(millis))
+    }
+
+    private fun parseGpxTime(value: String): Long? {
+        val cleaned = value.trim().substringBefore(".")
+        val formats = listOf("yyyy-MM-dd'T'HH:mm:ss'Z'", "yyyy-MM-dd'T'HH:mm:ss")
+        for (f in formats) {
+            try {
+                val sdf = SimpleDateFormat(f, Locale.US)
+                sdf.timeZone = TimeZone.getTimeZone("UTC")
+                return sdf.parse(cleaned)?.time
+            } catch (e: Exception) {
+                // nächstes Format versuchen
+            }
+        }
+        return null
     }
 
     private fun escapeXml(s: String): String =

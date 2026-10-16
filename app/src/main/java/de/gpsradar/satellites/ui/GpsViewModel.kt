@@ -3,6 +3,9 @@ package de.gpsradar.satellites.ui
 import android.app.Application
 import android.content.Context
 import android.net.Uri
+import android.os.Build
+import android.os.VibrationEffect
+import android.os.Vibrator
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import org.json.JSONArray
@@ -37,6 +40,7 @@ enum class SatelliteSort(val label: String) {
 private const val MIN_RECORD_DISTANCE_M = 5.0
 private const val TRACK_ADVANCE_THRESHOLD_M = 25.0
 private const val TRACK_SNAP_THRESHOLD_M = 100.0
+private const val ARRIVAL_THRESHOLD_M = 5.0
 
 class GpsViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -65,6 +69,10 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
     val recordingPoints: StateFlow<List<TrackPoint>> = _recordingPoints
     private var recordingJob: Job? = null
     private var trackFollowJob: Job? = null
+    private val _isRecordingPaused = MutableStateFlow(false)
+    val isRecordingPaused: StateFlow<Boolean> = _isRecordingPaused
+    private var arrivalJob: Job? = null
+    private var arrivalAlerted = false
 
     // Filtered and sorted satellite list
     val displayedSatellites: StateFlow<List<SatelliteInfo>> = combine(
@@ -142,14 +150,15 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
             code = code?.trim()?.ifBlank { null }
         )
         waypoints.value = waypoints.value + wp
-        activeWaypointId.value = wp.id
         persistWaypoints()
+        setActiveWaypoint(wp.id)
     }
 
     fun deleteWaypoint(id: Long) {
         waypoints.value = waypoints.value.filterNot { it.id == id }
         if (activeWaypointId.value == id) {
             activeWaypointId.value = null
+            cancelArrivalMonitoring()
             prefs.edit().remove("active_waypoint_id").apply()
         }
         persistWaypoints()
@@ -160,6 +169,9 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
         if (id != null) {
             activeTrackId.value = null
             cancelTrackFollowing()
+            startArrivalMonitoring(id)
+        } else {
+            cancelArrivalMonitoring()
         }
         if (id == null) {
             prefs.edit().remove("active_waypoint_id").apply()
@@ -173,6 +185,7 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
         activeTrackId.value = id
         if (id != null) {
             activeWaypointId.value = null
+            cancelArrivalMonitoring()
             prefs.edit().remove("active_waypoint_id").apply()
 
             // Startpunkt festlegen: nah am Track -> nächstgelegener Punkt, sonst Anfang.
@@ -221,10 +234,77 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
         trackFollowJob = null
     }
 
+    private fun startArrivalMonitoring(waypointId: Long) {
+        cancelArrivalMonitoring()
+        arrivalAlerted = false
+        arrivalJob = viewModelScope.launch {
+            rawGpsState.collect { st ->
+                if (activeWaypointId.value != waypointId) return@collect
+                val wp = waypoints.value.find { it.id == waypointId } ?: return@collect
+                val lat = st.latitude ?: return@collect
+                val lon = st.longitude ?: return@collect
+                val d = Navigation.distanceMeters(lat, lon, wp.latitude, wp.longitude)
+                if (d < ARRIVAL_THRESHOLD_M && !arrivalAlerted) {
+                    arrivalAlerted = true
+                    vibrateArrival()
+                } else if (d > ARRIVAL_THRESHOLD_M * 2) {
+                    arrivalAlerted = false
+                }
+            }
+        }
+    }
+
+    private fun cancelArrivalMonitoring() {
+        arrivalJob?.cancel()
+        arrivalJob = null
+    }
+
+    private fun vibrateArrival() {
+        val vibrator = getApplication<Application>().getSystemService(Vibrator::class.java) ?: return
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            vibrator.vibrate(VibrationEffect.createOneShot(500, VibrationEffect.DEFAULT_AMPLITUDE))
+        } else {
+            @Suppress("DEPRECATION")
+            vibrator.vibrate(500)
+        }
+    }
+
+    fun reverseTrack(id: Long) {
+        val idx = tracks.value.indexOfFirst { it.id == id }
+        if (idx < 0) return
+        val track = tracks.value[idx]
+        tracks.value = tracks.value.toMutableList().also {
+            it[idx] = track.copy(points = track.points.reversed())
+        }
+        persistTracks()
+        if (activeTrackId.value == id) {
+            cancelTrackFollowing()
+            activeTrackProgress.value = 0
+        }
+    }
+
     fun startRecording() {
         if (_isRecording.value) return
         _recordingPoints.value = emptyList()
         _isRecording.value = true
+        _isRecordingPaused.value = false
+        runRecordingCollector()
+    }
+
+    fun pauseRecording() {
+        if (!_isRecording.value) return
+        recordingJob?.cancel()
+        recordingJob = null
+        _isRecordingPaused.value = true
+    }
+
+    fun resumeRecording() {
+        if (!_isRecording.value || !_isRecordingPaused.value) return
+        _isRecordingPaused.value = false
+        runRecordingCollector()
+    }
+
+    private fun runRecordingCollector() {
         recordingJob = viewModelScope.launch {
             rawGpsState.collect { state ->
                 val lat = state.latitude ?: return@collect
@@ -233,25 +313,33 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
                 val farEnough = last == null ||
                     Navigation.distanceMeters(last.latitude, last.longitude, lat, lon) >= MIN_RECORD_DISTANCE_M
                 if (farEnough) {
-                    _recordingPoints.value = _recordingPoints.value + TrackPoint(lat, lon)
+                    _recordingPoints.value = _recordingPoints.value + TrackPoint(
+                        latitude = lat,
+                        longitude = lon,
+                        elevationMeters = state.altitudeMeters,
+                        timeMillis = state.timeMillis
+                    )
                 }
             }
         }
     }
 
-    fun stopRecording(): String {
+    fun defaultRecordingName(): String =
+        "Aufzeichnung ${SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.GERMANY).format(Date())}"
+
+    fun stopRecording(name: String): String {
         recordingJob?.cancel()
         recordingJob = null
         _isRecording.value = false
+        _isRecordingPaused.value = false
         val points = _recordingPoints.value
         _recordingPoints.value = emptyList()
         if (points.size < 2) {
             return "Zu wenige Punkte für einen Track"
         }
-        val name = "Aufzeichnung ${SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.GERMANY).format(Date())}"
         val track = Track(
             id = System.currentTimeMillis(),
-            name = name,
+            name = name.ifBlank { defaultRecordingName() },
             points = points
         )
         tracks.value = tracks.value + track
@@ -287,8 +375,8 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
             longitude = lon
         )
         waypoints.value = waypoints.value + wp
-        activeWaypointId.value = wp.id
         persistWaypoints()
+        setActiveWaypoint(wp.id)
         return "Projizierter Zielpunkt angelegt"
     }
 
@@ -431,6 +519,8 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
                             JSONObject().apply {
                                 put("lat", p.latitude)
                                 put("lon", p.longitude)
+                                p.elevationMeters?.let { put("ele", it) }
+                                p.timeMillis?.let { put("time", it) }
                             }
                         )
                     }
@@ -450,7 +540,12 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
                 val ptsArr = o.getJSONArray("points")
                 val points = (0 until ptsArr.length()).map { j ->
                     val p = ptsArr.getJSONObject(j)
-                    TrackPoint(p.getDouble("lat"), p.getDouble("lon"))
+                    TrackPoint(
+                        latitude = p.getDouble("lat"),
+                        longitude = p.getDouble("lon"),
+                        elevationMeters = if (p.has("ele")) p.getDouble("ele") else null,
+                        timeMillis = if (p.has("time")) p.getLong("time") else null
+                    )
                 }
                 Track(
                     id = o.getLong("id"),

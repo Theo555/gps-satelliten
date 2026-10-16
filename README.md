@@ -36,14 +36,25 @@ Keine Lust, selbst zu kompilieren? Lade einfach die fertige APK herunter und ins
 - **Import/Export** – GPX (Geocaching-Standard) und JSON über den Android-Datei-Picker, inkl. Pocket-Query-Support (GC-Code, Typ, D/T, Hint)
 - **„In Karte öffnen"** – Zielpunkt per `geo:`-Intent an eine externe Karten-App übergeben
 
+### 🗺️ Tracks & Aufzeichnung
+
+- **Tracks/Routen importieren** – GPX-Tracks und -Routen als zusammenhängende Linie
+- **Track folgen** in der gespeicherten Reihenfolge (Einstieg am Anfang oder am nächstgelegenen Punkt)
+- **Track umkehren** – Route rückwärts ablaufen (z. B. zurück zum Start)
+- **Eigene Spur aufzeichnen** (Breadcrumb) mit Pause/Fortsetzen und Umbenennen; als GPX exportierbar (inkl. Höhe + Zeitstempel)
+- **Ankunfts-Alarm** – Vibration, sobald du dem aktiven Ziel näher als 5 m kommst
+- **Peilungspfeil im Radar** – Richtung zum aktiven Ziel direkt im Himmels-Radar
+
 ### ⚙️ Sonstiges
 
 - **Simulationsmodus** – realistisches Satelliten-Szenario, wenn kein Empfang verfügbar ist (z. B. in Gebäuden oder im Emulator)
+- **Bildschirm bleibt an** – Display bleibt wach, solange ein Ziel/Track aktiv ist oder aufgezeichnet wird
+- **Position teilen** – aktuelle Koordinaten inkl. Google-Maps-Link über das Android-Teilen-Menü
 - Dunkles Telemetrie-Design
 
 ## Screenshots
 
-> _TODO: Screenshots der vier Tabs (Radar, Signale, Liste, Position) einfügen._
+> _TODO: Screenshots der fünf Tabs (Radar, Signale, Liste, Position, Nav) einfügen._
 
 ## Technik
 
@@ -81,11 +92,15 @@ Die Release-APK liegt danach unter `app/build/outputs/apk/release/app-release.ap
 ## Nutzung als Geocaching-Begleiter
 
 1. Pocket-Query von geocaching.com als **GPX** herunterladen.
-2. In der App unter **Position → Datei-Übertragung → Importieren (GPX/JSON)** importieren.
+2. In der App unter **Nav → Importieren (GPX/JSON)** importieren.
 3. Cache in der Liste antippen, um ihn zum **aktiven Ziel** zu machen.
 4. Dem **Richtungspfeil** folgen (Entfernung + Peilung).
 5. Hint über **„Hint anzeigen"** entschlüsseln, Cache als **„gefunden"** markieren.
 6. Für Multis/Mysteries: **Projektion** nutzen oder neue Zielpunkte **manuell** anlegen (Koordinaten in Dezimal/DMS/DDM).
+
+## Eigene Tracks erstellen
+
+Eigene Wander-/Radrouten lassen sich bequem mit **[BRouter](https://brouter.de/brouter-web)** erstellen: Route zeichnen → als **GPX** exportieren → in der App unter **Nav → Importieren (GPX/JSON)** importieren und der Route folgen.
 
 ## Projektstruktur
 

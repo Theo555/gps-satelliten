@@ -3,7 +3,9 @@ package de.gpsradar.satellites.model
 /** Ein einzelner Punkt eines Tracks oder einer Route. */
 data class TrackPoint(
     val latitude: Double,
-    val longitude: Double
+    val longitude: Double,
+    val elevationMeters: Double? = null,
+    val timeMillis: Long? = null
 )
 
 /**

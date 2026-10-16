@@ -33,6 +33,7 @@ import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.Navigation
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
+import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -94,9 +95,14 @@ fun NavigationScreen(
     onExportGpx: (Uri) -> Boolean,
     onExportJson: (Uri) -> Boolean,
     isRecording: Boolean,
+    isRecordingPaused: Boolean,
     recordingPointCount: Int,
     onStartRecording: () -> Unit,
-    onStopRecording: () -> String,
+    onStopRecording: (String) -> String,
+    onDefaultRecordingName: () -> String,
+    onPauseRecording: () -> Unit,
+    onResumeRecording: () -> Unit,
+    onReverseTrack: (Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val scrollState = rememberScrollState()
@@ -132,9 +138,14 @@ fun NavigationScreen(
             activeTrackId = activeTrackId,
             activeTrackProgress = activeTrackProgress,
             isRecording = isRecording,
+            isRecordingPaused = isRecordingPaused,
             recordingPointCount = recordingPointCount,
             onStartRecording = onStartRecording,
             onStopRecording = onStopRecording,
+            onDefaultRecordingName = onDefaultRecordingName,
+            onPauseRecording = onPauseRecording,
+            onResumeRecording = onResumeRecording,
+            onReverseTrack = onReverseTrack,
             onDeleteTrack = onDeleteTrack,
             onSetActiveTrack = onSetActiveTrack
         )
@@ -402,13 +413,20 @@ private fun TracksCard(
     activeTrackId: Long?,
     activeTrackProgress: Int,
     isRecording: Boolean,
+    isRecordingPaused: Boolean,
     recordingPointCount: Int,
     onStartRecording: () -> Unit,
-    onStopRecording: () -> String,
+    onStopRecording: (String) -> String,
+    onDefaultRecordingName: () -> String,
+    onPauseRecording: () -> Unit,
+    onResumeRecording: () -> Unit,
+    onReverseTrack: (Long) -> Unit,
     onDeleteTrack: (Long) -> Unit,
     onSetActiveTrack: (Long?) -> Unit
 ) {
     val context = LocalContext.current
+    var showStopDialog by remember { mutableStateOf(false) }
+    var trackName by remember { mutableStateOf("") }
 
     Card(
         colors = CardDefaults.cardColors(containerColor = CardNavy),
@@ -446,30 +464,48 @@ private fun TracksCard(
                     shape = RoundedCornerShape(10.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Row(
-                        modifier = Modifier.padding(10.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(10.dp)
-                                .background(Color(0xFFEF4444), CircleShape)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Aufzeichnung läuft … ($recordingPointCount Punkte)",
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color.White,
-                            modifier = Modifier.weight(1f)
-                        )
-                        Button(
-                            onClick = {
-                                val msg = onStopRecording()
-                                Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                    Column(modifier = Modifier.padding(10.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(10.dp)
+                                    .background(
+                                        if (isRecordingPaused) Color(0xFF64748B) else Color(0xFFEF4444),
+                                        CircleShape
+                                    )
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = if (isRecordingPaused) {
+                                    "Aufzeichnung pausiert ($recordingPointCount Punkte)"
+                                } else {
+                                    "Aufzeichnung läuft … ($recordingPointCount Punkte)"
+                                },
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color.White,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedButton(
+                                onClick = {
+                                    if (isRecordingPaused) onResumeRecording() else onPauseRecording()
+                                },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text(if (isRecordingPaused) "Fortsetzen" else "Pause")
                             }
-                        ) {
-                            Text("Beenden")
+                            Button(
+                                onClick = {
+                                    trackName = onDefaultRecordingName()
+                                    showStopDialog = true
+                                },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("Beenden")
+                            }
                         }
                     }
                 }
@@ -514,12 +550,52 @@ private fun TracksCard(
                             track = trk,
                             isActive = trk.id == activeTrackId,
                             onClick = { onSetActiveTrack(if (trk.id == activeTrackId) null else trk.id) },
+                            onReverse = { onReverseTrack(trk.id) },
                             onDelete = { onDeleteTrack(trk.id) }
                         )
                     }
                 }
             }
         }
+    }
+
+    if (showStopDialog) {
+        AlertDialog(
+            onDismissRequest = { showStopDialog = false },
+            title = { Text("Aufzeichnung beenden") },
+            text = {
+                Column {
+                    Text(
+                        text = "Name für den Track:",
+                        fontSize = 12.sp,
+                        color = Color(0xFFCBD5E1)
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = trackName,
+                        onValueChange = { trackName = it },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val msg = onStopRecording(trackName)
+                        Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                        showStopDialog = false
+                    }
+                ) {
+                    Text("Speichern")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showStopDialog = false }) {
+                    Text("Abbrechen")
+                }
+            }
+        )
     }
 }
 
@@ -621,6 +697,7 @@ private fun TrackRow(
     track: Track,
     isActive: Boolean,
     onClick: () -> Unit,
+    onReverse: () -> Unit,
     onDelete: () -> Unit
 ) {
     Surface(
@@ -667,6 +744,17 @@ private fun TrackRow(
                     color = MaterialTheme.colorScheme.primary
                 )
                 Spacer(modifier = Modifier.width(8.dp))
+            }
+            IconButton(
+                onClick = onReverse,
+                modifier = Modifier.size(28.dp).testTag("reverse_track_${track.id}")
+            ) {
+                Icon(
+                    imageVector = Icons.Default.SwapVert,
+                    contentDescription = "Track umkehren",
+                    tint = Color(0xFF94A3B8),
+                    modifier = Modifier.size(18.dp)
+                )
             }
             IconButton(
                 onClick = onDelete,
