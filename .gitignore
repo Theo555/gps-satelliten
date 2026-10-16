@@ -19,3 +19,4 @@ local.properties
 debug.keystore
 my-upload-key.jks
 *.jks
+/sources.list

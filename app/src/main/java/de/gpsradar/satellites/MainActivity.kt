@@ -20,6 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.MyLocation
+import androidx.compose.material.icons.filled.Navigation
 import androidx.compose.material.icons.filled.Radar
 import androidx.compose.material.icons.filled.Science
 import androidx.compose.material.icons.outlined.Science
@@ -54,6 +55,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import de.gpsradar.satellites.ui.GpsViewModel
+import de.gpsradar.satellites.ui.components.NavigationScreen
 import de.gpsradar.satellites.ui.components.PermissionAndStatusBanner
 import de.gpsradar.satellites.ui.components.PositionFixScreen
 import de.gpsradar.satellites.ui.components.RadarSkyView
@@ -69,7 +71,8 @@ enum class AppTab(val title: String, val icon: ImageVector, val tag: String) {
     RADAR("Radar", Icons.Default.Radar, "tab_radar"),
     SIGNALS("Signale", Icons.Default.BarChart, "tab_signals"),
     LIST("Liste", Icons.AutoMirrored.Filled.List, "tab_list"),
-    POSITION("Position", Icons.Default.MyLocation, "tab_position")
+    POSITION("Position", Icons.Default.MyLocation, "tab_position"),
+    NAVIGATION("Nav", Icons.Default.Navigation, "tab_navigation")
 }
 
 class MainActivity : ComponentActivity() {
@@ -282,6 +285,11 @@ fun GpsAppMainScreen(
                     }
                     AppTab.POSITION -> {
                         PositionFixScreen(
+                            state = gpsState
+                        )
+                    }
+                    AppTab.NAVIGATION -> {
+                        NavigationScreen(
                             state = gpsState,
                             waypoints = waypoints,
                             activeWaypointId = activeWaypointId,

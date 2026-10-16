@@ -6,8 +6,8 @@ Native Android-App (Kotlin + Jetpack Compose) zur **Live-Anzeige von GNSS-Satell
 
 Keine Lust, selbst zu kompilieren? Lade einfach die fertige APK herunter und installiere sie direkt:
 
-- **[Neueste Version](https://github.com/Theo555/gps-satelliten/releases/latest)** – Übersicht aller Releases
-- **[GPS-Satelliten-v1.0.0.apk](https://github.com/Theo555/gps-satelliten/releases/download/v1.0.0/GPS-Satelliten-v1.0.0.apk)** – Direkt-Download der APK
+- **[Neueste Version](https://github.com/Theo555/gps-satelliten/releases/latest)** – das aktuelle Release (dort APK herunterladen)
+- **[Alle Releases](https://github.com/Theo555/gps-satelliten/releases)** – Übersicht aller Releases
 
 > **Hinweis:** Die APK ist mit einem Test-Schlüssel signiert. Beim ersten Installieren kann eine **Play-Protect-Warnung** erscheinen – dort einfach **„Trotzdem installieren"** wählen. Voraussetzung: Android 7.0 (API 24) oder neuer.
 
