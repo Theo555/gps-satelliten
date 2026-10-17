@@ -30,6 +30,8 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.Flag
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Navigation
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
@@ -63,6 +65,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import de.gpsradar.satellites.model.CACHE_TYPES
+import de.gpsradar.satellites.model.Cache
 import de.gpsradar.satellites.model.Coordinates
 import de.gpsradar.satellites.model.GpsLocationState
 import de.gpsradar.satellites.model.Navigation
@@ -78,6 +81,8 @@ import java.util.Locale
 fun NavigationScreen(
     state: GpsLocationState,
     waypoints: List<Waypoint>,
+    caches: List<Cache>,
+    freeWaypoints: List<Waypoint>,
     activeWaypointId: Long?,
     tracks: List<Track>,
     activeTrackId: Long?,
@@ -118,6 +123,8 @@ fun NavigationScreen(
         WaypointsCard(
             state = state,
             waypoints = waypoints,
+            caches = caches,
+            freeWaypoints = freeWaypoints,
             activeWaypointId = activeWaypointId,
             onAddCurrentPosition = onAddCurrentPosition,
             onAddManual = onAddManual,
@@ -158,6 +165,8 @@ fun NavigationScreen(
 private fun WaypointsCard(
     state: GpsLocationState,
     waypoints: List<Waypoint>,
+    caches: List<Cache>,
+    freeWaypoints: List<Waypoint>,
     activeWaypointId: Long?,
     onAddCurrentPosition: (name: String, code: String?) -> Unit,
     onAddManual: (name: String, code: String?, latitude: Double, longitude: Double) -> Unit,
@@ -197,6 +206,7 @@ private fun WaypointsCard(
     var showManualDialog by remember { mutableStateOf(false) }
     var showProjectionDialog by remember { mutableStateOf(false) }
     var editingWaypoint by remember { mutableStateOf<Waypoint?>(null) }
+    var expandedCacheId by remember { mutableStateOf<String?>(null) }
 
     Card(
         colors = CardDefaults.cardColors(containerColor = CardNavy),
@@ -260,17 +270,39 @@ private fun WaypointsCard(
                 )
             } else {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    waypoints.forEach { wp ->
-                        WaypointRow(
-                            state = state,
-                            waypoint = wp,
-                            isActive = wp.id == activeWaypointId,
-                            onClick = { onSetActiveWaypoint(wp.id) },
-                            onEdit = { editingWaypoint = wp },
-                            onToggleFound = { onToggleFound(wp.id) },
-                            onOpenMap = { openInMap(context, wp) },
-                            onDelete = { onDeleteWaypoint(wp.id) }
-                        )
+                    if (caches.isNotEmpty()) {
+                        SectionHeader("Caches (${caches.size})")
+                        caches.forEach { cache ->
+                            CacheRow(
+                                state = state,
+                                cache = cache,
+                                expanded = expandedCacheId == cache.id,
+                                activeWaypointId = activeWaypointId,
+                                onToggleExpand = {
+                                    expandedCacheId = if (expandedCacheId == cache.id) null else cache.id
+                                },
+                                onSetActiveWaypoint = onSetActiveWaypoint,
+                                onEditWaypoint = { editingWaypoint = it },
+                                onToggleFound = onToggleFound,
+                                onOpenMap = { openInMap(context, it) },
+                                onDeleteWaypoint = onDeleteWaypoint
+                            )
+                        }
+                    }
+                    if (freeWaypoints.isNotEmpty()) {
+                        SectionHeader("Weitere Zielpunkte (${freeWaypoints.size})")
+                        freeWaypoints.forEach { wp ->
+                            WaypointRow(
+                                state = state,
+                                waypoint = wp,
+                                isActive = wp.id == activeWaypointId,
+                                onClick = { onSetActiveWaypoint(wp.id) },
+                                onEdit = { editingWaypoint = wp },
+                                onToggleFound = { onToggleFound(wp.id) },
+                                onOpenMap = { openInMap(context, wp) },
+                                onDelete = { onDeleteWaypoint(wp.id) }
+                            )
+                        }
                     }
                 }
             }
@@ -885,6 +917,119 @@ private fun ActiveTargetSummary(
                     color = MaterialTheme.colorScheme.error,
                     modifier = Modifier.clickable { onStop() }
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SectionHeader(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelLarge,
+        fontWeight = FontWeight.SemiBold,
+        color = Color(0xFFCBD5E1),
+        modifier = Modifier.padding(top = 4.dp, bottom = 2.dp)
+    )
+}
+
+@Composable
+private fun CacheRow(
+    state: GpsLocationState,
+    cache: Cache,
+    expanded: Boolean,
+    activeWaypointId: Long?,
+    onToggleExpand: () -> Unit,
+    onSetActiveWaypoint: (Long) -> Unit,
+    onEditWaypoint: (Waypoint) -> Unit,
+    onToggleFound: (Long) -> Unit,
+    onOpenMap: (Waypoint) -> Unit,
+    onDeleteWaypoint: (Long) -> Unit
+) {
+    val primary = cache.primary
+    val lat = state.latitude
+    val lon = state.longitude
+    val distance = if (primary != null && lat != null && lon != null) {
+        Navigation.distanceMeters(lat, lon, primary.latitude, primary.longitude)
+    } else null
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Surface(
+            color = if (cache.waypoints.any { it.id == activeWaypointId }) {
+                MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+            } else {
+                Color(0xFF0F1E42)
+            },
+            shape = RoundedCornerShape(10.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onToggleExpand)
+                .testTag("cache_row_${cache.id}")
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(cacheTypeEmoji(cache.cacheType), fontSize = 16.sp)
+                Spacer(modifier = Modifier.width(8.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = cache.name,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color.White
+                        )
+                        if (cache.archived) {
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "ARCHIVIERT",
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFFF87171)
+                            )
+                        }
+                    }
+                    val details = buildList {
+                        cache.code?.let { add(it) }
+                        if (cache.difficulty != null && cache.terrain != null) {
+                            add(String.format(Locale.US, "D%.1f/T%.1f", cache.difficulty, cache.terrain))
+                        }
+                        if (cache.childCount > 1) add("${cache.childCount} Wegpunkte")
+                        distance?.let { add(formatDistance(it)) }
+                    }
+                    Text(
+                        text = details.joinToString(" · "),
+                        fontSize = 10.sp,
+                        color = Color(0xFF94A3B8)
+                    )
+                }
+                Icon(
+                    imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                    contentDescription = if (expanded) "Zuklappen" else "Aufklappen",
+                    tint = Color(0xFF94A3B8)
+                )
+            }
+        }
+
+        if (expanded) {
+            Spacer(modifier = Modifier.height(4.dp))
+            Column(
+                modifier = Modifier.padding(start = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                cache.waypoints.forEach { wp ->
+                    WaypointRow(
+                        state = state,
+                        waypoint = wp,
+                        isActive = wp.id == activeWaypointId,
+                        onClick = { onSetActiveWaypoint(wp.id) },
+                        onEdit = { onEditWaypoint(wp) },
+                        onToggleFound = { onToggleFound(wp.id) },
+                        onOpenMap = { onOpenMap(wp) },
+                        onDelete = { onDeleteWaypoint(wp.id) }
+                    )
+                }
             }
         }
     }

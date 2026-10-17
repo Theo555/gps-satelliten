@@ -110,6 +110,8 @@ fun GpsAppMainScreen(
     val selectedSort by viewModel.selectedSort.collectAsState()
     val selectedSatellite by viewModel.selectedSatellite.collectAsState()
     val waypoints by viewModel.waypoints.collectAsState()
+    val caches by viewModel.caches.collectAsState()
+    val freeWaypoints by viewModel.freeWaypoints.collectAsState()
     val activeWaypointId by viewModel.activeWaypointId.collectAsState()
     val tracks by viewModel.tracks.collectAsState()
     val activeTrackId by viewModel.activeTrackId.collectAsState()
@@ -326,6 +328,8 @@ fun GpsAppMainScreen(
                         NavigationScreen(
                             state = gpsState,
                             waypoints = waypoints,
+                            caches = caches,
+                            freeWaypoints = freeWaypoints,
                             activeWaypointId = activeWaypointId,
                             tracks = tracks,
                             activeTrackId = activeTrackId,

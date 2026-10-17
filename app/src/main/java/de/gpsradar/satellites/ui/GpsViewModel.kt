@@ -14,6 +14,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import de.gpsradar.satellites.gps.GpsDataManager
+import de.gpsradar.satellites.model.Cache
 import de.gpsradar.satellites.model.Constellation
 import de.gpsradar.satellites.model.GpsLocationState
 import de.gpsradar.satellites.model.Navigation
@@ -22,11 +23,13 @@ import de.gpsradar.satellites.model.Track
 import de.gpsradar.satellites.model.TrackPoint
 import de.gpsradar.satellites.model.Waypoint
 import de.gpsradar.satellites.model.WaypointCodec
+import de.gpsradar.satellites.model.groupWaypoints
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -62,6 +65,15 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
     val tracks = MutableStateFlow<List<Track>>(loadTracks())
     val activeTrackId = MutableStateFlow<Long?>(null)
     val activeTrackProgress = MutableStateFlow<Int>(0)
+
+    // Abgeleitete Sichten: Caches (gruppiert über groundspeak:cache id) und freie Wegpunkte.
+    val caches: StateFlow<List<Cache>> = waypoints
+        .map { list -> groupWaypoints(list).caches }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    val freeWaypoints: StateFlow<List<Waypoint>> = waypoints
+        .map { list -> groupWaypoints(list).freeWaypoints }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     private val _isRecording = MutableStateFlow(false)
     val isRecording: StateFlow<Boolean> = _isRecording
@@ -474,6 +486,8 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
                     wp.difficulty?.let { put("difficulty", it) }
                     wp.terrain?.let { put("terrain", it) }
                     wp.cacheType?.let { put("cacheType", it) }
+                    wp.groupCacheId?.let { put("groupCacheId", it) }
+                    put("archived", wp.archived)
                     put("found", wp.found)
                 }
             )
@@ -498,6 +512,8 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
                     difficulty = if (o.has("difficulty")) o.optDouble("difficulty") else null,
                     terrain = if (o.has("terrain")) o.optDouble("terrain") else null,
                     cacheType = if (o.has("cacheType")) o.getString("cacheType") else null,
+                    groupCacheId = if (o.has("groupCacheId")) o.getString("groupCacheId") else null,
+                    archived = o.optBoolean("archived", false),
                     found = o.optBoolean("found", false)
                 )
             }

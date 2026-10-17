@@ -109,20 +109,39 @@ object WaypointCodec {
 
             val rawName = extractTag(body, "name") ?: "Ziel"
             val desc = extractTag(body, "desc")
+            val gsName = extractTag(body, "groundspeak:name")
+
+            // GC-Code aus dem Namenspräfix extrahieren (z. B. "GC_TEST_01 - Titel").
+            val codeFromName = Regex("^(GC[0-9A-Z_]+)", RegexOption.IGNORE_CASE)
+                .find(rawName.trim())?.groupValues?.get(1)
 
             // Geocaching-Konvention: <name> = GC-Code, <desc> = Titel.
             val isGc = Regex("^GC[0-9A-Z]{2,}$", RegexOption.IGNORE_CASE).matches(rawName.trim())
-            val name = if (isGc) {
-                desc?.substringBefore(",")?.trim()?.substringBefore(" by ")?.trim()?.ifBlank { rawName } ?: rawName
-            } else {
-                rawName
+
+            val name = when {
+                gsName != null -> gsName
+                codeFromName != null -> rawName.substringAfter(" - ", rawName).trim().ifBlank { rawName }
+                isGc -> desc?.substringBefore(",")?.trim()?.substringBefore(" by ")?.trim()?.ifBlank { rawName } ?: rawName
+                else -> rawName
             }
-            val code = if (isGc) rawName.trim() else null
+            val code = codeFromName ?: if (isGc) rawName.trim() else null
             val hint = extractTag(body, "groundspeak:encoded_hints")
-            val cacheType = extractTag(body, "type")?.substringAfter("|")?.trim()?.ifBlank { null }
+            val rawType = extractTag(body, "type")
+            val cacheType = rawType?.substringAfter("|")?.trim()?.let { t ->
+                CACHE_TYPES.firstOrNull { it.equals(t, ignoreCase = true) } ?: t
+            }?.ifBlank { null }
             val cacheAttrs = Regex("<groundspeak:cache\\b([^>]*)>").find(body)?.groupValues?.get(1)
+            val groupCacheId = cacheAttrs?.let {
+                Regex("\\bid=\"([^\"]+)\"").find(it)?.groupValues?.get(1)
+            }
+            val archived = cacheAttrs?.let {
+                Regex("\\barchived=\"(true|false)\"", RegexOption.IGNORE_CASE)
+                    .find(it)?.groupValues?.get(1)?.toBoolean()
+            } ?: false
             val difficulty = cacheAttrs?.let { Regex("difficulty=\"([^\"]+)\"").find(it)?.groupValues?.get(1)?.toDoubleOrNull() }
+                ?: extractTag(body, "groundspeak:difficulty")?.toDoubleOrNull()
             val terrain = cacheAttrs?.let { Regex("terrain=\"([^\"]+)\"").find(it)?.groupValues?.get(1)?.toDoubleOrNull() }
+                ?: extractTag(body, "groundspeak:terrain")?.toDoubleOrNull()
 
             waypoints.add(
                 Waypoint(
@@ -134,7 +153,9 @@ object WaypointCodec {
                     hint = hint,
                     difficulty = difficulty,
                     terrain = terrain,
-                    cacheType = cacheType
+                    cacheType = cacheType,
+                    groupCacheId = groupCacheId,
+                    archived = archived
                 )
             )
         }

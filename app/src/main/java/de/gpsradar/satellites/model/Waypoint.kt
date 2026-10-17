@@ -17,6 +17,8 @@ data class Waypoint(
     val difficulty: Double? = null,
     val terrain: Double? = null,
     val cacheType: String? = null,
+    val groupCacheId: String? = null,
+    val archived: Boolean = false,
     val found: Boolean = false
 ) {
     val formatted: String
@@ -87,4 +89,13 @@ fun cacheTypeEmoji(type: String?): String = when (type) {
     "Virtual Cache" -> "👻"
     "Event Cache" -> "📅"
     else -> "📍"
+}
+
+/**
+ * Liefert true, wenn [type] ein echter Cache-Typ ist
+ * (im Gegensatz zu Wegpunkt-Typen wie "Final Location", "Parking Area" usw.).
+ */
+fun isCacheType(type: String?): Boolean {
+    if (type.isNullOrBlank()) return false
+    return CACHE_TYPES.any { it.equals(type.trim(), ignoreCase = true) }
 }
