@@ -17,6 +17,7 @@ import de.gpsradar.satellites.gps.GpsDataManager
 import de.gpsradar.satellites.model.Cache
 import de.gpsradar.satellites.model.Constellation
 import de.gpsradar.satellites.model.GpsLocationState
+import de.gpsradar.satellites.model.GnssNavMessage
 import de.gpsradar.satellites.model.Navigation
 import de.gpsradar.satellites.model.SatelliteInfo
 import de.gpsradar.satellites.model.Track
@@ -50,10 +51,19 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
     private val gpsDataManager = GpsDataManager(application.applicationContext)
 
     val rawGpsState: StateFlow<GpsLocationState> = gpsDataManager.gpsState
+    val supportsNavigationMessages: StateFlow<Boolean> = gpsDataManager.supportsNavigationMessages
 
     val selectedFilter = MutableStateFlow<Constellation?>(null)
     val selectedSort = MutableStateFlow(SatelliteSort.SIGNAL_DESC)
     val selectedSatellite = MutableStateFlow<SatelliteInfo?>(null)
+
+    val selectedSatelliteNavMessages: StateFlow<List<GnssNavMessage>> = combine(
+        gpsDataManager.navigationMessages,
+        selectedSatellite
+    ) { messages, satellite ->
+        val s = satellite ?: return@combine emptyList()
+        messages.filter { it.svid == s.svid && it.constellation == s.constellation }
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     private val prefs = application.getSharedPreferences("gps_waypoints", Context.MODE_PRIVATE)
 

@@ -6,6 +6,7 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import android.location.GnssNavigationMessage
 import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
@@ -18,6 +19,7 @@ import androidx.core.location.GnssStatusCompat
 import androidx.core.location.LocationManagerCompat
 import de.gpsradar.satellites.model.Constellation
 import de.gpsradar.satellites.model.FixType
+import de.gpsradar.satellites.model.GnssNavMessage
 import de.gpsradar.satellites.model.GpsLocationState
 import de.gpsradar.satellites.model.SatelliteInfo
 import kotlinx.coroutines.CoroutineScope
@@ -30,6 +32,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import java.util.Locale
 import java.util.Random
 
 class GpsDataManager(private val context: Context) : SensorEventListener {
@@ -41,6 +44,12 @@ class GpsDataManager(private val context: Context) : SensorEventListener {
 
     private val _gpsState = MutableStateFlow(GpsLocationState())
     val gpsState: StateFlow<GpsLocationState> = _gpsState.asStateFlow()
+
+    private val _navigationMessages = MutableStateFlow<List<GnssNavMessage>>(emptyList())
+    val navigationMessages: StateFlow<List<GnssNavMessage>> = _navigationMessages.asStateFlow()
+
+    private val _supportsNavigationMessages = MutableStateFlow(false)
+    val supportsNavigationMessages: StateFlow<Boolean> = _supportsNavigationMessages.asStateFlow()
 
     private var isTracking = false
     private var simulationJob: Job? = null
@@ -137,6 +146,21 @@ class GpsDataManager(private val context: Context) : SensorEventListener {
         }
     }
 
+    private val maxStoredNavMessages = 20
+
+    private val navMessageCallback = object : GnssNavigationMessage.Callback() {
+        override fun onGnssNavigationMessageReceived(event: GnssNavigationMessage) {
+            if (isSimulated) return
+            _navigationMessages.update { current ->
+                (current + navMessageFrom(event)).takeLast(maxStoredNavMessages)
+            }
+        }
+
+        override fun onStatusChanged(status: Int) {
+            // Für die Anzeige nicht relevant.
+        }
+    }
+
     private val locationListener = object : LocationListener {
         override fun onLocationChanged(location: Location) {
             if (isSimulated) return
@@ -192,6 +216,8 @@ class GpsDataManager(private val context: Context) : SensorEventListener {
                 // Fallback handled safely
             }
 
+            registerNavigationMessages()
+
             try {
                 if (locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
                     locationManager.requestLocationUpdates(
@@ -232,6 +258,7 @@ class GpsDataManager(private val context: Context) : SensorEventListener {
             } catch (e: Exception) {
                 // Safe ignore
             }
+            unregisterNavigationMessages()
             try {
                 locationManager.removeUpdates(locationListener)
             } catch (e: Exception) {
@@ -277,6 +304,96 @@ class GpsDataManager(private val context: Context) : SensorEventListener {
                 )
             }
         }
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun registerNavigationMessages() {
+        val lm = locationManager
+        if (lm == null) {
+            _supportsNavigationMessages.value = false
+            return
+        }
+        var supported = false
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                supported = lm.gnssCapabilities.hasNavigationMessages()
+                if (supported) {
+                    lm.registerGnssNavigationMessageCallback(navMessageCallback)
+                }
+            } else {
+                supported = lm.registerGnssNavigationMessageCallback(navMessageCallback)
+            }
+        } catch (e: Exception) {
+            supported = false
+        }
+        _supportsNavigationMessages.value = supported
+    }
+
+    private fun unregisterNavigationMessages() {
+        try {
+            locationManager?.unregisterGnssNavigationMessageCallback(navMessageCallback)
+        } catch (e: Exception) {
+            // ignore
+        }
+        _navigationMessages.value = emptyList()
+    }
+
+    private fun navMessageFrom(event: GnssNavigationMessage): GnssNavMessage {
+        val type = event.type
+        val constellation = constellationForNavType(type)
+        val raw = event.data ?: ByteArray(0)
+        val hex = raw.joinToString(" ") { String.format(Locale.US, "%02X", it.toInt() and 0xFF) }
+        return GnssNavMessage(
+            svid = event.svid,
+            constellation = constellation,
+            typeLabel = navTypeLabel(type),
+            statusLabel = navStatusLabel(event.status),
+            messageId = event.messageId,
+            submessageId = event.submessageId,
+            dataHex = hex,
+            receivedAtMillis = System.currentTimeMillis()
+        )
+    }
+
+    private fun constellationForNavType(type: Int): Constellation = when (type) {
+        GnssNavigationMessage.TYPE_GPS_L1CA,
+        GnssNavigationMessage.TYPE_GPS_L2CNAV,
+        GnssNavigationMessage.TYPE_GPS_L5CNAV,
+        GnssNavigationMessage.TYPE_GPS_CNAV2 -> Constellation.GPS
+        GnssNavigationMessage.TYPE_GLO_L1CA -> Constellation.GLONASS
+        GnssNavigationMessage.TYPE_BDS_D1,
+        GnssNavigationMessage.TYPE_BDS_D2,
+        GnssNavigationMessage.TYPE_BDS_CNAV1,
+        GnssNavigationMessage.TYPE_BDS_CNAV2 -> Constellation.BEIDOU
+        GnssNavigationMessage.TYPE_GAL_I,
+        GnssNavigationMessage.TYPE_GAL_F -> Constellation.GALILEO
+        GnssNavigationMessage.TYPE_QZS_L1CA -> Constellation.QZSS
+        else -> Constellation.UNKNOWN
+    }
+
+    private fun navTypeLabel(type: Int): String = when (type) {
+        GnssNavigationMessage.TYPE_GPS_L1CA -> "GPS L1 C/A"
+        GnssNavigationMessage.TYPE_GPS_L2CNAV -> "GPS L2C"
+        GnssNavigationMessage.TYPE_GPS_L5CNAV -> "GPS L5"
+        GnssNavigationMessage.TYPE_GPS_CNAV2 -> "GPS CNAV-2"
+        GnssNavigationMessage.TYPE_GLO_L1CA -> "GLONASS L1 C/A"
+        GnssNavigationMessage.TYPE_BDS_D1 -> "BeiDou D1"
+        GnssNavigationMessage.TYPE_BDS_D2 -> "BeiDou D2"
+        GnssNavigationMessage.TYPE_BDS_CNAV1 -> "BeiDou CNAV-1"
+        GnssNavigationMessage.TYPE_BDS_CNAV2 -> "BeiDou CNAV-2"
+        GnssNavigationMessage.TYPE_GAL_I -> "Galileo I/NAV"
+        GnssNavigationMessage.TYPE_GAL_F -> "Galileo F/NAV"
+        GnssNavigationMessage.TYPE_QZS_L1CA -> "QZSS L1 C/A"
+        GnssNavigationMessage.TYPE_IRN_L1 -> "IRNSS L1"
+        GnssNavigationMessage.TYPE_IRN_L5 -> "IRNSS L5"
+        GnssNavigationMessage.TYPE_IRN_L5CA -> "IRNSS L5 C/A"
+        else -> "Typ 0x${Integer.toHexString(type)}"
+    }
+
+    private fun navStatusLabel(status: Int): String = when (status) {
+        GnssNavigationMessage.STATUS_PARITY_PASSED -> "Parität OK"
+        GnssNavigationMessage.STATUS_PARITY_REBUILT -> "Parität rekonstruiert"
+        else -> "Status 0x${Integer.toHexString(status)}"
     }
 
     private fun startSimulationLoop() {

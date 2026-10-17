@@ -1,6 +1,7 @@
 package de.gpsradar.satellites.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -8,9 +9,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -20,23 +24,32 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import de.gpsradar.satellites.model.Constellation
+import de.gpsradar.satellites.model.GnssNavMessage
 import de.gpsradar.satellites.model.SatelliteInfo
 import de.gpsradar.satellites.ui.theme.CardNavy
 import de.gpsradar.satellites.ui.theme.DeepNavy
@@ -45,11 +58,16 @@ import de.gpsradar.satellites.ui.theme.SignalOrange
 import de.gpsradar.satellites.ui.theme.SignalYellow
 import java.util.Locale
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SatelliteDetailDialog(
     satellite: SatelliteInfo,
+    navigationMessages: List<GnssNavMessage>,
+    supportsNavigationMessages: Boolean,
     onDismiss: () -> Unit
 ) {
+    var showRawData by remember { mutableStateOf(false) }
+
     Dialog(onDismissRequest = onDismiss) {
         Card(
             colors = CardDefaults.cardColors(containerColor = DeepNavy),
@@ -206,21 +224,34 @@ fun SatelliteDetailDialog(
                 Card(
                     colors = CardDefaults.cardColors(containerColor = CardNavy),
                     shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(enabled = supportsNavigationMessages) { showRawData = true }
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(12.dp),
-                        horizontalArrangement = Arrangement.SpaceAround
-                    ) {
-                        OrbitDataIndicator(
-                            name = "Ephemeriden-Daten",
-                            hasData = satellite.hasEphemeris
-                        )
-                        OrbitDataIndicator(
-                            name = "Almanach-Daten",
-                            hasData = satellite.hasAlmanac
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceAround
+                        ) {
+                            OrbitDataIndicator(
+                                name = "Ephemeriden-Daten",
+                                hasData = satellite.hasEphemeris
+                            )
+                            OrbitDataIndicator(
+                                name = "Almanach-Daten",
+                                hasData = satellite.hasAlmanac
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = when {
+                                !supportsNavigationMessages -> "Gerät liefert keine GNSS-Rohdaten"
+                                navigationMessages.isEmpty() -> "Rohdaten ansehen ⌄"
+                                else -> "Rohdaten ansehen (${navigationMessages.size}) ⌄"
+                            },
+                            fontSize = 10.sp,
+                            color = if (supportsNavigationMessages) Color(0xFF60A5FA) else Color(0xFF64748B),
+                            modifier = Modifier.align(Alignment.CenterHorizontally)
                         )
                     }
                 }
@@ -233,6 +264,14 @@ fun SatelliteDetailDialog(
                 }
             }
         }
+    }
+
+    if (showRawData) {
+        NavigationRawDataSheet(
+            satellite = satellite,
+            messages = navigationMessages,
+            onDismiss = { showRawData = false }
+        )
     }
 }
 
@@ -289,5 +328,102 @@ private fun getAzimuthCompass(deg: Float): String {
         normalized in 202.5f..247.5f -> "Südwest"
         normalized in 247.5f..292.5f -> "West"
         else -> "Nordwest"
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun NavigationRawDataSheet(
+    satellite: SatelliteInfo,
+    messages: List<GnssNavMessage>,
+    onDismiss: () -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = DeepNavy
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 18.dp)
+                .padding(bottom = 24.dp)
+        ) {
+            Text(
+                text = "GNSS-Rohdaten",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = Color.White
+            )
+            Text(
+                text = "Navigationsnachrichten für ${satellite.identifier} (Ephemeride/Almanach)",
+                fontSize = 11.sp,
+                color = Color(0xFF94A3B8)
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+
+            if (messages.isEmpty()) {
+                Text(
+                    text = "Noch keine Navigationsnachricht empfangen. Die Daten treffen unregelmäßig ein (je Satellit alle paar Sekunden bis Minuten).",
+                    fontSize = 12.sp,
+                    color = Color(0xFFCBD5E1)
+                )
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 420.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(messages) { msg ->
+                        NavigationMessageRow(msg)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun NavigationMessageRow(msg: GnssNavMessage) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = CardNavy),
+        shape = RoundedCornerShape(10.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(10.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = msg.typeLabel,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+                Text(
+                    text = msg.statusLabel,
+                    fontSize = 10.sp,
+                    color = Color(0xFF94A3B8)
+                )
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "Message ${msg.messageId} · Submessage ${msg.submessageId} · ${msg.constellation.shortName}-${msg.svid}",
+                fontSize = 10.sp,
+                color = Color(0xFF94A3B8)
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = msg.dataHex,
+                fontSize = 11.sp,
+                fontFamily = FontFamily.Monospace,
+                color = Color(0xFF60A5FA),
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
     }
 }

@@ -119,6 +119,8 @@ fun GpsAppMainScreen(
     val isRecording by viewModel.isRecording.collectAsState()
     val isRecordingPaused by viewModel.isRecordingPaused.collectAsState()
     val recordingPoints by viewModel.recordingPoints.collectAsState()
+    val supportsNavigationMessages by viewModel.supportsNavigationMessages.collectAsState()
+    val selectedSatelliteNavMessages by viewModel.selectedSatelliteNavMessages.collectAsState()
 
     var currentTab by remember { mutableStateOf(AppTab.RADAR) }
 
@@ -366,6 +368,8 @@ fun GpsAppMainScreen(
     selectedSatellite?.let { satellite ->
         SatelliteDetailDialog(
             satellite = satellite,
+            navigationMessages = selectedSatelliteNavMessages,
+            supportsNavigationMessages = supportsNavigationMessages,
             onDismiss = { viewModel.selectSatellite(null) }
         )
     }
