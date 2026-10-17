@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.Navigation
 import androidx.compose.material.icons.filled.Radar
 import androidx.compose.material.icons.filled.Science
+import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.outlined.Science
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -58,6 +59,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import de.gpsradar.satellites.model.Navigation
 import de.gpsradar.satellites.ui.GpsViewModel
+import de.gpsradar.satellites.ui.components.MeasurementScreen
 import de.gpsradar.satellites.ui.components.NavigationScreen
 import de.gpsradar.satellites.ui.components.PermissionAndStatusBanner
 import de.gpsradar.satellites.ui.components.PositionFixScreen
@@ -75,7 +77,8 @@ enum class AppTab(val title: String, val icon: ImageVector, val tag: String) {
     SIGNALS("Signale", Icons.Default.BarChart, "tab_signals"),
     LIST("Liste", Icons.AutoMirrored.Filled.List, "tab_list"),
     POSITION("Position", Icons.Default.MyLocation, "tab_position"),
-    NAVIGATION("Nav", Icons.Default.Navigation, "tab_navigation")
+    NAVIGATION("Nav", Icons.Default.Navigation, "tab_navigation"),
+    MESSUNG("Messung", Icons.Default.Speed, "tab_measurement")
 }
 
 class MainActivity : ComponentActivity() {
@@ -121,6 +124,9 @@ fun GpsAppMainScreen(
     val recordingPoints by viewModel.recordingPoints.collectAsState()
     val supportsNavigationMessages by viewModel.supportsNavigationMessages.collectAsState()
     val selectedSatelliteNavMessages by viewModel.selectedSatelliteNavMessages.collectAsState()
+    val supportsRawMeasurements by viewModel.supportsRawMeasurements.collectAsState()
+    val rawMeasurements by viewModel.rawMeasurements.collectAsState()
+    val rawClock by viewModel.rawClock.collectAsState()
 
     var currentTab by remember { mutableStateOf(AppTab.RADAR) }
 
@@ -233,7 +239,8 @@ fun GpsAppMainScreen(
                 containerColor = DeepNavy,
                 contentColor = Color.White
             ) {
-                AppTab.entries.forEach { tab ->
+                val visibleTabs = AppTab.entries.filter { it != AppTab.MESSUNG || supportsRawMeasurements }
+                visibleTabs.forEach { tab ->
                     NavigationBarItem(
                         selected = currentTab == tab,
                         onClick = { currentTab = tab },
@@ -357,6 +364,12 @@ fun GpsAppMainScreen(
                             onPauseRecording = { viewModel.pauseRecording() },
                             onResumeRecording = { viewModel.resumeRecording() },
                             onReverseTrack = { id -> viewModel.reverseTrack(id) }
+                        )
+                    }
+                    AppTab.MESSUNG -> {
+                        MeasurementScreen(
+                            measurements = rawMeasurements,
+                            clock = rawClock
                         )
                     }
                 }

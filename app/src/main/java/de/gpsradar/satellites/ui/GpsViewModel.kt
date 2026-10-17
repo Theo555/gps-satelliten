@@ -14,11 +14,14 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import de.gpsradar.satellites.gps.GpsDataManager
+import de.gpsradar.satellites.gps.RawGnssManager
 import de.gpsradar.satellites.model.Cache
 import de.gpsradar.satellites.model.Constellation
 import de.gpsradar.satellites.model.GpsLocationState
 import de.gpsradar.satellites.model.GnssNavMessage
 import de.gpsradar.satellites.model.Navigation
+import de.gpsradar.satellites.model.RawClockSnapshot
+import de.gpsradar.satellites.model.RawMeasurement
 import de.gpsradar.satellites.model.SatelliteInfo
 import de.gpsradar.satellites.model.Track
 import de.gpsradar.satellites.model.TrackPoint
@@ -49,9 +52,13 @@ private const val ARRIVAL_THRESHOLD_M = 5.0
 class GpsViewModel(application: Application) : AndroidViewModel(application) {
 
     private val gpsDataManager = GpsDataManager(application.applicationContext)
+    private val rawGnssManager = RawGnssManager(application.applicationContext)
 
     val rawGpsState: StateFlow<GpsLocationState> = gpsDataManager.gpsState
     val supportsNavigationMessages: StateFlow<Boolean> = gpsDataManager.supportsNavigationMessages
+    val supportsRawMeasurements: StateFlow<Boolean> = rawGnssManager.supportsRawMeasurements
+    val rawMeasurements: StateFlow<List<RawMeasurement>> = rawGnssManager.measurements
+    val rawClock: StateFlow<RawClockSnapshot?> = rawGnssManager.clock
 
     val selectedFilter = MutableStateFlow<Constellation?>(null)
     val selectedSort = MutableStateFlow(SatelliteSort.SIGNAL_DESC)
@@ -126,14 +133,17 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
 
     fun startTracking(hasPermission: Boolean) {
         gpsDataManager.startTracking(hasPermission)
+        rawGnssManager.start(hasPermission)
     }
 
     fun stopTracking() {
         gpsDataManager.stopTracking()
+        rawGnssManager.stop()
     }
 
     fun onPermissionResult(granted: Boolean) {
         gpsDataManager.startTracking(granted)
+        rawGnssManager.start(granted)
     }
 
     fun toggleOrientationMode() {
