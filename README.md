@@ -60,7 +60,19 @@ Keine Lust, selbst zu kompilieren? Lade einfach die fertige APK herunter und ins
 
 ## Screenshots
 
-> _TODO: Screenshots der sechs Tabs (Radar, Signale, Liste, Position, Nav, Messung – letzterer nur auf Geräten mit Raw-GNSS) einfügen._
+<p align="center">
+  <img src="screenshots/radar.jpg" width="200" alt="Radar" />
+  <img src="screenshots/signal.jpg" width="200" alt="Signale" />
+  <img src="screenshots/liste.jpg" width="200" alt="Satellitenliste" />
+  <img src="screenshots/position.jpg" width="200" alt="Position" />
+</p>
+
+<p align="center">
+  <img src="screenshots/navigation.jpg" width="200" alt="Navigation" />
+  <img src="screenshots/liste-detail.jpg" width="200" alt="Satelliten-Detail" />
+  <img src="screenshots/liste-rohdaten.jpg" width="200" alt="GNSS-Rohdaten" />
+  <img src="screenshots/position-dop.jpg" width="200" alt="DOP-Werte" />
+</p>
 
 ## Technik
 
