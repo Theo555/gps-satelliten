@@ -213,7 +213,7 @@ class GpsDataManager(private val context: Context) : SensorEventListener {
                     mainHandler
                 )
             } catch (e: Exception) {
-                // Fallback handled safely
+                // Fehler beim Registrieren abgefangen.
             }
 
             registerNavigationMessages()
@@ -232,9 +232,7 @@ class GpsDataManager(private val context: Context) : SensorEventListener {
                 // Ignore missing provider
             }
 
-            // Hinweis: Absichtlich KEIN NETWORK_PROVIDER.
-            // Die öffentliche Version soll rein offline mit GNSS arbeiten und
-            // keine Funkzellen-/WLAN-Daten an Google Play Services senden.
+            // Rein offline: nur GNSS-Position verwenden.
         }
 
         // Check if after 3.5 seconds we have 0 satellites (e.g. emulator or inside concrete building)
