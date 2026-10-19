@@ -20,3 +20,7 @@ debug.keystore
 my-upload-key.jks
 *.jks
 /sources.list
+
+# Private Workflow-Dateien — nicht öffentlich auf GitHub
+sync-private.sh
+AGENTS.md

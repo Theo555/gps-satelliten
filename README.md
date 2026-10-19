@@ -20,7 +20,13 @@ Keine Lust, selbst zu kompilieren? Lade einfach die fertige APK herunter und ins
 - **Signalstärke** – C/N₀-Balkendiagramm mit Qualitätsfarben und Zusammenfassung
 - **Satellitenliste** – sortier-/filterbar, mit Ephemeriden-/Almanach-Status und Trägerfrequenz
 
-### 📍 Positionsbestimmung
+### � GNSS-Rohdaten & Messung
+
+- **Navigationsnachrichten** – Ephemeriden-/Almanach-Rohdaten je Satellit als Hex-Ansicht (im Satelliten-Detail)
+- **Messung-Tab** – pro Satellit und Frequenzband (**L1/L5/L2/E1/E5a/E5b**): C/N₀, **Pseudorange**, Doppler, Trägerphase und Multipfad-Erkennung
+- Hinweis: Der Messung-Tab erscheint nur auf Geräten, die **GNSS-Roh-Messungen** (`GnssMeasurements`) unterstützen.
+
+### �📍 Positionsbestimmung
 
 - Koordinaten in drei Formaten: **Dezimalgrad, DMS und DDM** (Geocaching-Standard)
 - Genauigkeit, Höhe (MSL), Geschwindigkeit, Kurs/Peilung
@@ -54,7 +60,7 @@ Keine Lust, selbst zu kompilieren? Lade einfach die fertige APK herunter und ins
 
 ## Screenshots
 
-> _TODO: Screenshots der fünf Tabs (Radar, Signale, Liste, Position, Nav) einfügen._
+> _TODO: Screenshots der sechs Tabs (Radar, Signale, Liste, Position, Nav, Messung – letzterer nur auf Geräten mit Raw-GNSS) einfügen._
 
 ## Technik
 
@@ -63,7 +69,7 @@ Keine Lust, selbst zu kompilieren? Lade einfach die fertige APK herunter und ins
 | Sprache | Kotlin 2.2 |
 | UI | Jetpack Compose (Material 3) |
 | Architektur | MVVM (`ViewModel` + `StateFlow`) |
-| GNSS | `GnssStatusCompat`, `LocationManager`, Kompass-Sensoren |
+| GNSS | `GnssStatusCompat`, `GnssMeasurements`, `GnssNavigationMessage`, `LocationManager`, Kompass-Sensoren |
 | minSdk / targetSdk | 24 (Android 7.0) / 36 |
 | Build | AGP 9.x, Gradle 9.3 (Wrapper), R8 + Ressourcen-Shrinking |
 
@@ -106,7 +112,7 @@ Eigene Wander-/Radrouten lassen sich bequem mit **[BRouter](https://brouter.de/b
 
 ```
 app/src/main/java/de/gpsradar/satellites/
-├── gps/               GpsDataManager (GNSS-Status + Kompass-Sensoren)
+├── gps/               GpsDataManager (GNSS-Status + Kompass) · RawGnssManager (Roh-Messungen)
 ├── model/             Datenmodelle, DOP-Berechnung, Koordinaten-Parser, GPX/JSON-Codec
 ├── ui/                ViewModel + Compose-Screens und -Komponenten
 └── MainActivity.kt    App-Einstieg mit Tab-Navigation
