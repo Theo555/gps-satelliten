@@ -20,13 +20,13 @@ Keine Lust, selbst zu kompilieren? Lade einfach die fertige APK herunter und ins
 - **Signalstärke** – C/N₀-Balkendiagramm mit Qualitätsfarben und Zusammenfassung
 - **Satellitenliste** – sortier-/filterbar, mit Ephemeriden-/Almanach-Status und Trägerfrequenz
 
-### � GNSS-Rohdaten & Messung
+### 📡 GNSS-Rohdaten & Messung
 
 - **Navigationsnachrichten** – Ephemeriden-/Almanach-Rohdaten je Satellit als Hex-Ansicht (im Satelliten-Detail)
 - **Messung-Tab** – pro Satellit und Frequenzband (**L1/L5/L2/E1/E5a/E5b**): C/N₀, **Pseudorange**, Doppler, Trägerphase und Multipfad-Erkennung
 - Hinweis: Der Messung-Tab erscheint nur auf Geräten, die **GNSS-Roh-Messungen** (`GnssMeasurements`) unterstützen.
 
-### �📍 Positionsbestimmung
+### 📍 Positionsbestimmung
 
 - Koordinaten in drei Formaten: **Dezimalgrad, DMS und DDM** (Geocaching-Standard)
 - Genauigkeit, Höhe (MSL), Geschwindigkeit, Kurs/Peilung
