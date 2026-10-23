@@ -21,6 +21,6 @@ my-upload-key.jks
 *.jks
 /sources.list
 
-# Private Workflow-Dateien — nicht öffentlich auf GitHub
+# Lokale Entwickler-Dateien
 sync-private.sh
 AGENTS.md
