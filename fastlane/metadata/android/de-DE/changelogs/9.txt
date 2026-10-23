@@ -1,0 +1,9 @@
+1.3.4
+* Neue Seite "Über die App" über das Fragezeichen in der Kopfzeile
+* Track-Richtung: der Chip "Ende"/"Anfang" in der aktiven Karte ist jetzt
+  selbst der Schalter, der separate Link entfällt
+* Tracks und Zielpunkte werden erst nach einer Rückfrage gelöscht, mit
+  größerer Trefferfläche
+* Richtungswechsel in der Track-Liste entfernt, erreichbar über die
+  aktive Karte
+* Der Hint-Platzhalter "none" gilt nicht mehr als Hint

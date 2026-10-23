@@ -1,0 +1,9 @@
+1.3.4
+* New "About" page, reachable via the question mark in the top bar
+* Track direction: the "End"/"Start" chip in the active card is now the
+  toggle itself, the separate link is gone
+* Tracks and waypoints are only deleted after a confirmation, with a
+  larger touch target
+* Direction switch removed from the track list, reachable via the active
+  card instead
+* The hint placeholder "none" is no longer treated as a hint
