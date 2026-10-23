@@ -1,0 +1,9 @@
+1.3.3
+* GPX import now uses a real XML parser instead of regular expressions
+  and copes with CDATA, namespaces and unknown elements
+* The import reports how many caches and waypoints were taken over and
+  which entries were skipped
+* Hint in the active target: plain text by default, switchable to ROT13
+* Tracks can be followed in reverse direction
+* Measurements: clock drift and leap second are shown as unknown instead
+  of a number, pseudorange is calculated again

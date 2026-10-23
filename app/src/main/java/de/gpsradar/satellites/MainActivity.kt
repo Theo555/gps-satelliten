@@ -1,9 +1,13 @@
 package de.gpsradar.satellites
 
 import android.Manifest
+import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -17,7 +21,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.Navigation
@@ -59,6 +65,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import de.gpsradar.satellites.model.Navigation
 import de.gpsradar.satellites.ui.GpsViewModel
+import de.gpsradar.satellites.ui.components.AboutScreen
 import de.gpsradar.satellites.ui.components.MeasurementScreen
 import de.gpsradar.satellites.ui.components.NavigationScreen
 import de.gpsradar.satellites.ui.components.PermissionAndStatusBanner
@@ -71,6 +78,9 @@ import de.gpsradar.satellites.ui.theme.AccentCyan
 import de.gpsradar.satellites.ui.theme.DeepNavy
 import de.gpsradar.satellites.ui.theme.GpsRadarTheme
 import de.gpsradar.satellites.ui.theme.SpaceNavy
+
+private const val REPOSITORY_URL = "https://github.com/Theo555/gps-satelliten"
+private const val DONATION_URL = "https://paypal.me/gps-satelliten"
 
 enum class AppTab(val title: String, val icon: ImageVector, val tag: String) {
     RADAR("Radar", Icons.Default.Radar, "tab_radar"),
@@ -107,6 +117,16 @@ fun GpsAppMainScreen(
             "?"
         }
     }
+    val versionCode = remember {
+        @Suppress("DEPRECATION")
+        try {
+            val info = context.packageManager.getPackageInfo(context.packageName, 0)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) info.longVersionCode
+            else info.versionCode.toLong()
+        } catch (e: Exception) {
+            0L
+        }
+    }
     val gpsState by viewModel.rawGpsState.collectAsState()
     val displayedSatellites by viewModel.displayedSatellites.collectAsState()
     val selectedFilter by viewModel.selectedFilter.collectAsState()
@@ -130,6 +150,7 @@ fun GpsAppMainScreen(
     val hintR13Map by viewModel.hintR13ByKey.collectAsState()
 
     var currentTab by remember { mutableStateOf(AppTab.RADAR) }
+    var showAbout by remember { mutableStateOf(false) }
 
     // Bildschirm wach halten, solange ein Ziel/Track aktiv ist oder aufgezeichnet wird.
     val keepScreenOn = activeWaypointId != null || activeTrackId != null || isRecording
@@ -187,9 +208,11 @@ fun GpsAppMainScreen(
         }
     }
 
-    // Back handler: dismiss satellite dialog or return to Radar tab
-    BackHandler(enabled = selectedSatellite != null || currentTab != AppTab.RADAR) {
-        if (selectedSatellite != null) {
+    // Back handler: schließt "Über die App", dann Satellite-Dialog, dann zurück zum Radar-Tab
+    BackHandler(enabled = showAbout || selectedSatellite != null || currentTab != AppTab.RADAR) {
+        if (showAbout) {
+            showAbout = false
+        } else if (selectedSatellite != null) {
             viewModel.selectSatellite(null)
         } else if (currentTab != AppTab.RADAR) {
             currentTab = AppTab.RADAR
@@ -201,6 +224,20 @@ fun GpsAppMainScreen(
         containerColor = SpaceNavy,
         topBar = {
             TopAppBar(
+                navigationIcon = {
+                    if (showAbout) {
+                        IconButton(
+                            onClick = { showAbout = false },
+                            modifier = Modifier.testTag("about_back_btn")
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Zurück",
+                                tint = Color.White
+                            )
+                        }
+                    }
+                },
                 title = {
                     Column {
                         Text(
@@ -221,6 +258,18 @@ fun GpsAppMainScreen(
                     titleContentColor = Color.White
                 ),
                 actions = {
+                    // Über die App
+                    IconButton(
+                        onClick = { showAbout = true },
+                        modifier = Modifier.size(40.dp).testTag("about_btn")
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Outlined.HelpOutline,
+                            contentDescription = "Über die App",
+                            tint = if (showAbout) AccentCyan else Color(0xFF94A3B8),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                     // Demo Mode toggle
                     IconButton(
                         onClick = { viewModel.toggleDemoMode() },
@@ -236,7 +285,9 @@ fun GpsAppMainScreen(
             )
         },
         bottomBar = {
-            NavigationBar(
+            // Auf der Seite "Über die App" keine Navigationsleiste – der Zurück-Pfeil
+            // in der Kopfzeile führt wieder heraus.
+            if (!showAbout) NavigationBar(
                 containerColor = DeepNavy,
                 contentColor = Color.White
             ) {
@@ -277,8 +328,8 @@ fun GpsAppMainScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            // Permission and Status Banner
-            PermissionAndStatusBanner(
+            // Permission and Status Banner (nicht auf der Info-Seite)
+            if (!showAbout) PermissionAndStatusBanner(
                 state = gpsState,
                 onRequestPermission = {
                     permissionLauncher.launch(
@@ -297,7 +348,14 @@ fun GpsAppMainScreen(
                     .fillMaxWidth()
                     .weight(1f)
             ) {
-                when (currentTab) {
+                if (showAbout) {
+                    AboutScreen(
+                        versionName = versionName,
+                        versionCode = versionCode,
+                        onOpenRepository = { openUrl(context, REPOSITORY_URL) },
+                        onOpenDonation = { openUrl(context, DONATION_URL) }
+                    )
+                } else when (currentTab) {
                     AppTab.RADAR -> {
                         RadarSkyView(
                             state = gpsState,
@@ -388,5 +446,14 @@ fun GpsAppMainScreen(
             supportsNavigationMessages = supportsNavigationMessages,
             onDismiss = { viewModel.selectSatellite(null) }
         )
+    }
+}
+
+/** Öffnet einen Link im Browser. Die App selbst braucht dafür keine Internet-Berechtigung. */
+private fun openUrl(context: Context, url: String) {
+    try {
+        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+    } catch (e: Exception) {
+        Toast.makeText(context, "Keine App zum Öffnen des Links gefunden", Toast.LENGTH_SHORT).show()
     }
 }

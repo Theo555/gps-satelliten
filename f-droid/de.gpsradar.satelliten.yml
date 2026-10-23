@@ -1,0 +1,50 @@
+# Entwurf für fdroiddata/metadata/de.gpsradar.satelliten.yml
+#
+# Nichts davon ist eingereicht. Zum Einreichen wird diese Datei in einen
+# Fork von https://gitlab.com/fdroid/fdroiddata unter metadata/ kopiert
+# und ein Merge-Request gestellt.
+#
+# Vor jeder Änderung prüfen:
+#   - commit: immer der vollständige SHA eines Commits, der auf main liegt
+#     (git rev-parse "<tag>^{commit}") – niemals ein Branch-Name
+#   - versionCode/versionName müssen zum Commit passen
+#   - output zeigt auf die unsignierte APK, die F-Droid selbst signiert
+
+Categories:
+  - Navigation
+  - Science & Education
+
+License: MIT
+
+AuthorName: TK
+AuthorEmail: t.kichtan@gmail.com
+
+SourceCode: https://github.com/Theo555/gps-satelliten
+IssueTracker: https://github.com/Theo555/gps-satelliten/issues
+Donate: https://paypal.me/gps-satelliten
+
+RepoType: git
+Repo: https://github.com/Theo555/gps-satelliten
+
+Builds:
+  - versionName: 1.3.3
+    versionCode: 8
+    commit: f411940868184de386b7f5ab572a1121c5b73f05
+    gradle:
+      - yes
+    output: app/build/outputs/apk/release/app-release-unsigned.apk
+
+AutoUpdateMode: Version
+UpdateCheckMode: Tags
+
+CurrentVersion: 1.3.3
+CurrentVersionCode: 8
+
+# Hinweise für später:
+# - Bei jedem neuen Release einen Eintrag unter Builds ergänzen und
+#   CurrentVersion/CurrentVersionCode nachziehen. Mit AutoUpdateMode: Version
+#   kann F-Droid das selbst tun, sobald ein Tag gepusht wird.
+# - changelogs/<versionCode>.txt muss es in fastlane geben, sonst zeigt
+#   F-Droid keinen Changelog an.
+# - Screenshots gehoeren nach
+#   fastlane/metadata/android/<locale>/images/phoneScreenshots/

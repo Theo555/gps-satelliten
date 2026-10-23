@@ -1,0 +1,1 @@
+GNSS receiver: satellites, signal quality, raw data, offline navigation

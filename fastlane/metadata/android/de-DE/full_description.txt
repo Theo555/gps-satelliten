@@ -1,0 +1,38 @@
+GPS Satelliten ist ein GNSS-Werkzeug für Android: Satellitenstatus,
+Signalqualität, Position und Rohdaten – dazu Offline-Navigation mit
+Wegpunkten, Tracks und Geocaches.
+
+Die Bereiche
+* Radar: alle sichtbaren Satelliten als Himmelsansicht, mit Peilung zum
+  aktiven Ziel
+* Signale: Signalstärke je Satellit mit Filter nach Konstellation und
+  Frequenzband
+* Liste: alle Satelliten mit Höhenwinkel, Azimut und Status, sortierbar
+* Position: Koordinaten in Dezimal, DMS und DDM, Höhe, Geschwindigkeit
+  und DOP-Werte
+* Navigation: Wegpunkte, Tracks und Geocaches inklusive Import und Export
+  als GPX oder JSON
+* Messung: GNSS-Rohdaten mit Pseudorange, Doppler, Trägerphase und
+  Uhr-Drift – auf Geräten, die diese Daten bereitstellen
+
+Navigation und Geocaching
+* GPX-Import mit echtem XML-Parser, inklusive Cache-Gruppen, Hint und
+  Schwierigkeits- und Geländewertung
+* Tracks aufzeichnen, abfahren und in der Richtung umkehren
+* Peilung, Reststrecke und Ankunftsmeldung beim Folgen eines Ziels
+* Hint wahlweise im Klartext oder als ROT13
+* Kartenansicht wird an eine installierte Karten-App übergeben
+* Simulationsmodus zum Ausprobieren ohne GPS-Empfang
+
+Offline und ohne Datensammlung
+* Keine Internet-Berechtigung – die App kann keine Daten senden
+* Keine Konten, keine Werbung, keine Auswertung der Nutzung
+* Standort, Wegpunkte und Tracks bleiben auf dem Gerät
+* Dateien werden nur geschrieben, wenn du selbst exportierst
+
+Ehrliche Daten
+Was die Hardware nicht liefert, wird als Strich angezeigt. Die App
+erfindet keine Werte.
+
+Die App ist kostenlos, werbefrei und unter der MIT-Lizenz
+veröffentlicht. Sie läuft ab Android 7.0.

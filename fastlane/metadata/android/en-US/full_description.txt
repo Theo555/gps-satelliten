@@ -1,0 +1,39 @@
+GPS Satelliten is a GNSS tool for Android: satellite status, signal
+quality, position and raw data – plus offline navigation with waypoints,
+tracks and geocaches.
+
+The screens
+* Radar: all visible satellites on a sky view, with a bearing to the
+  active target
+* Signals: signal strength per satellite, filterable by constellation
+  and frequency band
+* List: all satellites with elevation, azimuth and status, sortable
+* Position: coordinates in decimal, DMS and DDM, altitude, speed and DOP
+  values
+* Navigation: waypoints, tracks and geocaches with GPX or JSON import
+  and export
+* Measurements: raw GNSS data with pseudorange, Doppler, carrier phase
+  and clock drift – on devices that provide these values
+
+Navigation and geocaching
+* GPX import based on a real XML parser, including cache groups, hint,
+  difficulty and terrain rating
+* Record tracks, follow them and reverse their direction
+* Bearing, remaining distance and an arrival alert while following a
+  target
+* Hint shown in plain text or as ROT13
+* Map view is handed over to an installed map app
+* Simulation mode to try things out without GPS reception
+
+Offline and without data collection
+* No internet permission – the app cannot send any data
+* No accounts, no ads, no usage analytics
+* Location, waypoints and tracks stay on the device
+* Files are only written when you export them yourself
+
+Honest data
+Whatever the hardware does not deliver is shown as a dash. The app does
+not invent values.
+
+The app is free, ad-free and released under the MIT licence. It runs on
+Android 7.0 and newer.
