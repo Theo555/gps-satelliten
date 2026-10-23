@@ -15,9 +15,18 @@ data class TrackPoint(
 data class Track(
     val id: Long,
     val name: String,
-    val points: List<TrackPoint>
+    val points: List<TrackPoint>,
+    val reversed: Boolean = false
 ) {
-    /** Gesamtlänge der Linie in Metern. */
+    /**
+     * Punkte in aktueller Verfolgungsrichtung. `points` bleibt immer in der
+     * ursprünglich aufgezeichneten/importierten Reihenfolge; `reversed` kippt
+     * lediglich die Verfolgungsrichtung (ohne die Daten zu verändern).
+     */
+    val orderedPoints: List<TrackPoint>
+        get() = if (reversed) points.reversed() else points
+
+    /** Gesamtlänge der Linie in Metern (richtungsunabhängig). */
     val lengthMeters: Double
         get() {
             var sum = 0.0
@@ -30,11 +39,11 @@ data class Track(
             return sum
         }
 
-    /** Index des Punktes, der der aktuellen Position am nächsten liegt. */
+    /** Index (in Verfolgungsrichtung) des Punktes, der der Position am nächsten liegt. */
     fun nearestIndex(lat: Double, lon: Double): Int {
         var bestIndex = 0
         var bestDistance = Double.MAX_VALUE
-        points.forEachIndexed { i, p ->
+        orderedPoints.forEachIndexed { i, p ->
             val d = Navigation.distanceMeters(lat, lon, p.latitude, p.longitude)
             if (d < bestDistance) {
                 bestDistance = d
@@ -44,13 +53,13 @@ data class Track(
         return bestIndex
     }
 
-    /** Reststrecke in Metern vom Punkt [fromIndex] bis zum Ende des Tracks. */
+    /** Reststrecke in Metern vom Punkt [fromIndex] bis zum Ende der Verfolgungsrichtung. */
     fun remainingMeters(fromIndex: Int): Double {
         var sum = 0.0
-        for (i in fromIndex until points.lastIndex) {
+        for (i in fromIndex until orderedPoints.lastIndex) {
             sum += Navigation.distanceMeters(
-                points[i].latitude, points[i].longitude,
-                points[i + 1].latitude, points[i + 1].longitude
+                orderedPoints[i].latitude, orderedPoints[i].longitude,
+                orderedPoints[i + 1].latitude, orderedPoints[i + 1].longitude
             )
         }
         return sum

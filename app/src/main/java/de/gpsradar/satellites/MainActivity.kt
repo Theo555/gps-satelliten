@@ -127,6 +127,7 @@ fun GpsAppMainScreen(
     val supportsRawMeasurements by viewModel.supportsRawMeasurements.collectAsState()
     val rawMeasurements by viewModel.rawMeasurements.collectAsState()
     val rawClock by viewModel.rawClock.collectAsState()
+    val hintR13Map by viewModel.hintR13ByKey.collectAsState()
 
     var currentTab by remember { mutableStateOf(AppTab.RADAR) }
 
@@ -355,6 +356,8 @@ fun GpsAppMainScreen(
                             onImportWaypoints = { uri -> viewModel.importWaypoints(uri) },
                             onExportGpx = { uri -> viewModel.exportGpx(uri) },
                             onExportJson = { uri -> viewModel.exportJson(uri) },
+                            hintR13Map = hintR13Map,
+                            onToggleHintFormat = { key -> viewModel.toggleHintFormat(key) },
                             isRecording = isRecording,
                             isRecordingPaused = isRecordingPaused,
                             recordingPointCount = recordingPoints.size,

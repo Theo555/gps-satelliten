@@ -1,29 +1,60 @@
 package de.gpsradar.satellites.model
 
+import android.util.Xml
+import java.io.StringReader
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
 import org.json.JSONArray
 import org.json.JSONObject
+import org.xmlpull.v1.XmlPullParser
+
+data class ImportResult(
+    val caches: List<Cache>,
+    val freeWaypoints: List<Waypoint>,
+    val tracks: List<Track>,
+    val skipped: List<String>
+) {
+    /** Alle Wegpunkte flach (Caches aufgeklappt + freie Wegpunkte). */
+    val waypoints: List<Waypoint>
+        get() = caches.flatMap { it.waypoints } + freeWaypoints
+
+    /** Nutzerlesbare Zusammenfassung für die UI (Toast/Snackbar). */
+    fun toMessage(): String {
+        if (caches.isEmpty() && freeWaypoints.isEmpty() && tracks.isEmpty()) {
+            return when {
+                skipped.isEmpty() -> "Keine Zielpunkte oder Tracks in der Datei gefunden"
+                skipped.size == 1 -> skipped[0]
+                else -> "Keine gültigen Zielpunkte oder Tracks gefunden (${skipped.size} übersprungen)"
+            }
+        }
+        val parts = mutableListOf<String>()
+        if (caches.isNotEmpty()) parts.add("${caches.size} Cache(s)")
+        if (freeWaypoints.isNotEmpty()) parts.add("${freeWaypoints.size} Zielpunkt(e)")
+        if (tracks.isNotEmpty()) parts.add("${tracks.size} Track(s)")
+        val suffix = if (skipped.isNotEmpty()) ", ${skipped.size} übersprungen" else ""
+        return parts.joinToString(" und ") + " importiert" + suffix
+    }
+}
 
 /**
  * Import/Export von Zielpunkten als GPX (Geocaching-Standard) und JSON (eigenes Format).
  */
 object WaypointCodec {
 
-    data class ParseResult(
-        val waypoints: List<Waypoint>,
-        val tracks: List<Track>,
-        val skipped: Int
+    /** Eine einzelne zu exportierende Datei (pro Cache / Route / Position). */
+    data class GpxExportFile(
+        val fileName: String,
+        val content: String
     )
 
-    fun parse(text: String): ParseResult {
+    fun parse(text: String): ImportResult {
         val t = text.trim()
         return when {
             t.startsWith("<") -> parseGpx(t)
             t.startsWith("[") || t.startsWith("{") -> parseJson(t)
-            else -> ParseResult(emptyList(), emptyList(), 0)
+            else -> ImportResult(emptyList(), emptyList(), emptyList(), emptyList())
         }
     }
 
@@ -89,139 +120,281 @@ object WaypointCodec {
         return sb.toString()
     }
 
-    private fun parseGpx(text: String): ParseResult {
+    private const val GPX_NS_1_0 = "http://www.topografix.com/GPX/1/0"
+    private const val GPX_NS_1_1 = "http://www.topografix.com/GPX/1/1"
+    private const val GROUNDSPEAK_NS_PREFIX = "http://www.groundspeak.com/cache/"
+
+    private val GC_CODE_PREFIX = Regex("^(GC[0-9A-Z_]+)", RegexOption.IGNORE_CASE)
+    private val GC_CODE_FULL = Regex("^GC[0-9A-Z]{2,}$", RegexOption.IGNORE_CASE)
+
+    private fun parseGpx(text: String): ImportResult {
         val waypoints = mutableListOf<Waypoint>()
         val tracks = mutableListOf<Track>()
-        var skipped = 0
+        val skipped = mutableListOf<String>()
 
-        // 1) Wegpunkte (<wpt>)
-        val wptRegex = Regex("<wpt\\b([^>]*)>(.*?)</wpt>", RegexOption.DOT_MATCHES_ALL)
-        for (m in wptRegex.findAll(text)) {
-            val attrs = m.groupValues[1]
-            val body = m.groupValues[2]
-
-            val latLon = parseLatLon(attrs)
-            if (latLon == null) {
-                skipped++
-                continue
+        val parser = try {
+            Xml.newPullParser().apply {
+                setFeature(XmlPullParser.FEATURE_PROCESS_NAMESPACES, true)
+                setInput(StringReader(text))
             }
-            val (lat, lon) = latLon
+        } catch (e: Exception) {
+            return ImportResult(emptyList(), emptyList(), emptyList(), listOf("GPX-Datei konnte nicht geparst werden"))
+        }
 
-            val rawName = extractTag(body, "name") ?: "Ziel"
-            val desc = extractTag(body, "desc")
-            val gsName = extractTag(body, "groundspeak:name")
-
-            // GC-Code aus dem Namenspräfix extrahieren (z. B. "GC_TEST_01 - Titel").
-            val codeFromName = Regex("^(GC[0-9A-Z_]+)", RegexOption.IGNORE_CASE)
-                .find(rawName.trim())?.groupValues?.get(1)
-
-            // Geocaching-Konvention: <name> = GC-Code, <desc> = Titel.
-            val isGc = Regex("^GC[0-9A-Z]{2,}$", RegexOption.IGNORE_CASE).matches(rawName.trim())
-
-            val name = when {
-                gsName != null -> gsName
-                codeFromName != null -> rawName.substringAfter(" - ", rawName).trim().ifBlank { rawName }
-                isGc -> desc?.substringBefore(",")?.trim()?.substringBefore(" by ")?.trim()?.ifBlank { rawName } ?: rawName
-                else -> rawName
+        try {
+            var event = parser.eventType
+            while (event != XmlPullParser.END_DOCUMENT) {
+                if (event == XmlPullParser.START_TAG) {
+                    when {
+                        parser.isGpxElement("wpt") -> parseWaypoint(parser, waypoints, skipped)
+                        parser.isGpxElement("trk") -> parseTrackLike(parser, "trk", "trkpt", tracks, skipped)
+                        parser.isGpxElement("rte") -> parseTrackLike(parser, "rte", "rtept", tracks, skipped)
+                        parser.isGpxElement("gpx") -> { /* Wurzelelement – absteigen, nicht überspringen */ }
+                        else -> skipElement(parser)
+                    }
+                }
+                event = parser.next()
             }
-            val code = codeFromName ?: if (isGc) rawName.trim() else null
-            val hint = extractTag(body, "groundspeak:encoded_hints")
-            val rawType = extractTag(body, "type")
-            val cacheType = rawType?.substringAfter("|")?.trim()?.let { t ->
-                CACHE_TYPES.firstOrNull { it.equals(t, ignoreCase = true) } ?: t
-            }?.ifBlank { null }
-            val cacheAttrs = Regex("<groundspeak:cache\\b([^>]*)>").find(body)?.groupValues?.get(1)
-            val groupCacheId = cacheAttrs?.let {
-                Regex("\\bid=\"([^\"]+)\"").find(it)?.groupValues?.get(1)
-            }
-            val archived = cacheAttrs?.let {
-                Regex("\\barchived=\"(true|false)\"", RegexOption.IGNORE_CASE)
-                    .find(it)?.groupValues?.get(1)?.toBoolean()
-            } ?: false
-            val difficulty = cacheAttrs?.let { Regex("difficulty=\"([^\"]+)\"").find(it)?.groupValues?.get(1)?.toDoubleOrNull() }
-                ?: extractTag(body, "groundspeak:difficulty")?.toDoubleOrNull()
-            val terrain = cacheAttrs?.let { Regex("terrain=\"([^\"]+)\"").find(it)?.groupValues?.get(1)?.toDoubleOrNull() }
-                ?: extractTag(body, "groundspeak:terrain")?.toDoubleOrNull()
+        } catch (e: Exception) {
+            // Strukturfehler: bereits Gelesenes behalten, Rest als übersprungen melden.
+            skipped.add("Ungültiges XML: ${e.message ?: "unbekannter Fehler"}")
+        }
 
-            waypoints.add(
-                Waypoint(
-                    id = System.currentTimeMillis() + waypoints.size,
-                    name = name,
-                    latitude = lat,
-                    longitude = lon,
-                    code = code,
-                    hint = hint,
-                    difficulty = difficulty,
-                    terrain = terrain,
-                    cacheType = cacheType,
-                    groupCacheId = groupCacheId,
-                    archived = archived
-                )
+        val grouping = groupWaypoints(waypoints)
+        return ImportResult(grouping.caches, grouping.freeWaypoints, tracks, skipped)
+    }
+
+    private fun parseWaypoint(parser: XmlPullParser, out: MutableList<Waypoint>, skipped: MutableList<String>) {
+        val lat = parser.attr("lat")?.toDoubleOrNull()
+        val lon = parser.attr("lon")?.toDoubleOrNull()
+
+        if (lat == null || lon == null || lat !in -90.0..90.0 || lon !in -180.0..180.0) {
+            skipped.add("Wegpunkt ohne gültige Koordinaten übersprungen")
+            skipElement(parser)
+            return
+        }
+
+        var rawName: String? = null
+        var desc: String? = null
+        var type: String? = null
+        var hint: String? = null
+        var gsName: String? = null
+        var groupCacheId: String? = null
+        var archived = false
+        var difficulty: Double? = null
+        var terrain: Double? = null
+
+        var depth = 1
+        while (depth > 0) {
+            when (parser.next()) {
+                XmlPullParser.START_TAG -> when {
+                    parser.isGpxElement("name") -> rawName = readElementText(parser)
+                    parser.isGpxElement("desc") -> desc = readElementText(parser)
+                    parser.isGpxElement("type") -> type = readElementText(parser)
+                    parser.isGroundspeakElement("cache") -> {
+                        val c = parseGroundspeakCache(parser)
+                        if (groupCacheId == null) groupCacheId = c.id
+                        if (c.archived) archived = true
+                        if (gsName == null) gsName = c.name
+                        if (difficulty == null) difficulty = c.difficulty
+                        if (terrain == null) terrain = c.terrain
+                        if (hint == null) hint = c.hint
+                    }
+                    parser.isGroundspeakElement("name") -> if (gsName == null) gsName = readElementText(parser)
+                    parser.isGroundspeakElement("encoded_hints") -> if (hint == null) hint = readElementText(parser)
+                    else -> skipElement(parser)
+                }
+                XmlPullParser.END_TAG -> depth--
+            }
+        }
+
+        val fallbackName = rawName ?: "Ziel"
+        val codeFromName = GC_CODE_PREFIX.find(fallbackName.trim())?.groupValues?.get(1)
+        val codeFromDesc = desc?.let { GC_CODE_PREFIX.find(it.trim())?.groupValues?.get(1) }
+        val isGc = GC_CODE_FULL.matches(fallbackName.trim())
+
+        val name = when {
+            gsName != null -> gsName
+            codeFromName != null -> fallbackName.substringAfter(" - ", fallbackName).trim().ifBlank { fallbackName }
+            isGc -> desc?.substringBefore(",")?.trim()?.substringBefore(" by ")?.trim()?.ifBlank { fallbackName } ?: fallbackName
+            else -> fallbackName
+        }
+        val code = codeFromName ?: if (isGc) fallbackName.trim() else null
+        val cacheType = type?.substringAfter("|")?.trim()?.let { t ->
+            CACHE_TYPES.firstOrNull { it.equals(t, ignoreCase = true) } ?: t
+        }?.ifBlank { null }
+        val finalGroupId = groupCacheId ?: codeFromDesc ?: codeFromName
+
+        out.add(
+            Waypoint(
+                id = System.currentTimeMillis() + out.size,
+                name = name,
+                latitude = lat,
+                longitude = lon,
+                code = code,
+                hint = hint,
+                difficulty = difficulty,
+                terrain = terrain,
+                cacheType = cacheType,
+                groupCacheId = finalGroupId,
+                archived = archived
             )
-        }
+        )
+    }
 
-        // 2) Tracks (<trk>/<trkseg>/<trkpt>) – bleiben als zusammenhängende Linie erhalten
-        val trkRegex = Regex("<trk\\b[^>]*>(.*?)</trk>", RegexOption.DOT_MATCHES_ALL)
-        for (trk in trkRegex.findAll(text)) {
-            val trkBody = trk.groupValues[1]
-            val trackName = extractTag(trkBody, "name")?.ifBlank { null } ?: "Track"
-            val (points, ptSkipped) = parseTrackPoints(trkBody, "trkpt")
-            skipped += ptSkipped
-            if (points.size >= 2) {
-                tracks.add(Track(id = System.currentTimeMillis() + tracks.size + 1_000_000L, name = trackName, points = points))
-            } else {
-                skipped++
+    private data class GroundspeakCache(
+        val id: String?,
+        val name: String?,
+        val difficulty: Double?,
+        val terrain: Double?,
+        val hint: String?,
+        val archived: Boolean
+    )
+
+    private fun parseGroundspeakCache(parser: XmlPullParser): GroundspeakCache {
+        var id: String? = null
+        var archived = false
+
+        // Attribute in beliebiger Reihenfolge.
+        for (i in 0 until parser.attributeCount) {
+            when (parser.getAttributeName(i)) {
+                "id" -> id = parser.getAttributeValue(i)?.trim()?.ifBlank { null }
+                "archived" -> archived = parser.getAttributeValue(i).asGpxBoolean()
             }
         }
 
-        // 3) Routen (<rte>/<rtept>) – ebenfalls als Linie erhalten
-        val rteRegex = Regex("<rte\\b[^>]*>(.*?)</rte>", RegexOption.DOT_MATCHES_ALL)
-        for (rte in rteRegex.findAll(text)) {
-            val rteBody = rte.groupValues[1]
-            val routeName = extractTag(rteBody, "name")?.ifBlank { null } ?: "Route"
-            val (points, ptSkipped) = parseTrackPoints(rteBody, "rtept")
-            skipped += ptSkipped
-            if (points.size >= 2) {
-                tracks.add(Track(id = System.currentTimeMillis() + tracks.size + 1_000_000L, name = routeName, points = points))
-            } else {
-                skipped++
+        var name: String? = null
+        var difficulty: Double? = null
+        var terrain: Double? = null
+        var hint: String? = null
+
+        var depth = 1
+        while (depth > 0) {
+            when (parser.next()) {
+                XmlPullParser.START_TAG -> when {
+                    parser.isGroundspeakElement("name") -> name = readElementText(parser)
+                    parser.isGroundspeakElement("difficulty") -> difficulty = readElementText(parser)?.toDoubleOrNull()
+                    parser.isGroundspeakElement("terrain") -> terrain = readElementText(parser)?.toDoubleOrNull()
+                    parser.isGroundspeakElement("encoded_hints") -> hint = readElementText(parser)
+                    else -> skipElement(parser)
+                }
+                XmlPullParser.END_TAG -> depth--
             }
         }
 
-        return ParseResult(waypoints, tracks, skipped)
+        return GroundspeakCache(id, name, difficulty, terrain, hint, archived)
     }
 
-    private fun parseLatLon(attrs: String): Pair<Double, Double>? {
-        val lat = Regex("lat=\"([^\"]+)\"").find(attrs)?.groupValues?.get(1)?.toDoubleOrNull()
-        val lon = Regex("lon=\"([^\"]+)\"").find(attrs)?.groupValues?.get(1)?.toDoubleOrNull()
-        return if (lat != null && lon != null && lat in -90.0..90.0 && lon in -180.0..180.0) {
-            lat to lon
-        } else null
-    }
-
-    private fun extractTag(xml: String, tag: String): String? {
-        val m = Regex("<$tag\\b[^>]*>(.*?)</$tag>", RegexOption.DOT_MATCHES_ALL).find(xml)
-        return m?.groupValues?.get(1)?.trim()?.ifBlank { null }?.let { unescapeXml(it) }
-    }
-
-    private fun parseTrackPoints(xml: String, tag: String): Pair<List<TrackPoint>, Int> {
+    private fun parseTrackLike(
+        parser: XmlPullParser,
+        kind: String,
+        pointTag: String,
+        out: MutableList<Track>,
+        skipped: MutableList<String>
+    ) {
+        var name: String? = null
         val points = mutableListOf<TrackPoint>()
-        var skipped = 0
-        val ptRegex = Regex("<$tag\\b([^>]*?)/>|<$tag\\b([^>]*)>(.*?)</$tag>", RegexOption.DOT_MATCHES_ALL)
-        for (m in ptRegex.findAll(xml)) {
-            val attrs = if (m.groupValues[1].isNotBlank()) m.groupValues[1] else m.groupValues[2]
-            val body = m.groupValues[3]
-            val latLon = parseLatLon(attrs)
-            if (latLon == null) {
-                skipped++
-                continue
+
+        var depth = 1
+        while (depth > 0) {
+            when (parser.next()) {
+                XmlPullParser.START_TAG -> when {
+                    parser.isGpxElement("name") -> name = readElementText(parser)
+                    parser.isGpxElement(pointTag) -> {
+                        val pt = parseTrackPoint(parser)
+                        if (pt != null) points.add(pt) else skipped.add("Trackpunkt ohne gültige Koordinaten übersprungen")
+                    }
+                    parser.isGpxElement("trkseg") -> { /* Segment absteigen, enthält die <trkpt> */ }
+                    else -> skipElement(parser)
+                }
+                XmlPullParser.END_TAG -> depth--
             }
-            val ele = if (body.isNotEmpty()) extractTag(body, "ele")?.toDoubleOrNull() else null
-            val timeStr = if (body.isNotEmpty()) extractTag(body, "time") else null
-            val time = timeStr?.let { parseGpxTime(it) }
-            points.add(TrackPoint(latLon.first, latLon.second, ele, time))
         }
-        return points to skipped
+
+        val trackName = name?.ifBlank { null } ?: if (kind == "rte") "Route" else "Track"
+        if (points.size >= 2) {
+            out.add(Track(id = System.currentTimeMillis() + out.size + 1_000_000L, name = trackName, points = points))
+        } else {
+            skipped.add("$trackName mit weniger als 2 Punkten übersprungen")
+        }
+    }
+
+    private fun parseTrackPoint(parser: XmlPullParser): TrackPoint? {
+        val lat = parser.attr("lat")?.toDoubleOrNull()
+        val lon = parser.attr("lon")?.toDoubleOrNull()
+
+        if (lat == null || lon == null || lat !in -90.0..90.0 || lon !in -180.0..180.0) {
+            skipElement(parser)
+            return null
+        }
+
+        var ele: Double? = null
+        var time: Long? = null
+
+        var depth = 1
+        while (depth > 0) {
+            when (parser.next()) {
+                XmlPullParser.START_TAG -> when {
+                    parser.isGpxElement("ele") -> ele = readElementText(parser)?.toDoubleOrNull()
+                    parser.isGpxElement("time") -> time = readElementText(parser)?.let { parseGpxTime(it) }
+                    else -> skipElement(parser)
+                }
+                XmlPullParser.END_TAG -> depth--
+            }
+        }
+
+        return TrackPoint(lat, lon, ele, time)
+    }
+
+    private fun XmlPullParser.attr(name: String): String? {
+        for (i in 0 until attributeCount) {
+            if (getAttributeName(i) == name) return getAttributeValue(i)
+        }
+        return null
+    }
+
+    private fun XmlPullParser.isGpxElement(local: String): Boolean {
+        val ns = namespace
+        return when {
+            ns == null -> name == local || name.endsWith(":$local")
+            ns == GPX_NS_1_0 || ns == GPX_NS_1_1 -> name == local
+            else -> false
+        }
+    }
+
+    private fun XmlPullParser.isGroundspeakElement(local: String): Boolean {
+        val ns = namespace
+        return when {
+            ns != null && ns.startsWith(GROUNDSPEAK_NS_PREFIX) -> name == local
+            ns == null -> name == local || name.endsWith(":$local")
+            else -> false
+        }
+    }
+
+    private fun String?.asGpxBoolean(): Boolean = this?.equals("true", ignoreCase = true) == true
+
+    private fun readElementText(parser: XmlPullParser): String? {
+        val sb = StringBuilder()
+        var depth = 1
+        while (depth > 0) {
+            when (parser.next()) {
+                XmlPullParser.TEXT, XmlPullParser.CDSECT, XmlPullParser.ENTITY_REF -> sb.append(parser.text)
+                XmlPullParser.START_TAG -> depth++
+                XmlPullParser.END_TAG -> depth--
+            }
+        }
+        return sb.toString().trim().ifBlank { null }
+    }
+
+    private fun skipElement(parser: XmlPullParser) {
+        var depth = 1
+        while (depth > 0) {
+            when (parser.next()) {
+                XmlPullParser.START_TAG -> depth++
+                XmlPullParser.END_TAG -> depth--
+                XmlPullParser.END_DOCUMENT -> return
+            }
+        }
     }
 
     private fun formatGpxTime(millis: Long): String {
@@ -252,12 +425,82 @@ object WaypointCodec {
             .replace("\"", "&quot;")
             .replace("'", "&apos;")
 
-    private fun unescapeXml(s: String): String =
-        s.replace("&amp;", "&")
-            .replace("&lt;", "<")
-            .replace("&gt;", ">")
-            .replace("&quot;", "\"")
-            .replace("&apos;", "'")
+    // ---------- Mehrfach-Export (pro Objekt eine Datei) ----------
+
+    /**
+     * Erzeugt pro Objekt eine eigene GPX-Datei:
+     *  - jeder Cache (Kopf + Zusatz-Wegpunkte) → `cache_<GC-Code>.gpx`
+     *  - jede freie Position → `position_<Name>.gpx`
+     *  - jede Route → `track_<Name>.gpx`
+     *
+     * Die Gruppierung wird so geschrieben, dass Import → Export → Import → Export
+     * strukturell identisch bleibt: Der Kopf trägt den GC-Code im `<name>`, die
+     * Zusatz-Wegpunkte den GC-Code im `<desc>`.
+     */
+    fun toGpxFiles(waypoints: List<Waypoint>, tracks: List<Track>): List<GpxExportFile> {
+        val files = mutableListOf<GpxExportFile>()
+        val grouping = groupWaypoints(waypoints)
+
+        grouping.caches.forEach { cache ->
+            val code = cache.code?.takeIf { it.isNotBlank() }
+            val baseName = code ?: cache.name
+            files.add(GpxExportFile("cache_${sanitizeFileName(baseName)}.gpx", toCacheGpx(cache)))
+        }
+
+        grouping.freeWaypoints.forEach { wp ->
+            files.add(GpxExportFile("position_${sanitizeFileName(wp.name)}.gpx", toFreeWaypointGpx(wp)))
+        }
+
+        tracks.forEach { trk ->
+            files.add(GpxExportFile("track_${sanitizeFileName(trk.name)}.gpx", toGpx(emptyList(), listOf(trk))))
+        }
+
+        return files
+    }
+
+    private fun toCacheGpx(cache: Cache): String {
+        val sb = StringBuilder()
+        appendGpxHeader(sb)
+        val primary = cache.primary
+        if (primary != null) {
+            val code = cache.code?.takeIf { it.isNotBlank() }
+            val headName = if (code != null) "$code - ${primary.name}" else primary.name
+            appendWpt(sb, primary.latitude, primary.longitude, headName, primary.name, primary.cacheType)
+        }
+        cache.waypoints.filter { it !== primary }.forEach { child ->
+            appendWpt(sb, child.latitude, child.longitude, child.name, cache.code?.takeIf { it.isNotBlank() }, child.cacheType)
+        }
+        sb.append("</gpx>\n")
+        return sb.toString()
+    }
+
+    private fun toFreeWaypointGpx(wp: Waypoint): String {
+        val sb = StringBuilder()
+        appendGpxHeader(sb)
+        appendWpt(sb, wp.latitude, wp.longitude, wp.name, null, null)
+        sb.append("</gpx>\n")
+        return sb.toString()
+    }
+
+    private fun appendGpxHeader(sb: StringBuilder) {
+        sb.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
+        sb.append("<gpx version=\"1.1\" creator=\"GPS Satelliten\" xmlns=\"http://www.topografix.com/GPX/1/1\">\n")
+    }
+
+    private fun appendWpt(sb: StringBuilder, lat: Double, lon: Double, name: String, desc: String?, type: String?) {
+        sb.append("  <wpt lat=\"")
+            .append(String.format(Locale.US, "%.6f", lat))
+            .append("\" lon=\"")
+            .append(String.format(Locale.US, "%.6f", lon))
+            .append("\">\n")
+        sb.append("    <name>").append(escapeXml(name)).append("</name>\n")
+        if (!desc.isNullOrBlank()) sb.append("    <desc>").append(escapeXml(desc)).append("</desc>\n")
+        if (!type.isNullOrBlank()) sb.append("    <type>").append(escapeXml(type)).append("</type>\n")
+        sb.append("  </wpt>\n")
+    }
+
+    private fun sanitizeFileName(name: String): String =
+        name.replace(Regex("[^A-Za-z0-9._-]"), "_").trim('_').ifBlank { "export" }
 
     // ---------- JSON ----------
 
@@ -282,34 +525,35 @@ object WaypointCodec {
         return arr.toString(2)
     }
 
-    private fun parseJson(text: String): ParseResult {
+    private fun parseJson(text: String): ImportResult {
         return try {
             jsonArrayToWaypoints(JSONArray(text))
         } catch (e: Exception) {
             try {
                 val obj = JSONObject(text)
                 val arr = obj.optJSONArray("waypoints")
-                if (arr != null) jsonArrayToWaypoints(arr) else ParseResult(emptyList(), emptyList(), 0)
+                if (arr != null) jsonArrayToWaypoints(arr)
+                else ImportResult(emptyList(), emptyList(), emptyList(), emptyList())
             } catch (e2: Exception) {
-                ParseResult(emptyList(), emptyList(), 0)
+                ImportResult(emptyList(), emptyList(), emptyList(), listOf("Ungültiges JSON"))
             }
         }
     }
 
-    private fun jsonArrayToWaypoints(arr: JSONArray): ParseResult {
+    private fun jsonArrayToWaypoints(arr: JSONArray): ImportResult {
         val waypoints = mutableListOf<Waypoint>()
-        var skipped = 0
+        val skipped = mutableListOf<String>()
         for (i in 0 until arr.length()) {
             val o = arr.optJSONObject(i)
             if (o == null) {
-                skipped++
+                skipped.add("Eintrag ${i + 1} ist kein JSON-Objekt")
                 continue
             }
             val lat = o.optDouble("lat", Double.NaN)
             val lon = o.optDouble("lon", Double.NaN)
             val name = o.optString("name", "").ifBlank { "Ziel" }
             if (lat.isNaN() || lon.isNaN() || lat !in -90.0..90.0 || lon !in -180.0..180.0) {
-                skipped++
+                skipped.add("Zielpunkt \"$name\" ohne gültige Koordinaten übersprungen")
                 continue
             }
             waypoints.add(
@@ -328,6 +572,7 @@ object WaypointCodec {
                 )
             )
         }
-        return ParseResult(waypoints, emptyList(), skipped)
+        val grouping = groupWaypoints(waypoints)
+        return ImportResult(grouping.caches, grouping.freeWaypoints, emptyList(), skipped)
     }
 }

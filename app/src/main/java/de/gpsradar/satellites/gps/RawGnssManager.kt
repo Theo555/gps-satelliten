@@ -85,11 +85,13 @@ class RawGnssManager(context: Context) {
         val clock = event.clock
         _clock.value = clock.toSnapshot()
 
+        // GnssClock.HAS_NO_FULL_BIAS = Long.MIN_VALUE ("unbekannt"); HAS_NO_BIAS = NaN.
+        val clockUsable = clock.fullBiasNanos != Long.MIN_VALUE && !clock.biasNanos.isNaN()
         val tRxNanos = clock.timeNanos - clock.fullBiasNanos - clock.biasNanos
         val weekOffsetNanos = floor(-clock.fullBiasNanos.toDouble() / WEEK_NANOS) * WEEK_NANOS
 
         val list = event.measurements.mapNotNull { measurement ->
-            measurement.toRawMeasurement(tRxNanos, weekOffsetNanos)
+            measurement.toRawMeasurement(tRxNanos, weekOffsetNanos, clockUsable)
         }
 
         // Pro (SVID, Band) nur den letzten Wert behalten.
@@ -102,7 +104,7 @@ class RawGnssManager(context: Context) {
         _measurements.value = latest
     }
 
-    private fun GnssMeasurement.toRawMeasurement(tRxNanos: Double, weekOffsetNanos: Double): RawMeasurement? {
+    private fun GnssMeasurement.toRawMeasurement(tRxNanos: Double, weekOffsetNanos: Double, clockUsable: Boolean): RawMeasurement? {
         val freq = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && hasCarrierFrequencyHz()) {
             carrierFrequencyHz
         } else {
@@ -116,7 +118,8 @@ class RawGnssManager(context: Context) {
         }
 
         val tTxNanos = receivedSvTimeNanos + weekOffsetNanos
-        val pseudorange = if (receivedSvTimeNanos != 0L) {
+        // GnssMeasurement.HAS_NO_RECEIVED_SV_TIME_NANOS = Long.MIN_VALUE ("unbekannt").
+        val pseudorange = if (clockUsable && receivedSvTimeNanos != Long.MIN_VALUE) {
             val meters = (tRxNanos - tTxNanos) * 1e-9 * SPEED_OF_LIGHT
             if (meters in PSEUDORANGE_MIN_M..PSEUDORANGE_MAX_M) meters else null
         } else {

@@ -120,8 +120,10 @@ private fun MeasurementHeader(clock: RawClockSnapshot?, count: Int) {
             if (clock != null) {
                 Spacer(modifier = Modifier.height(6.dp))
                 val time = SimpleDateFormat("HH:mm:ss", Locale.GERMANY).format(Date(clock.receivedAtMillis))
+                val driftText = if (clock.driftNsPerSec.isNaN()) "–" else "${String.format(Locale.US, "%.3f", clock.driftNsPerSec)} ns/s"
+                val leapText = if (clock.leapSecond == Int.MIN_VALUE) "unbekannt" else "${clock.leapSecond} s"
                 Text(
-                    text = "Empfangszeit $time · Uhr-Drift ${String.format(Locale.US, "%.3f", clock.driftNsPerSec)} ns/s · Leap-Second ${clock.leapSecond} s",
+                    text = "Empfangszeit $time · Uhr-Drift $driftText · Leap-Second $leapText",
                     fontSize = 10.sp,
                     color = Color(0xFFCBD5E1)
                 )

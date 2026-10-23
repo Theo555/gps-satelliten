@@ -68,6 +68,7 @@ import de.gpsradar.satellites.model.CACHE_TYPES
 import de.gpsradar.satellites.model.Cache
 import de.gpsradar.satellites.model.Coordinates
 import de.gpsradar.satellites.model.GpsLocationState
+import de.gpsradar.satellites.model.ImportResult
 import de.gpsradar.satellites.model.Navigation
 import de.gpsradar.satellites.model.Track
 import de.gpsradar.satellites.model.Waypoint
@@ -96,9 +97,11 @@ fun NavigationScreen(
     onSetActiveWaypoint: (Long?) -> Unit,
     onDeleteTrack: (Long) -> Unit,
     onSetActiveTrack: (Long?) -> Unit,
-    onImportWaypoints: (Uri) -> String,
-    onExportGpx: (Uri) -> Boolean,
+    onImportWaypoints: (Uri) -> ImportResult,
+    onExportGpx: (Uri) -> Int,
     onExportJson: (Uri) -> Boolean,
+    hintR13Map: Map<String, Boolean>,
+    onToggleHintFormat: (String) -> Unit,
     isRecording: Boolean,
     isRecordingPaused: Boolean,
     recordingPointCount: Int,
@@ -135,7 +138,9 @@ fun NavigationScreen(
             onSetActiveWaypoint = onSetActiveWaypoint,
             onImportWaypoints = onImportWaypoints,
             onExportGpx = onExportGpx,
-            onExportJson = onExportJson
+            onExportJson = onExportJson,
+            hintR13Map = hintR13Map,
+            onToggleHintFormat = onToggleHintFormat
         )
 
         // Tracks / Routen
@@ -175,23 +180,29 @@ private fun WaypointsCard(
     onToggleFound: (Long) -> Unit,
     onDeleteWaypoint: (Long) -> Unit,
     onSetActiveWaypoint: (Long?) -> Unit,
-    onImportWaypoints: (Uri) -> String,
-    onExportGpx: (Uri) -> Boolean,
-    onExportJson: (Uri) -> Boolean
+    onImportWaypoints: (Uri) -> ImportResult,
+    onExportGpx: (Uri) -> Int,
+    onExportJson: (Uri) -> Boolean,
+    hintR13Map: Map<String, Boolean>,
+    onToggleHintFormat: (String) -> Unit
 ) {
     val context = LocalContext.current
 
     val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         uri?.let { u ->
-            val message = onImportWaypoints(u)
-            Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+            val result = onImportWaypoints(u)
+            Toast.makeText(context, result.toMessage(), Toast.LENGTH_LONG).show()
         }
     }
 
-    val exportGpxLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/gpx+xml")) { uri ->
+    val exportGpxLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
         uri?.let { u ->
-            val ok = onExportGpx(u)
-            Toast.makeText(context, if (ok) "GPX exportiert" else "Export fehlgeschlagen", Toast.LENGTH_SHORT).show()
+            val count = onExportGpx(u)
+            Toast.makeText(
+                context,
+                if (count > 0) "$count Datei(en) exportiert" else "Export fehlgeschlagen",
+                Toast.LENGTH_SHORT
+            ).show()
         }
     }
 
@@ -256,6 +267,8 @@ private fun WaypointsCard(
                 ActiveTargetSummary(
                     state = state,
                     waypoint = active,
+                    hintR13Map = hintR13Map,
+                    onToggleHintFormat = onToggleHintFormat,
                     onOpenMap = { openInMap(context, active) },
                     onStop = { onSetActiveWaypoint(null) }
                 )
@@ -379,7 +392,7 @@ private fun WaypointsCard(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 OutlinedButton(
-                    onClick = { exportGpxLauncher.launch("gps_zielpunkte.gpx") },
+                    onClick = { exportGpxLauncher.launch(null) },
                     modifier = Modifier.weight(1f).testTag("export_gpx_btn")
                 ) {
                     Text("Export GPX", fontSize = 12.sp)
@@ -564,7 +577,8 @@ private fun TracksCard(
                     state = state,
                     track = activeTrack,
                     trackProgress = activeTrackProgress,
-                    onStop = { onSetActiveTrack(null) }
+                    onStop = { onSetActiveTrack(null) },
+                    onReverse = { onReverseTrack(activeTrack.id) }
                 )
                 Spacer(modifier = Modifier.height(10.dp))
             }
@@ -632,11 +646,28 @@ private fun TracksCard(
 }
 
 @Composable
+private fun DirectionBadge(reversed: Boolean) {
+    Surface(
+        color = if (reversed) Color(0xFFF59E0B).copy(alpha = 0.16f) else SignalGreen.copy(alpha = 0.16f),
+        shape = RoundedCornerShape(6.dp)
+    ) {
+        Text(
+            text = if (reversed) "◀ zum Anfang" else "▶ zum Ende",
+            fontSize = 10.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = if (reversed) Color(0xFFFBBF24) else SignalGreen,
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+        )
+    }
+}
+
+@Composable
 private fun ActiveTrackSummary(
     state: GpsLocationState,
     track: Track,
     trackProgress: Int,
-    onStop: () -> Unit
+    onStop: () -> Unit,
+    onReverse: () -> Unit
 ) {
     val lat = state.latitude
     val lon = state.longitude
@@ -650,13 +681,13 @@ private fun ActiveTrackSummary(
         return
     }
 
-    val idx = trackProgress.coerceIn(0, track.points.lastIndex)
-    val target = track.points[idx]
+    val idx = trackProgress.coerceIn(0, track.orderedPoints.lastIndex)
+    val target = track.orderedPoints[idx]
     val distance = Navigation.distanceMeters(lat, lon, target.latitude, target.longitude)
     val bearing = Navigation.initialBearingDegrees(lat, lon, target.latitude, target.longitude)
     val arrowRotation = (bearing - state.compassHeading).toFloat()
     val remaining = track.remainingMeters(idx)
-    val finished = idx == track.points.lastIndex && distance < 30.0
+    val finished = idx == track.orderedPoints.lastIndex && distance < 30.0
 
     Surface(
         color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
@@ -684,12 +715,16 @@ private fun ActiveTrackSummary(
             }
             Spacer(modifier = Modifier.width(14.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = track.name,
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = track.name,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        modifier = Modifier.weight(1f)
+                    )
+                    DirectionBadge(reversed = track.reversed)
+                }
                 Text(
                     text = if (finished) {
                         "Ziel erreicht"
@@ -706,19 +741,45 @@ private fun ActiveTrackSummary(
                     color = Color(0xFFCBD5E1)
                 )
                 Text(
-                    text = "Punkt ${idx + 1} von ${track.points.size} · Rest ${formatDistance(remaining)}",
+                    text = "Punkt ${idx + 1} von ${track.points.size} · Ziel ${if (track.reversed) "Anfang" else "Ende"} · Rest ${formatDistance(remaining)}",
                     fontSize = 11.sp,
                     color = Color(0xFFCBD5E1)
                 )
 
                 Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    text = "Track folgen beenden",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.clickable { onStop() }
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .clickable { onReverse() }
+                            .testTag("reverse_active_track_btn")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.SwapVert,
+                            contentDescription = "Track umkehren",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "Richtung umkehren",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    Text(
+                        text = "Folgen beenden",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.clickable { onStop() }
+                    )
+                }
             }
         }
     }
@@ -763,7 +824,7 @@ private fun TrackRow(
                     color = Color.White
                 )
                 Text(
-                    text = "${track.points.size} Punkte · ${formatDistance(track.lengthMeters)}",
+                    text = "${track.points.size} Punkte · ${formatDistance(track.lengthMeters)} · ${if (track.reversed) "◀ zum Anfang" else "▶ zum Ende"}",
                     fontSize = 10.sp,
                     color = Color(0xFF94A3B8)
                 )
@@ -814,12 +875,15 @@ private fun formatDistance(meters: Double): String =
 private fun ActiveTargetSummary(
     state: GpsLocationState,
     waypoint: Waypoint,
+    hintR13Map: Map<String, Boolean>,
+    onToggleHintFormat: (String) -> Unit,
     onOpenMap: () -> Unit,
     onStop: () -> Unit
 ) {
     val lat = state.latitude
     val lon = state.longitude
-    var showHint by remember { mutableStateOf(false) }
+    var showHint by remember(waypoint.id) { mutableStateOf(false) }
+    val hintKey = waypoint.code?.takeIf { it.isNotBlank() } ?: waypoint.name
 
     if (lat == null || lon == null) {
         Text(
@@ -884,11 +948,35 @@ private fun ActiveTargetSummary(
                 if (!waypoint.hint.isNullOrBlank()) {
                     Spacer(modifier = Modifier.height(4.dp))
                     if (showHint) {
+                        val isR13 = hintR13Map[hintKey] ?: false
+                        val hintText = if (isR13) WaypointCodec.rot13(waypoint.hint!!) else waypoint.hint!!
                         Text(
-                            text = "Hint: ${WaypointCodec.rot13(waypoint.hint!!)}",
+                            text = "Hint: $hintText",
                             fontSize = 12.sp,
                             color = Color(0xFFCBD5E1)
                         )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "Klartext",
+                                fontSize = 11.sp,
+                                fontWeight = if (isR13) FontWeight.Normal else FontWeight.Bold,
+                                color = if (isR13) Color(0xFF94A3B8) else MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.clickable { if (isR13) onToggleHintFormat(hintKey) }
+                            )
+                            Text(
+                                text = " · ",
+                                fontSize = 11.sp,
+                                color = Color(0xFF94A3B8)
+                            )
+                            Text(
+                                text = "ROT13",
+                                fontSize = 11.sp,
+                                fontWeight = if (isR13) FontWeight.Bold else FontWeight.Normal,
+                                color = if (isR13) MaterialTheme.colorScheme.primary else Color(0xFF94A3B8),
+                                modifier = Modifier.clickable { if (!isR13) onToggleHintFormat(hintKey) }
+                            )
+                        }
                     } else {
                         Text(
                             text = "Hint anzeigen",

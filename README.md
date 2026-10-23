@@ -1,6 +1,13 @@
 # GPS Satelliten 📡
 
-Native Android-App (Kotlin + Jetpack Compose) zur **Live-Anzeige von GNSS-Satelliten** – mit Himmels-Radar, Signalanalyse, Positionsanzeige und vollwertigen **Geocaching-Funktionen**. Komplett offline nutzbar, ohne Werbung und ohne Datenweitergabe.
+Native Android-App (Kotlin + Jetpack Compose) zur **Live-Anzeige von GNSS-Satelliten** – mit Himmels-Radar, Signalanalyse, Positionsanzeige und vollwertigen **Geocaching-Funktionen**. Läuft komplett offline, ohne Werbung und ohne Datenweitergabe – zuverlässig vom älteren Smartphone bis zum aktuellen Flaggschiff.
+
+## Prinzipien (prüfbar, nicht nur behauptet)
+
+- **Keine `INTERNET`-Berechtigung.** Die App kann technisch keine Verbindungen nach außen aufbauen – kein Tracking, keine Analytics, keine versteckten Anfragen. Prüfbar im Manifest.
+- **Rein GNSS, kein Hybrid.** Bewusst ohne WLAN-, Funkzellen- oder Fused-Location-Ortung und ohne Google Play Services – nur Satelliten-Ortung, damit die App tatsächlich komplett offline bleibt.
+- **Im Flugmodus getestet.** Läuft sauber und flink auf älteren Geräten ohne jede Verbindung.
+- **~2 MB.** Kein Karten-SDK, keine Analytics-Bibliothek. Karten öffnen über `geo:`-Intents in einer externen App.
 
 ## Download (fertige APK) ⬇️
 
@@ -9,7 +16,7 @@ Keine Lust, selbst zu kompilieren? Lade einfach die fertige APK herunter und ins
 - **[Neueste Version](https://github.com/Theo555/gps-satelliten/releases/latest)** – das aktuelle Release (dort APK herunterladen)
 - **[Alle Releases](https://github.com/Theo555/gps-satelliten/releases)** – Übersicht aller Releases
 
-> **Hinweis:** Die APK ist mit einem Test-Schlüssel signiert. Beim ersten Installieren kann eine **Play-Protect-Warnung** erscheinen – dort einfach **„Trotzdem installieren"** wählen. Voraussetzung: Android 7.0 (API 24) oder neuer.
+> **Hinweis:** Die APK ist mit einem Test-Schlüssel signiert. Beim ersten Installieren kann eine **Play-Protect-Warnung** erscheinen – dort einfach **„Trotzdem installieren"** wählen. Diese Warnung ist bei GitHub-APKs normal und **kein Hinweis auf Schadcode** – sie erscheint, weil die App nicht über den Play Store verteilt wird. Voraussetzung: Android 7.0 (API 24) oder neuer.
 
 ## Funktionen
 
@@ -24,6 +31,7 @@ Keine Lust, selbst zu kompilieren? Lade einfach die fertige APK herunter und ins
 
 - **Navigationsnachrichten** – Ephemeriden-/Almanach-Rohdaten je Satellit als Hex-Ansicht (im Satelliten-Detail)
 - **Messung-Tab** – pro Satellit und Frequenzband (**L1/L5/L2/E1/E5a/E5b**): C/N₀, **Pseudorange**, Doppler, Trägerphase und Multipfad-Erkennung
+- **Ehrliche Anzeige** – Werte, die das Gerät nicht liefert (z. B. Pseudorange oder Uhr-Drift), erscheinen als „–“ bzw. „unbekannt“ statt als Fantasiezahl
 - Hinweis: Der Messung-Tab erscheint nur auf Geräten, die **GNSS-Roh-Messungen** (`GnssMeasurements`) unterstützen.
 
 ### 📍 Positionsbestimmung
@@ -35,11 +43,11 @@ Keine Lust, selbst zu kompilieren? Lade einfach die fertige APK herunter und ins
 
 ### 🧭 Geocaching
 
-- **Zielpunkte** mit Name, GC-Code, Hint (ROT13), Schwierigkeit/Gelände (D/T) und Cache-Typ
+- **Zielpunkte** mit Name, GC-Code, Hint (lossless gespeichert; Anzeige umschaltbar Klartext ⇄ ROT13), Schwierigkeit/Gelände (D/T) und Cache-Typ
 - **Pfeil-Navigation** zum aktiven Ziel (Entfernung + Peilung, relativ zur Blickrichtung)
 - **Projektion** – neuen Zielpunkt aus Peilung + Entfernung berechnen (für Multis/Mysteries)
-- **Hint-Anzeige** mit ROT13-Entschlüsselung (Spoiler-Schutz)
-- **Import/Export** – GPX (Geocaching-Standard) und JSON über den Android-Datei-Picker, inkl. Pocket-Query-Support (GC-Code, Typ, D/T, Hint)
+- **Hint-Anzeige** – zunächst verborgen (Spoiler-Schutz); nach Antippen im Klartext, per Umschalter auch ROT13-entschlüsselt
+- **Import/Export** – GPX (Geocaching-Standard) und JSON über den Android-Datei-Picker. Robuster XML-Import aus verschiedenen Quellen (Pocket Query, GSAK, c:geo) mit GC-Code, Typ, D/T und Hint; fehlerhafte Einträge werden übersprungen und gemeldet („X importiert, Y übersprungen“)
 - **„In Karte öffnen"** – Zielpunkt per `geo:`-Intent an eine externe Karten-App übergeben
 
 ### 🗺️ Tracks & Aufzeichnung
@@ -55,7 +63,7 @@ Keine Lust, selbst zu kompilieren? Lade einfach die fertige APK herunter und ins
 
 - **Simulationsmodus** – realistisches Satelliten-Szenario, wenn kein Empfang verfügbar ist (z. B. in Gebäuden oder im Emulator)
 - **Bildschirm bleibt an** – Display bleibt wach, solange ein Ziel/Track aktiv ist oder aufgezeichnet wird
-- **Position teilen** – aktuelle Koordinaten inkl. Google-Maps-Link über das Android-Teilen-Menü
+- **Position teilen** – aktuelle Koordinaten inkl. Google-Maps-Link über das Android-Teilen-Menü (die App selbst öffnet dabei keine Verbindung – das übernimmt die Ziel-App)
 - Dunkles Telemetrie-Design
 
 ## Screenshots
@@ -74,6 +82,10 @@ Keine Lust, selbst zu kompilieren? Lade einfach die fertige APK herunter und ins
   <img src="screenshots/position-dop.jpg" width="200" alt="DOP-Werte" />
 </p>
 
+<p align="center">
+  <img src="screenshots/messung.jpg" width="200" alt="Messung (Rohdaten)" />
+</p>
+
 ## Technik
 
 | | |
@@ -87,8 +99,10 @@ Keine Lust, selbst zu kompilieren? Lade einfach die fertige APK herunter und ins
 
 ## Voraussetzungen
 
-- Android 7.0 (API 24) oder neuer
+- Android 7.0 (API 24) oder neuer – getestet von älteren Geräten (z. B. Galaxy Note9) bis zu aktuellen Flaggschiffen (z. B. S26 Ultra)
 - Android Studio (empfohlen) **oder** Gradle 9.3 + JDK 17 + Android SDK 36
+
+> **Hinweis:** Einige Funktionen hängen von der Hardware ab. Der **Messung-Tab** (GNSS-Rohdaten) und die **Navigationsnachrichten** erscheinen nur, wenn der GNSS-Chipsatz des Geräts `GnssMeasurements` bzw. `GnssNavigationMessage` unterstützt; auch die empfangbaren Konstellationen sind gerätespezifisch. Alle übrigen Funktionen (Radar, Signale, Position, Geocaching, Tracks) laufen auf allen unterstützten Geräten.
 
 ## Bauen
 
@@ -113,7 +127,7 @@ Die Release-APK liegt danach unter `app/build/outputs/apk/release/app-release.ap
 2. In der App unter **Nav → Importieren (GPX/JSON)** importieren.
 3. Cache in der Liste antippen, um ihn zum **aktiven Ziel** zu machen.
 4. Dem **Richtungspfeil** folgen (Entfernung + Peilung).
-5. Hint über **„Hint anzeigen"** entschlüsseln, Cache als **„gefunden"** markieren.
+5. Hint über **„Hint anzeigen"** einblenden und mit dem Umschalter **Klartext ⇄ ROT13** die passende Darstellung wählen. Cache als **„gefunden"** markieren.
 6. Für Multis/Mysteries: **Projektion** nutzen oder neue Zielpunkte **manuell** anlegen (Koordinaten in Dezimal/DMS/DDM).
 
 ## Eigene Tracks erstellen
@@ -132,5 +146,5 @@ app/src/main/java/de/gpsradar/satellites/
 
 ## Lizenz
 
-[MIT](LICENSE) © 2026 GPS Satelliten contributors
+[MIT](LICENSE) © 2026 TK
 

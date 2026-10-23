@@ -6,6 +6,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
+import androidx.documentfile.provider.DocumentFile
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import org.json.JSONArray
@@ -19,6 +20,7 @@ import de.gpsradar.satellites.model.Cache
 import de.gpsradar.satellites.model.Constellation
 import de.gpsradar.satellites.model.GpsLocationState
 import de.gpsradar.satellites.model.GnssNavMessage
+import de.gpsradar.satellites.model.ImportResult
 import de.gpsradar.satellites.model.Navigation
 import de.gpsradar.satellites.model.RawClockSnapshot
 import de.gpsradar.satellites.model.RawMeasurement
@@ -82,6 +84,16 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
     val tracks = MutableStateFlow<List<Track>>(loadTracks())
     val activeTrackId = MutableStateFlow<Long?>(null)
     val activeTrackProgress = MutableStateFlow<Int>(0)
+
+    // ---- Hint-Anzeige (Format je Hint, nur in-memory) ----
+    val hintR13ByKey = MutableStateFlow<Map<String, Boolean>>(emptyMap())
+
+    /** Wechselt die Anzeige eines Hints zwischen Klartext und ROT13 (Key = GC-Code bzw. Name). */
+    fun toggleHintFormat(key: String?) {
+        if (key.isNullOrBlank()) return
+        val current = hintR13ByKey.value[key] ?: false // Default: Klartext
+        hintR13ByKey.value = hintR13ByKey.value + (key to !current)
+    }
 
     // Abgeleitete Sichten: Caches (gruppiert über groundspeak:cache id) und freie Wegpunkte.
     val caches: StateFlow<List<Cache>> = waypoints
@@ -222,25 +234,27 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
 
             // Startpunkt festlegen: nah am Track -> nächstgelegener Punkt, sonst Anfang.
             val track = tracks.value.find { it.id == id }
-            var start = 0
-            if (track != null && track.points.isNotEmpty()) {
-                val st = rawGpsState.value
-                val lat = st.latitude
-                val lon = st.longitude
-                if (lat != null && lon != null) {
-                    val nearest = track.nearestIndex(lat, lon)
-                    val d = Navigation.distanceMeters(
-                        lat, lon,
-                        track.points[nearest].latitude, track.points[nearest].longitude
-                    )
-                    if (d < TRACK_SNAP_THRESHOLD_M) start = nearest
-                }
-            }
-            activeTrackProgress.value = start
+            activeTrackProgress.value = track?.let { snapStartIndex(it) } ?: 0
             startTrackFollowing(id)
         } else {
             activeTrackProgress.value = 0
         }
+    }
+
+    /**
+     * Startindex in Verfolgungsrichtung: nächstgelegener Punkt, falls die
+     * aktuelle Position nah genug an der Linie liegt, sonst Anfang (0).
+     */
+    private fun snapStartIndex(track: Track): Int {
+        val pts = track.orderedPoints
+        if (pts.isEmpty()) return 0
+        val st = rawGpsState.value
+        val lat = st.latitude
+        val lon = st.longitude
+        if (lat == null || lon == null) return 0
+        val nearest = track.nearestIndex(lat, lon)
+        val d = Navigation.distanceMeters(lat, lon, pts[nearest].latitude, pts[nearest].longitude)
+        return if (d < TRACK_SNAP_THRESHOLD_M) nearest else 0
     }
 
     private fun startTrackFollowing(trackId: Long) {
@@ -251,8 +265,9 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
                 val lat = st.latitude ?: return@collect
                 val lon = st.longitude ?: return@collect
                 val idx = activeTrackProgress.value
-                if (idx >= track.points.lastIndex) return@collect
-                val target = track.points[idx]
+                val pts = track.orderedPoints
+                if (idx >= pts.lastIndex) return@collect
+                val target = pts[idx]
                 val d = Navigation.distanceMeters(lat, lon, target.latitude, target.longitude)
                 if (d < TRACK_ADVANCE_THRESHOLD_M) {
                     activeTrackProgress.value = idx + 1
@@ -306,12 +321,16 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
         if (idx < 0) return
         val track = tracks.value[idx]
         tracks.value = tracks.value.toMutableList().also {
-            it[idx] = track.copy(points = track.points.reversed())
+            it[idx] = track.copy(reversed = !track.reversed)
         }
         persistTracks()
+        // Wird der Track gerade verfolgt, nahtlos am nächstgelegenen Punkt in
+        // der neuen Richtung weiterfolgen (kein erneutes Antippen nötig).
         if (activeTrackId.value == id) {
+            val updated = tracks.value[idx]
             cancelTrackFollowing()
-            activeTrackProgress.value = 0
+            activeTrackProgress.value = snapStartIndex(updated)
+            startTrackFollowing(id)
         }
     }
 
@@ -437,21 +456,18 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun importWaypoints(uri: Uri): String {
+    fun importWaypoints(uri: Uri): ImportResult {
         val text = try {
             getApplication<Application>().contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
         } catch (e: Exception) {
             null
-        } ?: return "Datei konnte nicht gelesen werden"
+        }
+
+        if (text == null) {
+            return ImportResult(emptyList(), emptyList(), emptyList(), listOf("Datei konnte nicht gelesen werden"))
+        }
 
         val result = WaypointCodec.parse(text)
-        if (result.waypoints.isEmpty() && result.tracks.isEmpty()) {
-            return if (result.skipped > 0) {
-                "Keine gültigen Zielpunkte oder Tracks gefunden"
-            } else {
-                "Keine Zielpunkte oder Tracks in der Datei gefunden"
-            }
-        }
 
         if (result.waypoints.isNotEmpty()) {
             waypoints.value = waypoints.value + result.waypoints
@@ -461,22 +477,31 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
             tracks.value = tracks.value + result.tracks
             persistTracks()
         }
-
-        val parts = mutableListOf<String>()
-        if (result.waypoints.isNotEmpty()) parts.add("${result.waypoints.size} Zielpunkt(e)")
-        if (result.tracks.isNotEmpty()) parts.add("${result.tracks.size} Track(s)")
-        val suffix = if (result.skipped > 0) ", ${result.skipped} übersprungen" else ""
-        return parts.joinToString(" und ") + " importiert" + suffix
+        return result
     }
 
-    fun exportGpx(uri: Uri): Boolean {
+    /**
+     * Exportiert pro Objekt eine eigene GPX-Datei in den gewählten Ordner
+     * (Cache, Route bzw. freie Position). Gibt die Anzahl geschriebener Dateien zurück.
+     */
+    fun exportGpx(treeUri: Uri): Int {
         return try {
-            val content = WaypointCodec.toGpx(waypoints.value, tracks.value)
-            getApplication<Application>().contentResolver.openOutputStream(uri)?.use {
-                it.write(content.toByteArray(Charsets.UTF_8))
-            } != null
+            val files = WaypointCodec.toGpxFiles(waypoints.value, tracks.value)
+            if (files.isEmpty()) return 0
+            val app = getApplication<Application>()
+            val root = DocumentFile.fromTreeUri(app, treeUri) ?: return 0
+            val resolver = app.contentResolver
+            var written = 0
+            files.forEach { f ->
+                val file = root.createFile("application/gpx+xml", f.fileName) ?: return@forEach
+                resolver.openOutputStream(file.uri)?.use {
+                    it.write(f.content.toByteArray(Charsets.UTF_8))
+                }
+                written++
+            }
+            written
         } catch (e: Exception) {
-            false
+            0
         }
     }
 
@@ -561,6 +586,7 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
                         )
                     }
                     put("points", pts)
+                    put("reversed", trk.reversed)
                 }
             )
         }
@@ -586,7 +612,8 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
                 Track(
                     id = o.getLong("id"),
                     name = o.getString("name"),
-                    points = points
+                    points = points,
+                    reversed = o.optBoolean("reversed", false)
                 )
             }
         } catch (e: Exception) {
