@@ -232,7 +232,7 @@ object WaypointCodec {
                 latitude = lat,
                 longitude = lon,
                 code = code,
-                hint = hint,
+                hint = normalizeHint(hint),
                 difficulty = difficulty,
                 terrain = terrain,
                 cacheType = cacheType,
@@ -372,6 +372,20 @@ object WaypointCodec {
     }
 
     private fun String?.asGpxBoolean(): Boolean = this?.equals("true", ignoreCase = true) == true
+
+    /**
+     * Bereinigt einen Hint. Geocaching.com schreibt bei fehlendem Hint wörtlich
+     * "none" in `groundspeak:encoded_hints`; leere Platzhalter dürfen nicht als
+     * Hint angezeigt werden.
+     */
+    private fun normalizeHint(raw: String?): String? {
+        val trimmed = raw?.trim().orEmpty()
+        return when {
+            trimmed.isEmpty() -> null
+            trimmed.equals("none", ignoreCase = true) -> null
+            else -> trimmed
+        }
+    }
 
     private fun readElementText(parser: XmlPullParser): String? {
         val sb = StringBuilder()
@@ -564,7 +578,7 @@ object WaypointCodec {
                     longitude = lon,
                     code = o.optString("code", "").ifBlank { null },
                     description = o.optString("description", "").ifBlank { null },
-                    hint = o.optString("hint", "").ifBlank { null },
+                    hint = normalizeHint(o.optString("hint", "")),
                     difficulty = if (o.has("difficulty")) o.optDouble("difficulty") else null,
                     terrain = if (o.has("terrain")) o.optDouble("terrain") else null,
                     cacheType = o.optString("cacheType", "").ifBlank { null },
