@@ -6,6 +6,7 @@ import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -50,6 +51,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -57,10 +59,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -218,6 +224,8 @@ private fun WaypointsCard(
     var showProjectionDialog by remember { mutableStateOf(false) }
     var editingWaypoint by remember { mutableStateOf<Waypoint?>(null) }
     var expandedCacheId by remember { mutableStateOf<String?>(null) }
+    var pendingDeleteWaypointId by remember { mutableStateOf<Long?>(null) }
+    val pendingDeleteWaypoint = pendingDeleteWaypointId?.let { id -> waypoints.find { it.id == id } }
 
     Card(
         colors = CardDefaults.cardColors(containerColor = CardNavy),
@@ -298,7 +306,7 @@ private fun WaypointsCard(
                                 onEditWaypoint = { editingWaypoint = it },
                                 onToggleFound = onToggleFound,
                                 onOpenMap = { openInMap(context, it) },
-                                onDeleteWaypoint = onDeleteWaypoint
+                                onDeleteWaypoint = { id -> pendingDeleteWaypointId = id }
                             )
                         }
                     }
@@ -313,7 +321,7 @@ private fun WaypointsCard(
                                 onEdit = { editingWaypoint = wp },
                                 onToggleFound = { onToggleFound(wp.id) },
                                 onOpenMap = { openInMap(context, wp) },
-                                onDelete = { onDeleteWaypoint(wp.id) }
+                                onDelete = { pendingDeleteWaypointId = wp.id }
                             )
                         }
                     }
@@ -449,6 +457,34 @@ private fun WaypointsCard(
             onDismiss = { showProjectionDialog = false }
         )
     }
+
+    pendingDeleteWaypoint?.let { wp ->
+        AlertDialog(
+            onDismissRequest = { pendingDeleteWaypointId = null },
+            title = { Text("Zielpunkt löschen") },
+            text = {
+                Text(
+                    "„${wp.name}“ wird gelöscht. " +
+                        "Das lässt sich nicht rückgängig machen."
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onDeleteWaypoint(wp.id)
+                        pendingDeleteWaypointId = null
+                    }
+                ) {
+                    Text("Löschen")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingDeleteWaypointId = null }) {
+                    Text("Abbrechen")
+                }
+            }
+        )
+    }
 }
 
 @Composable
@@ -472,6 +508,7 @@ private fun TracksCard(
     val context = LocalContext.current
     var showStopDialog by remember { mutableStateOf(false) }
     var trackName by remember { mutableStateOf("") }
+    var pendingDeleteTrack by remember { mutableStateOf<Track?>(null) }
 
     Card(
         colors = CardDefaults.cardColors(containerColor = CardNavy),
@@ -596,8 +633,7 @@ private fun TracksCard(
                             track = trk,
                             isActive = trk.id == activeTrackId,
                             onClick = { onSetActiveTrack(if (trk.id == activeTrackId) null else trk.id) },
-                            onReverse = { onReverseTrack(trk.id) },
-                            onDelete = { onDeleteTrack(trk.id) }
+                            onDelete = { pendingDeleteTrack = trk }
                         )
                     }
                 }
@@ -643,21 +679,81 @@ private fun TracksCard(
             }
         )
     }
+
+    pendingDeleteTrack?.let { track ->
+        AlertDialog(
+            onDismissRequest = { pendingDeleteTrack = null },
+            title = { Text("Track löschen") },
+            text = {
+                Text(
+                    "„${track.name}“ wird mit ${track.points.size} Punkten gelöscht. " +
+                        "Das lässt sich nicht rückgängig machen."
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onDeleteTrack(track.id)
+                        pendingDeleteTrack = null
+                    }
+                ) {
+                    Text("Löschen")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingDeleteTrack = null }) {
+                    Text("Abbrechen")
+                }
+            }
+        )
+    }
 }
 
+/**
+ * Zeigt die aktuelle Verfolgungsrichtung und kehrt sie beim Antippen um.
+ * Anzeige und Auslöser sind bewusst dasselbe Element — ein separater
+ * "Richtung umkehren"-Knopf wäre eine zweite Darstellung desselben Zustands.
+ */
 @Composable
-private fun DirectionBadge(reversed: Boolean) {
-    Surface(
-        color = if (reversed) Color(0xFFF59E0B).copy(alpha = 0.16f) else SignalGreen.copy(alpha = 0.16f),
-        shape = RoundedCornerShape(6.dp)
+private fun DirectionToggle(reversed: Boolean, onToggle: () -> Unit) {
+    val accent = if (reversed) Color(0xFFFBBF24) else SignalGreen
+    Box(
+        modifier = Modifier
+            .minimumInteractiveComponentSize()
+            .clip(RoundedCornerShape(8.dp))
+            .clickable(role = Role.Button, onClick = onToggle)
+            .semantics {
+                contentDescription =
+                    if (reversed) "Richtung umkehren, aktuell zum Anfang"
+                    else "Richtung umkehren, aktuell zum Ende"
+            }
+            .testTag("reverse_active_track_btn"),
+        contentAlignment = Alignment.Center
     ) {
-        Text(
-            text = if (reversed) "◀ zum Anfang" else "▶ zum Ende",
-            fontSize = 10.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = if (reversed) Color(0xFFFBBF24) else SignalGreen,
-            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-        )
+        Surface(
+            color = accent.copy(alpha = 0.16f),
+            shape = RoundedCornerShape(6.dp),
+            border = BorderStroke(1.dp, accent.copy(alpha = 0.45f))
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.SwapVert,
+                    contentDescription = null,
+                    tint = accent,
+                    modifier = Modifier.size(12.dp)
+                )
+                Spacer(modifier = Modifier.width(3.dp))
+                Text(
+                    text = if (reversed) "◀ Anfang" else "▶ Ende",
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = accent
+                )
+            }
+        }
     }
 }
 
@@ -723,7 +819,7 @@ private fun ActiveTrackSummary(
                         color = Color.White,
                         modifier = Modifier.weight(1f)
                     )
-                    DirectionBadge(reversed = track.reversed)
+                    DirectionToggle(reversed = track.reversed, onToggle = onReverse)
                 }
                 Text(
                     text = if (finished) {
@@ -747,37 +843,19 @@ private fun ActiveTrackSummary(
                 )
 
                 Spacer(modifier = Modifier.height(6.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                Box(
+                    modifier = Modifier
+                        .minimumInteractiveComponentSize()
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable(role = Role.Button, onClick = onStop)
+                        .testTag("stop_active_track_btn"),
+                    contentAlignment = Alignment.CenterStart
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .clickable { onReverse() }
-                            .testTag("reverse_active_track_btn")
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.SwapVert,
-                            contentDescription = "Track umkehren",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = "Richtung umkehren",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
                     Text(
                         text = "Folgen beenden",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.clickable { onStop() }
+                        color = MaterialTheme.colorScheme.primary
                     )
                 }
             }
@@ -790,7 +868,6 @@ private fun TrackRow(
     track: Track,
     isActive: Boolean,
     onClick: () -> Unit,
-    onReverse: () -> Unit,
     onDelete: () -> Unit
 ) {
     Surface(
@@ -838,26 +915,18 @@ private fun TrackRow(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
             }
-            IconButton(
-                onClick = onReverse,
-                modifier = Modifier.size(28.dp).testTag("reverse_track_${track.id}")
-            ) {
-                Icon(
-                    imageVector = Icons.Default.SwapVert,
-                    contentDescription = "Track umkehren",
-                    tint = Color(0xFF94A3B8),
-                    modifier = Modifier.size(18.dp)
-                )
-            }
+            // Die Richtungsumkehr bleibt der Karte "Aktives Ziel" vorbehalten —
+            // dort ist der Zustand sichtbar. Hier nur Löschen, dafür mit voller
+            // Trefferfläche und Rückfrage.
             IconButton(
                 onClick = onDelete,
-                modifier = Modifier.size(28.dp)
+                modifier = Modifier.testTag("delete_track_${track.id}")
             ) {
                 Icon(
                     imageVector = Icons.Default.Delete,
                     contentDescription = "Track löschen",
                     tint = Color(0xFF94A3B8),
-                    modifier = Modifier.size(16.dp)
+                    modifier = Modifier.size(18.dp)
                 )
             }
         }
