@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+#
+# Verhindert, dass Refs veröffentlicht werden, die nicht von "main" aus
+# erreichbar sind. Gilt für Branches und Tags gleichermaßen.
+#
+# Aktivieren:  git config core.hooksPath tools/git-hooks
+# Umgehen:     git push --no-verify   (nur wenn man weiß, was man tut)
+#
+# Der Hook nennt bewusst keine Branch-Namen, sondern prüft nur die
+# Erreichbarkeit von "main" — deshalb kann diese Datei öffentlich sein.
+
+set -uo pipefail
+
+BASE="main"
+
+if ! git rev-parse --verify --quiet "${BASE}^{commit}" >/dev/null; then
+  echo "pre-push: Branch '${BASE}' nicht gefunden — Push abgebrochen." >&2
+  exit 1
+fi
+
+status=0
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+  # Löschungen (local_sha besteht nur aus Nullen) sind immer erlaubt.
+  case "${local_sha}" in
+    0000000000000000000000000000000000000000) continue ;;
+  esac
+
+  commit="${local_sha}"
+  if git rev-parse --verify --quiet "${local_sha}^{commit}" >/dev/null; then
+    commit=$(git rev-parse "${local_sha}^{commit}")
+  fi
+
+  if git merge-base --is-ancestor "${commit}" "${BASE}"; then
+    echo "pre-push: ok       ${local_ref} (${commit:0:8})"
+  else
+    echo "pre-push: ABBRUCH  ${local_ref} (${commit:0:8}) ist nicht von '${BASE}' aus erreichbar." >&2
+    status=1
+  fi
+done
+
+if [ "${status}" -ne 0 ]; then
+  cat >&2 <<'EOF'
+
+Der Push wurde abgebrochen.
+
+Es dürfen nur Refs veröffentlicht werden, die Teil der öffentlichen
+Historie sind. Wenn ein Ref bewusst veröffentlicht werden soll, muss er
+zuerst in 'main' enthalten sein.
+
+Bewusst umgehen (nur im Ausnahmefall):  git push --no-verify
+EOF
+fi
+
+exit "${status}"
