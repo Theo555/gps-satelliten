@@ -139,6 +139,32 @@ class RawGnssManager(context: Context) {
             MultipathState.UNKNOWN
         }
 
+        // Seit API 34 als veraltet markiert, liefert aber auf allen
+        // unterstuetzten Versionen weiterhin Werte.
+        @Suppress("DEPRECATION")
+        val phaseUncertainty =
+            if (carrierPhaseUncertainty.isNaN()) null else carrierPhaseUncertainty
+
+        // TOW: STATE_TOW_DECODED gibt es seit API 24, STATE_TOW_KNOWN erst ab
+        // API 29. Auf aelteren Geraeten (z. B. Android 9) ist nur das erste Bit
+        // aussagekraeftig.
+        val towDecoded = (state and GnssMeasurement.STATE_TOW_DECODED) != 0
+        val towKnownFlag = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            (state and GnssMeasurement.STATE_TOW_KNOWN) != 0
+        } else {
+            false
+        }
+
+        // Code-Lock: Galileo meldet ihn ueber ein eigenes Bit, nicht ueber
+        // STATE_CODE_LOCK.
+        val codeLocked = (state and GnssMeasurement.STATE_CODE_LOCK) != 0 ||
+            (state and GnssMeasurement.STATE_GAL_E1BC_CODE_LOCK) != 0
+
+        // Rohfelder für den CSV-Export: Sendezeit und ihre Unsicherheit.
+        // GnssMeasurement.HAS_NO_RECEIVED_SV_TIME_NANOS = Long.MIN_VALUE.
+        val tTxRawNanos = if (receivedSvTimeNanos != Long.MIN_VALUE) receivedSvTimeNanos else null
+        val svTimeUncertaintyNanos = if (receivedSvTimeUncertaintyNanos > 0) receivedSvTimeUncertaintyNanos else null
+
         return RawMeasurement(
             svid = svid,
             constellation = constellation,
@@ -151,7 +177,17 @@ class RawGnssManager(context: Context) {
             carrierPhaseMeters = accumulatedDeltaRangeMeters,
             phaseValid = phaseValid,
             multipath = multipath,
-            receivedAtMillis = System.currentTimeMillis()
+            receivedAtMillis = System.currentTimeMillis(),
+            // Qualitätsmerkmale der Messung.
+            stateFlags = state,
+            towKnown = towDecoded || towKnownFlag,
+            msecAmbiguous = (state and GnssMeasurement.STATE_MSEC_AMBIGUOUS) != 0,
+            codeLock = codeLocked,
+            // HAS_NO_CARRIER_PHASE_UNCERTAINTY ist Double.NaN.
+            carrierPhaseUncertaintyMeters = phaseUncertainty,
+            tTxRawNanos = tTxRawNanos,
+            svTimeUncertaintyNanos = svTimeUncertaintyNanos,
+            adrState = adrState
         )
     }
 

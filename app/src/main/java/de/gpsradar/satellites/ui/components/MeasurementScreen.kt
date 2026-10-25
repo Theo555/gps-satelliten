@@ -1,5 +1,9 @@
 package de.gpsradar.satellites.ui.components
 
+import android.net.Uri
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,6 +21,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -28,10 +33,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import de.gpsradar.satellites.model.Constellation
+import de.gpsradar.satellites.model.CsvProfile
 import de.gpsradar.satellites.model.MultipathState
 import de.gpsradar.satellites.model.RawClockSnapshot
 import de.gpsradar.satellites.model.RawMeasurement
@@ -45,7 +52,8 @@ import java.util.Locale
 @Composable
 fun MeasurementScreen(
     measurements: List<RawMeasurement>,
-    clock: RawClockSnapshot?
+    clock: RawClockSnapshot?,
+    onExportCsv: (Uri, CsvProfile) -> Boolean
 ) {
     var bandFilter by remember { mutableStateOf<String?>(null) }
 
@@ -60,7 +68,15 @@ fun MeasurementScreen(
     ) {
         MeasurementHeader(clock = clock, count = measurements.size)
 
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(8.dp))
+
+        RawDiagnostics(measurements)
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        CsvExportRow(enabled = measurements.isNotEmpty(), onExportCsv = onExportCsv)
+
+        Spacer(modifier = Modifier.height(8.dp))
 
         BandFilterRow(selected = bandFilter, onSelect = { bandFilter = it })
 
@@ -129,6 +145,130 @@ private fun MeasurementHeader(clock: RawClockSnapshot?, count: Int) {
                 )
             }
         }
+    }
+}
+
+/**
+ * Zeigt, wie brauchbar die Rohdaten des Geräts sind: Qualitätsmerkmale
+ * (Code-Lock, TOW, Trägerphase) als Zusammenfassung über alle Messungen.
+ */
+@Composable
+private fun RawDiagnostics(measurements: List<RawMeasurement>) {
+    if (measurements.isEmpty()) return
+
+    val total = measurements.size
+    val tow = measurements.count { it.towKnown }
+    val msec = measurements.count { it.msecAmbiguous }
+    val lock = measurements.count { it.codeLock }
+    val withState = measurements.count { it.stateFlags != 0 }
+    val phaseOk = measurements.count { it.phaseValid && it.carrierPhaseMeters != null }
+    val uncertainties = measurements.mapNotNull { it.carrierPhaseUncertaintyMeters }
+
+    Card(
+        colors = CardDefaults.cardColors(containerColor = CardNavy),
+        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(10.dp)) {
+            Text(
+                text = "Rohdaten-Qualität",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF94A3B8)
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "TOW bekannt $tow/$total · Code-Lock $lock/$total · ms-mehrdeutig $msec",
+                fontSize = 11.sp,
+                color = if (tow == total && msec == 0) SignalGreen else SignalOrange
+            )
+            Text(
+                text = buildString {
+                    append("Trägerphase gültig $phaseOk/$total")
+                    if (uncertainties.isNotEmpty()) {
+                        append(" · Unsicherheit Ø ")
+                        append(String.format(Locale.US, "%.2f", uncertainties.average()))
+                        append(" m")
+                    }
+                },
+                fontSize = 11.sp,
+                color = Color(0xFFCBD5E1)
+            )
+            if (withState < total) {
+                Text(
+                    text = "Status-Bits geliefert $withState/$total" +
+                        if (withState == 0) " – Gerät meldet keine Qualitätsmerkmale" else "",
+                    fontSize = 10.sp,
+                    color = Color(0xFF94A3B8)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CsvExportRow(enabled: Boolean, onExportCsv: (Uri, CsvProfile) -> Boolean) {
+    var profile by remember { mutableStateOf(CsvProfile.UNIVERSAL) }
+    val context = LocalContext.current
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
+        if (uri != null) {
+            val ok = onExportCsv(uri, profile)
+            Toast.makeText(
+                context,
+                if (ok) "CSV exportiert" else "CSV-Export fehlgeschlagen",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+    }
+
+    Card(
+        colors = CardDefaults.cardColors(containerColor = CardNavy),
+        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(10.dp)) {
+            Text(
+                text = "CSV-Export",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF94A3B8)
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                BandChip(label = "universell (RFC)", active = profile == CsvProfile.UNIVERSAL) {
+                    profile = CsvProfile.UNIVERSAL
+                }
+                BandChip(label = "Excel (deutsch)", active = profile == CsvProfile.EXCEL_DE) {
+                    profile = CsvProfile.EXCEL_DE
+                }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Button(
+                onClick = {
+                    val suffix = if (profile == CsvProfile.UNIVERSAL) "universal" else "excel"
+                    launcher.launch("rohdaten_$suffix.csv")
+                },
+                enabled = enabled
+            ) {
+                Text("Exportieren")
+            }
+        }
+    }
+}
+
+@Composable
+private fun DiagBadge(text: String) {
+    Surface(
+        color = SignalOrange.copy(alpha = 0.16f),
+        shape = RoundedCornerShape(5.dp)
+    ) {
+        Text(
+            text = text,
+            fontSize = 9.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = SignalOrange,
+            modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
+        )
     }
 }
 
@@ -215,6 +355,16 @@ private fun MeasurementRow(m: RawMeasurement) {
                     value = m.carrierPhaseMeters?.let { String.format(Locale.GERMANY, "%.1f m", it) } ?: "–"
                 )
                 MultipathLabel(m.multipath)
+            }
+
+            // Qualitätsmerkmale der Messung.
+            if (!m.towKnown || m.msecAmbiguous || !m.codeLock) {
+                Spacer(modifier = Modifier.height(6.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    if (!m.towKnown) DiagBadge("TOW unbekannt")
+                    if (m.msecAmbiguous) DiagBadge("ms-mehrdeutig")
+                    if (!m.codeLock) DiagBadge("kein Code-Lock")
+                }
             }
         }
     }

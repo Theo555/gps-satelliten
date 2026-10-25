@@ -14,13 +14,17 @@ import org.json.JSONObject
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.TimeZone
 import de.gpsradar.satellites.gps.GpsDataManager
 import de.gpsradar.satellites.gps.RawGnssManager
 import de.gpsradar.satellites.model.Cache
+import de.gpsradar.satellites.model.CsvMeta
+import de.gpsradar.satellites.model.CsvProfile
 import de.gpsradar.satellites.model.Constellation
 import de.gpsradar.satellites.model.GpsLocationState
 import de.gpsradar.satellites.model.GnssNavMessage
 import de.gpsradar.satellites.model.ImportResult
+import de.gpsradar.satellites.model.MeasurementCsv
 import de.gpsradar.satellites.model.Navigation
 import de.gpsradar.satellites.model.RawClockSnapshot
 import de.gpsradar.satellites.model.RawMeasurement
@@ -514,6 +518,45 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
         } catch (e: Exception) {
             false
         }
+    }
+
+    /**
+     * Exportiert die aktuellen Roh-Messungen als CSV (ein Kommentarkopf,
+     * dann eine Zeile pro Satellit × Band). `profile` koppelt Trennzeichen,
+     * Dezimalzeichen und BOM.
+     */
+    fun exportRawCsv(uri: Uri, profile: CsvProfile): Boolean {
+        return try {
+            val app = getApplication<Application>()
+            val meta = CsvMeta(
+                device = "${Build.MANUFACTURER} ${Build.MODEL} · hardware ${Build.HARDWARE} · board ${Build.BOARD}",
+                android = "${Build.VERSION.RELEASE} (SDK ${Build.VERSION.SDK_INT})",
+                app = appVersionName(),
+                exportedAtUtc = utcNow()
+            )
+            val content = MeasurementCsv.toCsv(rawMeasurements.value, rawClock.value, meta, profile)
+            app.contentResolver.openOutputStream(uri)?.use {
+                it.write(content.toByteArray(Charsets.UTF_8))
+            } != null
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    @Suppress("DEPRECATION")
+    private fun appVersionName(): String {
+        return try {
+            val app = getApplication<Application>()
+            app.packageManager.getPackageInfo(app.packageName, 0).versionName ?: "?"
+        } catch (e: Exception) {
+            "?"
+        }
+    }
+
+    private fun utcNow(): String {
+        val fmt = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US)
+        fmt.timeZone = TimeZone.getTimeZone("UTC")
+        return fmt.format(Date())
     }
 
     private fun persistWaypoints() {

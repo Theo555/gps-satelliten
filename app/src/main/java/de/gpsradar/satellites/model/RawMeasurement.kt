@@ -26,7 +26,25 @@ data class RawMeasurement(
     val carrierPhaseMeters: Double?,
     val phaseValid: Boolean,
     val multipath: MultipathState,
-    val receivedAtMillis: Long
+    val receivedAtMillis: Long,
+    // --- Qualitätsmerkmale der Messung ---
+    /** Rohwert von GnssMeasurement.getState(); 0 = nicht geliefert. */
+    val stateFlags: Int = 0,
+    /** TOW bekannt – Voraussetzung für brauchbare Pseudoranges. */
+    val towKnown: Boolean = false,
+    /** Millisekunden-Mehrdeutigkeit – Pseudorange damit unbrauchbar. */
+    val msecAmbiguous: Boolean = false,
+    /** Code-Lock vorhanden. */
+    val codeLock: Boolean = false,
+    /** Unsicherheit der Trägerphase in Metern; null = nicht geliefert. */
+    val carrierPhaseUncertaintyMeters: Double? = null,
+    // --- Rohfelder für den CSV-Export ---
+    /** receivedSvTimeNanos (Sendezeit innerhalb der Woche); null = nicht geliefert. */
+    val tTxRawNanos: Long? = null,
+    /** 1-Sigma-Unsicherheit der Sendezeit in ns; null = nicht gemeldet (<= 0). */
+    val svTimeUncertaintyNanos: Long? = null,
+    /** Rohwert von accumulatedDeltaRangeState; 0 = nicht geliefert. */
+    val adrState: Int = 0
 )
 
 /** Empfänger-Uhr (GnssClock) zum Zeitpunkt der letzten Messung. */

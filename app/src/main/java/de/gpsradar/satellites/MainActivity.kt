@@ -432,7 +432,8 @@ fun GpsAppMainScreen(
                     AppTab.MESSUNG -> {
                         MeasurementScreen(
                             measurements = rawMeasurements,
-                            clock = rawClock
+                            clock = rawClock,
+                            onExportCsv = { uri, profile -> viewModel.exportRawCsv(uri, profile) }
                         )
                     }
                 }
