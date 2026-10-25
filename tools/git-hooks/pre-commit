@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+#
+# Verhindert, dass Dateien aus dem lokalen Austausch-Ordner in einen Commit
+# geraten. Der Ordner steht zusätzlich in .gitignore; dieser Hook ist die
+# zweite Sicherung für den Fall, dass jemand mit "git add -f" oder
+# "git add -A" arbeitet.
+#
+# Aktivieren:  git config core.hooksPath tools/git-hooks
+# Umgehen:     git commit --no-verify   (nur wenn man weiß, was man tut)
+#
+# Der Hook nennt nur den Ordnernamen und keine internen Details — deshalb
+# kann diese Datei öffentlich im Repo liegen.
+
+set -uo pipefail
+
+BLOCKED="_austausch/"
+
+staged=$(git diff --cached --name-only --diff-filter=ACMR)
+
+if printf '%s\n' "${staged}" | grep -qF "${BLOCKED}"; then
+  echo "pre-commit: Dateien aus dem Austausch-Ordner sind gestaged — Commit abgebrochen:" >&2
+  printf '%s\n' "${staged}" | grep -F "${BLOCKED}" | sed 's/^/  /' >&2
+  echo "Entfernen mit: git restore --staged <pfad>" >&2
+  exit 1
+fi
+
+exit 0
