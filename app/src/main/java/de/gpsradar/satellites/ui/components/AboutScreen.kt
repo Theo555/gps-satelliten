@@ -93,6 +93,26 @@ fun AboutScreen(
             )
         }
 
+        AboutCard("Rohdaten & Messung") {
+            AboutParagraph(
+                "Der Messung-Tab zeigt pro Satellit und Frequenzband die Roh-Messungen des " +
+                    "GNSS-Chipsatzes; daraus entsteht auch der CSV-Export. Wie viele Werte " +
+                    "ankommen, hängt vom Gerät ab: bei schwacher Sicht oder im Stromsparmodus " +
+                    "des Chips fehlen Code-Lock, TOW oder ganze Signale."
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            AboutBullet(
+                "Mehr Rohdaten:",
+                "In den Android-Entwickleroptionen gibt es „Vollst. GNSS-Messung erzwingen“. " +
+                    "Damit trackt der Chip dauerhaft vollständig – auf Kosten des Akkuverbrauchs."
+            )
+            AboutBullet(
+                "Pseudorange:",
+                "Wird nur berechnet, wenn die Zeitbasis stimmt. Für GLONASS und BeiDou " +
+                    "bleibt sie deshalb leer – die App schätzt nichts."
+            )
+        }
+
         AboutCard("Unterstützung") {
             AboutParagraph(
                 "Wenn dir diese App gefällt und du die Weiterentwicklung unterstützen " +

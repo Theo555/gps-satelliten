@@ -175,6 +175,8 @@ In Excel das Profil **„Excel (deutsch)“** wählen und die Datei direkt öffn
 
 **Grenzen, ehrlich:** `export_utc` ist die Geräteuhr, nicht die GNSS-Zeit. Meldet der Chipsatz keine Qualitätsmerkmale, bleiben die Flag-Spalten bei 0 – die App schätzt nichts dazu.
 
+**Mehr Rohdaten aus dem Gerät:** In den Android-**Entwickleroptionen** gibt es den Schalter „Vollst. GNSS-Messung erzwingen“. Damit trackt der Chip dauerhaft vollständig statt im Stromsparmodus – das bringt mehr Signale und häufiger gesetzte Status-Bits. Der Preis ist ein **höherer Akkuverbrauch**, deshalb ist die Option standardmäßig aus; für einen Export lohnt es sich, sie vorübergehend einzuschalten. Wie stark sie wirkt, hängt vom Chipsatz ab. Die App kann diese Systemeinstellung nicht selbst umschalten.
+
 ## Projektstruktur
 
 ```
