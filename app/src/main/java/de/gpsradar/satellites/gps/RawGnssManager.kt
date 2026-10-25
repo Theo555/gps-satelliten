@@ -111,11 +111,11 @@ class RawGnssManager(context: Context) {
             0f
         }
 
-        val constellation = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            Constellation.fromTypeId(constellationType)
-        } else {
-            constellationForFreq(freq)
-        }
+        // GnssMeasurement.getConstellationType() gibt es seit API 24 (= minSdk) und ist
+        // eindeutig. Die Frequenz-Heuristik kann L1/E1/QZSS/SBAS (alle 1575,42 MHz)
+        // nicht trennen und dient deshalb nur als Notnagel bei CONSTELLATION_UNKNOWN.
+        val constellation = Constellation.fromTypeId(constellationType)
+            .let { if (it == Constellation.UNKNOWN) constellationForFreq(freq) else it }
 
         val tTxNanos = receivedSvTimeNanos + weekOffsetNanos
         // GnssMeasurement.HAS_NO_RECEIVED_SV_TIME_NANOS = Long.MIN_VALUE ("unbekannt").
@@ -148,9 +148,16 @@ class RawGnssManager(context: Context) {
         // TOW: STATE_TOW_DECODED gibt es seit API 24, STATE_TOW_KNOWN erst ab
         // API 29. Auf aelteren Geraeten (z. B. Android 9) ist nur das erste Bit
         // aussagekraeftig.
+        // GLONASS nutzt diese Bits nicht, sondern GLO_TOD_DECODED/GLO_TOD_KNOWN.
         val towDecoded = (state and GnssMeasurement.STATE_TOW_DECODED) != 0
         val towKnownFlag = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             (state and GnssMeasurement.STATE_TOW_KNOWN) != 0
+        } else {
+            false
+        }
+        val gloTodDecoded = (state and GnssMeasurement.STATE_GLO_TOD_DECODED) != 0
+        val gloTodKnown = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            (state and GnssMeasurement.STATE_GLO_TOD_KNOWN) != 0
         } else {
             false
         }
@@ -180,7 +187,7 @@ class RawGnssManager(context: Context) {
             receivedAtMillis = System.currentTimeMillis(),
             // Qualitätsmerkmale der Messung.
             stateFlags = state,
-            towKnown = towDecoded || towKnownFlag,
+            towKnown = towDecoded || towKnownFlag || gloTodDecoded || gloTodKnown,
             msecAmbiguous = (state and GnssMeasurement.STATE_MSEC_AMBIGUOUS) != 0,
             codeLock = codeLocked,
             // HAS_NO_CARRIER_PHASE_UNCERTAINTY ist Double.NaN.
