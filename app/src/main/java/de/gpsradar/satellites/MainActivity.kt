@@ -152,8 +152,10 @@ fun GpsAppMainScreen(
     var currentTab by remember { mutableStateOf(AppTab.RADAR) }
     var showAbout by remember { mutableStateOf(false) }
 
-    // Bildschirm wach halten, solange ein Ziel/Track aktiv ist oder aufgezeichnet wird.
-    val keepScreenOn = activeWaypointId != null || activeTrackId != null || isRecording
+    // Bildschirm wach halten, solange ein Ziel/Track aktiv ist, aufgezeichnet
+    // wird oder die Messungs-Ansicht offen ist — dort liest man laufend mit.
+    val keepScreenOn = activeWaypointId != null || activeTrackId != null || isRecording ||
+        currentTab == AppTab.MESSUNG
     val view = LocalView.current
     SideEffect { view.keepScreenOn = keepScreenOn }
 
