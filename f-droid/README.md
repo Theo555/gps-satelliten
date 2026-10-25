@@ -8,7 +8,7 @@ Hier liegt **nur der Entwurf** der Metadaten. Es wurde nichts eingereicht.
 |---|---|
 | `fastlane/metadata/android/de-DE/` | deutscher F-Droid-/Store-Eintrag |
 | `fastlane/metadata/android/en-US/` | englischer Eintrag |
-| `f-droid/de.gpsradar.satelliten.yml` | Entwurf für `fdroiddata/metadata/` |
+| `f-droid/de.gpsradar.satellites.yml` | Entwurf für `fdroiddata/metadata/` |
 
 `fastlane/` **muss** im Wurzelverzeichnis liegen, weil F-Droid dort sucht.
 Der Ordner `f-droid/` ist frei gewählt und nur für uns.
@@ -51,6 +51,6 @@ Der Ordner `f-droid/` ist frei gewählt und nur für uns.
 ## Wenn es losgehen soll
 
 1. Fork von `https://gitlab.com/fdroid/fdroiddata`
-2. `metadata/de.gpsradar.satelliten.yml` aus diesem Ordner dorthin kopieren
+2. `metadata/de.gpsradar.satellites.yml` aus diesem Ordner dorthin kopieren
 3. Merge-Request stellen, Beschreibung kurz halten
 4. Review abwarten – Rückfragen kommen meist zu Build-Details
