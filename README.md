@@ -32,6 +32,8 @@ Keine Lust, selbst zu kompilieren? Lade einfach die fertige APK herunter und ins
 - **Navigationsnachrichten** – Ephemeriden-/Almanach-Rohdaten je Satellit als Hex-Ansicht (im Satelliten-Detail)
 - **Messung-Tab** – pro Satellit und Frequenzband (**L1/L5/L2/E1/E5a/E5b**): C/N₀, **Pseudorange**, Doppler, Trägerphase und Multipfad-Erkennung
 - **Ehrliche Anzeige** – Werte, die das Gerät nicht liefert (z. B. Pseudorange oder Uhr-Drift), erscheinen als „–“ bzw. „unbekannt“ statt als Fantasiezahl
+- **Rohdaten-Qualität** – Zusammenfassung des aktuellen Messsatzes: Code-Lock, TOW bekannt, ms-Mehrdeutigkeit, Trägerphase
+- **CSV-Export** – die Roh-Messungen inklusive Qualitätsflags und Zeitstempeln, wahlweise RFC-konform oder für deutsches Excel (Details unter [Rohdaten-Export](#rohden-export-csv))
 - Hinweis: Der Messung-Tab erscheint nur auf Geräten, die **GNSS-Roh-Messungen** (`GnssMeasurements`) unterstützen.
 
 ### 📍 Positionsbestimmung
@@ -133,6 +135,45 @@ Die Release-APK liegt danach unter `app/build/outputs/apk/release/app-release.ap
 ## Eigene Tracks erstellen
 
 Eigene Wander-/Radrouten lassen sich bequem mit **[BRouter](https://brouter.de/brouter-web)** erstellen: Route zeichnen → als **GPX** exportieren → in der App unter **Nav → Importieren (GPX/JSON)** importieren und der Route folgen.
+
+## Rohdaten-Export (CSV)
+
+Im **Messung-Tab** schreibt die Export-Karte die aktuell angezeigten Roh-Messungen als CSV – eine Zeile pro Satellit und Frequenzband. Es handelt sich um **einen Messsatz (eine Epoche)**, nicht um eine Aufzeichnung über die Zeit. Gedacht für die Auswertung mit Excel, pandas, QGIS oder gnuplot.
+
+**Zwei Profile** – die Zeichen sind bewusst gekoppelt, nicht frei kombinierbar:
+
+| Profil | Trennzeichen | Dezimalzeichen | BOM | Passt zu |
+|---|---|---|---|---|
+| **universell (RFC)** | `,` | `.` | nein | pandas, QGIS, gnuplot, R (RFC 4180) |
+| **Excel (deutsch)** | `;` | `,` | ja | deutschem Excel – öffnet direkt in Spalten |
+
+Deutsches Excel trennt Listen mit `;` und Dezimalzahlen mit `,`; eine RFC-Datei landet dort komplett in Spalte A. Deshalb zwei feste Profile statt einzelner Schalter.
+
+**Aufbau:** `#`-Kommentarzeilen mit Gerät, Android- und App-Version, UTC-Zeitpunkt und Bedeutung der Flags, darunter die Kopfzeile und die Messwerte. Fehlende Werte bleiben leer – kein `null`, kein `–`.
+
+```text
+# format = RFC 4180 · UTF-8 · CRLF · Trennzeichen Komma · Dezimalzeichen Punkt
+# export_utc = 2026-10-25T12:33:07Z
+# geraet = samsung SM-N960F · hardware qcom · board msm8998
+# flags = state_flags: GnssMeasurement.getState() · code_lock/tow_known/msec_ambiguous: 1 ja, 0 nein
+svid,constellation,band,freq_hz,cn0_dbhz,time_ns,full_bias_ns,bias_ns,drift_nsps,leap_s,week_offset_ns,t_tx_raw_ns,t_tx_ns,sv_time_unc_ns,pseudorange_m,doppler_mps,adr_m,adr_state,phase_unc_m,state_flags,code_lock,tow_known,msec_ambiguous,multipath
+```
+
+`adr_m` ist die **accumulated delta range** – relativ zum Startzeitpunkt, keine absolute Trägerphase. `time_ns` ist die Empfängerzeit, `t_tx_ns` die Sendezeit des Satelliten; `full_bias_ns`, `bias_ns`, `drift_nsps` und `leap_s` sind die Empfängeruhr.
+
+**Einlesen:**
+
+```python
+import pandas as pd
+df = pd.read_csv("rohdaten_universal.csv", comment="#")
+```
+
+In Excel das Profil **„Excel (deutsch)“** wählen und die Datei direkt öffnen – oder die universelle Datei über *Daten → Aus Text/CSV* importieren.
+
+**Gegenprobe:** Die Pseudorange lässt sich aus den Zeitstempeln nachrechnen –
+`(time_ns − full_bias_ns − bias_ns − t_tx_ns) · 1e-9 · c ≈ pseudorange_m`.
+
+**Grenzen, ehrlich:** `export_utc` ist die Geräteuhr, nicht die GNSS-Zeit. Meldet der Chipsatz keine Qualitätsmerkmale, bleiben die Flag-Spalten bei 0 – die App schätzt nichts dazu.
 
 ## Projektstruktur
 
