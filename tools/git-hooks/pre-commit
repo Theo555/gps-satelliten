@@ -24,4 +24,10 @@ if printf '%s\n' "${staged}" | grep -qF "${BLOCKED}"; then
   exit 1
 fi
 
+# Bildabgleich: bricht ab, wenn die README auf ein fehlendes Bild zeigt.
+# Nicht verlinkte Bilder in screenshots/ werden nur gemeldet.
+if [ -x tools/check-screenshots.sh ]; then
+  tools/check-screenshots.sh || exit 1
+fi
+
 exit 0
