@@ -1,0 +1,49 @@
+name: Tests
+
+# Läuft bei jedem Push auf main und bei Pull Requests.
+# Prüft nur die Unit-Tests – kein Release, keine Secrets, kein Gerät.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# Bei mehreren Pushes kurz hintereinander nur den letzten Lauf behalten
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Unit-Tests
+        run: ./gradlew testDebugUnitTest --console=plain
+
+      # Bei Fehlschlag den HTML-Bericht als Download bereitstellen,
+      # damit man nicht nur im Log suchen muss.
+      - name: Testbericht hochladen
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: testbericht
+          path: app/build/reports/tests/testDebugUnitTest
+          if-no-files-found: ignore
+          retention-days: 14
