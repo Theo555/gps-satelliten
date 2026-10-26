@@ -86,6 +86,7 @@ Keine Lust, selbst zu kompilieren? Lade einfach die fertige APK herunter und ins
 
 <p align="center">
   <img src="screenshots/messung.jpg" width="200" alt="Messung (Rohdaten)" />
+  <img src="screenshots/messung-export.jpg" width="200" alt="CSV-Export-Dialog" />
 </p>
 
 ## Technik
