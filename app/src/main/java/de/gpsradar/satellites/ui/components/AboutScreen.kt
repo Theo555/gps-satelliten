@@ -7,17 +7,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.LocalCafe
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -47,7 +42,7 @@ fun AboutScreen(
     versionName: String,
     versionCode: Long,
     onOpenRepository: () -> Unit,
-    onOpenDonation: () -> Unit
+    onOpenReadme: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -114,40 +109,19 @@ fun AboutScreen(
             )
         }
 
-        AboutCard("Unterstützung") {
+        AboutCard("Dokumentation & Projekt") {
             AboutParagraph(
-                "Wenn dir diese App gefällt und du die Weiterentwicklung unterstützen " +
-                    "möchtest, freue ich mich über eine kleine freiwillige Spende. " +
-                    "Wenn nicht, nutze die App einfach weiter und hab Spaß damit!"
+                "Die Erläuterungen hier sind bewusst kurz gehalten und funktionieren ohne " +
+                    "Netz. Tiefergehende Details – Rohdaten-Export und CSV-Spalten, Profile, " +
+                    "Bauhinweise, Voraussetzungen – stehen in der README auf GitHub."
             )
-            Spacer(modifier = Modifier.height(6.dp))
-            Text(
-                text = "Tipp: Bei der Zahlung kannst du eine kurze Nachricht hinterlassen " +
-                    "(z. B. deinen Geocaching-Namen) – dann weiß ich, von wem die " +
-                    "Unterstützung kommt.",
-                fontSize = 11.sp,
-                color = Color(0xFF94A3B8),
-                lineHeight = 16.sp
-            )
-            Spacer(modifier = Modifier.height(10.dp))
-            Button(
-                onClick = onOpenDonation,
-                modifier = Modifier.fillMaxWidth().testTag("about_donate_btn")
-            ) {
-                Icon(
-                    imageVector = Icons.Default.LocalCafe,
-                    contentDescription = null,
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text("Spende für den Entwickler", fontWeight = FontWeight.SemiBold)
-            }
             Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = "„Buy me a coffee“ – freiwillig, jederzeit und ohne Gegenleistung.",
-                fontSize = 10.sp,
-                color = Color(0xFF94A3B8)
-            )
+            TextButton(
+                onClick = onOpenReadme,
+                modifier = Modifier.testTag("about_readme_btn")
+            ) {
+                Text("Ausführliche Doku (README)", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+            }
         }
 
         AboutCard("Technik") {

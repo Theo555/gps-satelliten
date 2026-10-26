@@ -80,7 +80,7 @@ import de.gpsradar.satellites.ui.theme.GpsRadarTheme
 import de.gpsradar.satellites.ui.theme.SpaceNavy
 
 private const val REPOSITORY_URL = "https://github.com/Theo555/gps-satelliten"
-private const val DONATION_URL = "https://paypal.me/gps-satelliten"
+private const val README_URL = "https://github.com/Theo555/gps-satelliten#readme"
 
 enum class AppTab(val title: String, val icon: ImageVector, val tag: String) {
     RADAR("Radar", Icons.Default.Radar, "tab_radar"),
@@ -358,7 +358,7 @@ fun GpsAppMainScreen(
                         versionName = versionName,
                         versionCode = versionCode,
                         onOpenRepository = { openUrl(context, REPOSITORY_URL) },
-                        onOpenDonation = { openUrl(context, DONATION_URL) }
+                        onOpenReadme = { openUrl(context, README_URL) }
                     )
                 } else when (currentTab) {
                     AppTab.RADAR -> {

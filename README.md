@@ -32,8 +32,8 @@ Keine Lust, selbst zu kompilieren? Lade einfach die fertige APK herunter und ins
 - **Navigationsnachrichten** – Ephemeriden-/Almanach-Rohdaten je Satellit als Hex-Ansicht (im Satelliten-Detail)
 - **Messung-Tab** – pro Satellit und Frequenzband (**L1/L5/L2/E1/E5a/E5b**): C/N₀, **Pseudorange**, Doppler, Trägerphase und Multipfad-Erkennung
 - **Ehrliche Anzeige** – Werte, die das Gerät nicht liefert (z. B. Pseudorange oder Uhr-Drift), erscheinen als „–“ bzw. „unbekannt“ statt als Fantasiezahl
-- **Rohdaten-Qualität** – Zusammenfassung des aktuellen Messsatzes: Code-Lock, TOW bekannt, ms-Mehrdeutigkeit, Trägerphase
-- **CSV-Export** – die Roh-Messungen inklusive Qualitätsflags und Zeitstempeln, wahlweise RFC-konform oder für deutsches Excel (Details unter [Rohdaten-Export](#rohden-export-csv))
+- **Rohdaten-Qualität** – eine Zeile mit Code-Lock, TOW, ms-Mehrdeutigkeit und Trägerphase; antippen klappt Details auf
+- **CSV-Export** – die Roh-Messungen als **Zeitreihe** (letzte 60 s, optional 5 Minuten Aufzeichnung), wahlweise RFC-konform oder für deutsches Excel (Details unter [Rohdaten-Export](#rohden-export-csv))
 - Hinweis: Der Messung-Tab erscheint nur auf Geräten, die **GNSS-Roh-Messungen** (`GnssMeasurements`) unterstützen.
 
 ### 📍 Positionsbestimmung
@@ -155,11 +155,12 @@ Deutsches Excel trennt Listen mit `;` und Dezimalzahlen mit `,`; eine RFC-Datei 
 # format = RFC 4180 · UTF-8 · CRLF · Trennzeichen Komma · Dezimalzeichen Punkt
 # export_utc = 2026-10-25T12:33:07Z
 # geraet = samsung SM-N960F · hardware qcom · board msm8998
+# aufzeichnung = 60 Epochen · 2140 Zeilen · 1 Epoche = ein GnssMeasurementsEvent
 # flags = state_flags: GnssMeasurement.getState() · code_lock/tow_known/msec_ambiguous: 1 ja, 0 nein
 epoch,svid,constellation,band,freq_hz,cn0_dbhz,time_ns,full_bias_ns,bias_ns,drift_nsps,leap_s,week_offset_ns,t_tx_raw_ns,t_tx_ns,sv_time_unc_ns,pseudorange_m,doppler_mps,adr_m,adr_state,phase_unc_m,state_flags,code_lock,tow_known,msec_ambiguous,multipath
 ```
 
-`adr_m` ist die **accumulated delta range** – relativ zum Startzeitpunkt, keine absolute Trägerphase. `time_ns` ist die Empfängerzeit, `t_tx_ns` die Sendezeit des Satelliten; `full_bias_ns`, `bias_ns`, `drift_nsps` und `leap_s` sind die Empfängeruhr.
+`epoch` nummeriert die Messsätze (1 = der älteste im Export); Lücken bedeuten, dass der Chip in dem Moment nichts geliefert hat. `adr_m` ist die **accumulated delta range** – relativ zum Startzeitpunkt, keine absolute Trägerphase. `time_ns` ist die Empfängerzeit, `t_tx_ns` die Sendezeit des Satelliten; `full_bias_ns`, `bias_ns`, `drift_nsps` und `leap_s` sind die Empfängeruhr.
 
 **Einlesen:**
 
@@ -186,6 +187,13 @@ app/src/main/java/de/gpsradar/satellites/
 ├── ui/                ViewModel + Compose-Screens und -Komponenten
 └── MainActivity.kt    App-Einstieg mit Tab-Navigation
 ```
+
+## Unterstützung
+
+Wenn dir die App gefällt und du die Weiterentwicklung unterstützen möchtest, freue ich mich über eine kleine freiwillige Spende:
+**[paypal.me/gps-satelliten](https://paypal.me/gps-satelliten)**
+
+Alle Funktionen sind ohne Spende vollständig nutzbar – keine Werbung, kein Tracking, keine Abos.
 
 ## Lizenz
 

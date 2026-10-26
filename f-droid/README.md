@@ -27,10 +27,11 @@ Der Ordner `f-droid/` ist frei gewählt und nur für uns.
 1. **Kategorien**: `Navigation` und `Science & Education` müssen in
    `fdroiddata/config/categories.yml` existieren. Wenn nicht, dort die
    vorhandenen Namen nehmen.
-2. **`Donate`-Feld**: F-Droid akzeptiert `https://`-Links, warnt aber vor
-   automatisch erzeugten Button-Codes. `paypal.me/gps-satelliten` ist ein
-   fester Handle und damit in Ordnung – trotzdem einmal aufrufen und
-   prüfen, ob die Seite existiert.
+2. **Spenden**: Es gibt bewusst **kein `Donate`-Feld** und keinen Spenden-Knopf
+   in der App – damit entfällt die F-Droid-Nachweispflicht für Spendenlinks
+   („donation links need verification“). Der Link steht ausschließlich in der
+   README unter `## Unterstützung`, also an der Stelle, die die Policy als
+   Nachweis akzeptiert.
 3. **Screenshots**: nach
    `fastlane/metadata/android/<locale>/images/phoneScreenshots/` legen
    (JPG oder PNG, Hochformat). Ohne Screenshots ist der Eintrag karg.
