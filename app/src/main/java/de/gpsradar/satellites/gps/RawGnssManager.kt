@@ -7,9 +7,13 @@ import android.location.GnssMeasurement
 import android.location.GnssMeasurementsEvent
 import android.location.LocationManager
 import android.os.Build
+import de.gpsradar.satellites.model.BufferStats
+import de.gpsradar.satellites.model.CapturePhase
 import de.gpsradar.satellites.model.Constellation
+import de.gpsradar.satellites.model.EpochBuffer
 import de.gpsradar.satellites.model.MultipathState
 import de.gpsradar.satellites.model.RawClockSnapshot
+import de.gpsradar.satellites.model.RawEpoch
 import de.gpsradar.satellites.model.RawMeasurement
 import de.gpsradar.satellites.model.gnssBandLabel
 import de.gpsradar.satellites.model.gnssBandShort
@@ -33,6 +37,15 @@ class RawGnssManager(context: Context) {
 
     private val _clock = MutableStateFlow<RawClockSnapshot?>(null)
     val clock: StateFlow<RawClockSnapshot?> = _clock.asStateFlow()
+
+    /** Letzte 60 s im Normalbetrieb, alles während einer Aufzeichnung. */
+    private val buffer = EpochBuffer()
+
+    private val _capturePhase = MutableStateFlow(CapturePhase.IDLE)
+    val capturePhase: StateFlow<CapturePhase> = _capturePhase.asStateFlow()
+
+    private val _bufferStats = MutableStateFlow(BufferStats(0, 0))
+    val bufferStats: StateFlow<BufferStats> = _bufferStats.asStateFlow()
 
     private val callback = object : GnssMeasurementsEvent.Callback() {
         override fun onGnssMeasurementsReceived(event: GnssMeasurementsEvent) {
@@ -79,11 +92,52 @@ class RawGnssManager(context: Context) {
         }
         _measurements.value = emptyList()
         _clock.value = null
+        // Aufzeichnung nicht verwerfen: einfrieren, damit z. B. ein Drehen des
+        // Geräts (Activity wird neu erstellt) die gesammelten Daten nicht löscht.
+        if (_capturePhase.value == CapturePhase.CAPTURING) {
+            finishCapture()
+        }
+    }
+
+    /** Aufzeichnung starten: ab jetzt bleibt alles stehen, bis sie endet. */
+    fun startCapture() {
+        buffer.clear()
+        buffer.keepAll = true
+        _capturePhase.value = CapturePhase.CAPTURING
+        publishStats()
+    }
+
+    /** Zeit abgelaufen (oder vom Nutzer beendet): Puffer einfrieren. */
+    fun finishCapture() {
+        if (_capturePhase.value != CapturePhase.CAPTURING) return
+        buffer.freeze()
+        _capturePhase.value = CapturePhase.FINISHED
+        publishStats()
+    }
+
+    /** Laufende Aufzeichnung abbrechen. */
+    fun cancelCapture() = resetCapture()
+
+    /** Fertige Aufzeichnung verwerfen, zurück in den Ringpuffer-Betrieb. */
+    fun discardCapture() = resetCapture()
+
+    private fun resetCapture() {
+        buffer.clear()
+        _capturePhase.value = CapturePhase.IDLE
+        publishStats()
+    }
+
+    /** Aktueller Pufferinhalt für den Export. */
+    fun epochSnapshot(): List<RawEpoch> = buffer.snapshot()
+
+    private fun publishStats() {
+        _bufferStats.value = BufferStats(buffer.epochCount, buffer.rowCount)
     }
 
     private fun handleEvent(event: GnssMeasurementsEvent) {
         val clock = event.clock
-        _clock.value = clock.toSnapshot()
+        val snapshot = clock.toSnapshot()
+        _clock.value = snapshot
 
         // GnssClock.HAS_NO_FULL_BIAS = Long.MIN_VALUE ("unbekannt"); HAS_NO_BIAS = NaN.
         val clockUsable = clock.fullBiasNanos != Long.MIN_VALUE && !clock.biasNanos.isNaN()
@@ -102,6 +156,9 @@ class RawGnssManager(context: Context) {
             .sortedWith(compareByDescending<RawMeasurement> { it.cn0DbHz })
 
         _measurements.value = latest
+
+        buffer.add(RawEpoch(System.currentTimeMillis(), snapshot, latest))
+        publishStats()
     }
 
     private fun GnssMeasurement.toRawMeasurement(tRxNanos: Double, weekOffsetNanos: Double, clockUsable: Boolean): RawMeasurement? {

@@ -96,9 +96,10 @@ fun AboutScreen(
         AboutCard("Rohdaten & Messung") {
             AboutParagraph(
                 "Der Messung-Tab zeigt pro Satellit und Frequenzband die Roh-Messungen des " +
-                    "GNSS-Chipsatzes; daraus entsteht auch der CSV-Export. Wie viele Werte " +
-                    "ankommen, hängt vom Gerät ab: bei schwacher Sicht oder im Stromsparmodus " +
-                    "des Chips fehlen Code-Lock, TOW oder ganze Signale."
+                    "GNSS-Chipsatzes. Der CSV-Export enthält automatisch die letzten 60 Sekunden; " +
+                    "für längere Reihen gibt es „5 Min. aufzeichnen“. Wie viele Werte ankommen, " +
+                    "hängt vom Gerät ab: bei schwacher Sicht oder im Stromsparmodus des Chips " +
+                    "fehlen Code-Lock, TOW oder ganze Signale."
             )
             Spacer(modifier = Modifier.height(4.dp))
             AboutBullet(

@@ -23,9 +23,11 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -37,6 +39,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import de.gpsradar.satellites.model.BufferStats
+import de.gpsradar.satellites.model.CapturePhase
 import de.gpsradar.satellites.model.Constellation
 import de.gpsradar.satellites.model.CsvProfile
 import de.gpsradar.satellites.model.MultipathState
@@ -48,12 +52,19 @@ import de.gpsradar.satellites.ui.theme.SignalOrange
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlinx.coroutines.delay
 
 @Composable
 fun MeasurementScreen(
     measurements: List<RawMeasurement>,
     clock: RawClockSnapshot?,
-    onExportCsv: (Uri, CsvProfile) -> Boolean
+    capturePhase: CapturePhase,
+    bufferStats: BufferStats,
+    captureEndsAtMillis: Long,
+    onExportCsv: (Uri, CsvProfile) -> Boolean,
+    onStartCapture: () -> Unit,
+    onCancelCapture: () -> Unit,
+    onDiscardCapture: () -> Unit
 ) {
     var bandFilter by remember { mutableStateOf<String?>(null) }
 
@@ -74,7 +85,15 @@ fun MeasurementScreen(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        CsvExportRow(enabled = measurements.isNotEmpty(), onExportCsv = onExportCsv)
+        CsvExportRow(
+            phase = capturePhase,
+            stats = bufferStats,
+            captureEndsAtMillis = captureEndsAtMillis,
+            onExportCsv = onExportCsv,
+            onStartCapture = onStartCapture,
+            onCancelCapture = onCancelCapture,
+            onDiscardCapture = onDiscardCapture
+        )
 
         Spacer(modifier = Modifier.height(8.dp))
 
@@ -207,7 +226,15 @@ private fun RawDiagnostics(measurements: List<RawMeasurement>) {
 }
 
 @Composable
-private fun CsvExportRow(enabled: Boolean, onExportCsv: (Uri, CsvProfile) -> Boolean) {
+private fun CsvExportRow(
+    phase: CapturePhase,
+    stats: BufferStats,
+    captureEndsAtMillis: Long,
+    onExportCsv: (Uri, CsvProfile) -> Boolean,
+    onStartCapture: () -> Unit,
+    onCancelCapture: () -> Unit,
+    onDiscardCapture: () -> Unit
+) {
     var profile by remember { mutableStateOf(CsvProfile.UNIVERSAL) }
     val context = LocalContext.current
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
@@ -219,6 +246,27 @@ private fun CsvExportRow(enabled: Boolean, onExportCsv: (Uri, CsvProfile) -> Boo
                 Toast.LENGTH_SHORT
             ).show()
         }
+    }
+
+    // Sekundentakt nur während der Aufzeichnung (für den Countdown).
+    var now by remember { mutableStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(phase) {
+        while (phase == CapturePhase.CAPTURING) {
+            now = System.currentTimeMillis()
+            delay(1_000)
+        }
+    }
+
+    // Aufzeichnung ist von selbst zu Ende: kurz melden, Export steht darunter bereit.
+    LaunchedEffect(phase) {
+        if (phase == CapturePhase.FINISHED) {
+            Toast.makeText(context, "Aufzeichnung beendet – Export bereit", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    fun launchExport() {
+        val suffix = if (profile == CsvProfile.UNIVERSAL) "universal" else "excel"
+        launcher.launch("rohdaten_$suffix.csv")
     }
 
     Card(
@@ -242,19 +290,49 @@ private fun CsvExportRow(enabled: Boolean, onExportCsv: (Uri, CsvProfile) -> Boo
                     profile = CsvProfile.EXCEL_DE
                 }
             }
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = statusText(phase, stats, captureEndsAtMillis, now),
+                fontSize = 10.sp,
+                color = if (phase == CapturePhase.CAPTURING) SignalGreen else Color(0xFF94A3B8)
+            )
             Spacer(modifier = Modifier.height(8.dp))
-            Button(
-                onClick = {
-                    val suffix = if (profile == CsvProfile.UNIVERSAL) "universal" else "excel"
-                    launcher.launch("rohdaten_$suffix.csv")
-                },
-                enabled = enabled
-            ) {
-                Text("Exportieren")
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                when (phase) {
+                    CapturePhase.CAPTURING -> {
+                        Button(onClick = onCancelCapture) { Text("Abbrechen") }
+                    }
+
+                    CapturePhase.FINISHED -> {
+                        Button(onClick = ::launchExport, enabled = stats.rows > 0) { Text("Exportieren") }
+                        OutlinedButton(onClick = onDiscardCapture) { Text("Verwerfen") }
+                    }
+
+                    CapturePhase.IDLE -> {
+                        Button(onClick = ::launchExport, enabled = stats.rows > 0) { Text("Exportieren") }
+                        OutlinedButton(onClick = onStartCapture) { Text("5 Min. aufzeichnen") }
+                    }
+                }
             }
         }
     }
 }
+
+private fun statusText(phase: CapturePhase, stats: BufferStats, endsAtMillis: Long, nowMillis: Long): String =
+    when (phase) {
+        CapturePhase.IDLE ->
+            "Export = letzte 60 s · ${stats.epochs} Epochen · ${stats.rows} Zeilen"
+
+        CapturePhase.CAPTURING -> {
+            val remaining = ((endsAtMillis - nowMillis) / 1000).coerceAtLeast(0).toInt()
+            val minutes = remaining / 60
+            val seconds = (remaining % 60).toString().padStart(2, '0')
+            "Aufzeichnung läuft · noch $minutes:$seconds · ${stats.epochs} Epochen · ${stats.rows} Zeilen"
+        }
+
+        CapturePhase.FINISHED ->
+            "Aufzeichnung fertig · ${stats.epochs} Epochen · ${stats.rows} Zeilen"
+    }
 
 @Composable
 private fun DiagBadge(text: String) {

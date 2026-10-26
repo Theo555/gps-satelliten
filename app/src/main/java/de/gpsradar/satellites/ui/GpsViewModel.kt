@@ -18,6 +18,8 @@ import java.util.TimeZone
 import de.gpsradar.satellites.gps.GpsDataManager
 import de.gpsradar.satellites.gps.RawGnssManager
 import de.gpsradar.satellites.model.Cache
+import de.gpsradar.satellites.model.BufferStats
+import de.gpsradar.satellites.model.CapturePhase
 import de.gpsradar.satellites.model.CsvMeta
 import de.gpsradar.satellites.model.CsvProfile
 import de.gpsradar.satellites.model.Constellation
@@ -35,6 +37,7 @@ import de.gpsradar.satellites.model.Waypoint
 import de.gpsradar.satellites.model.WaypointCodec
 import de.gpsradar.satellites.model.groupWaypoints
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -55,6 +58,9 @@ private const val TRACK_ADVANCE_THRESHOLD_M = 25.0
 private const val TRACK_SNAP_THRESHOLD_M = 100.0
 private const val ARRIVAL_THRESHOLD_M = 5.0
 
+/** Dauer einer Rohdaten-Aufzeichnung; danach endet sie selbst und bietet den Export an. */
+private const val RAW_CAPTURE_DURATION_MS = 5 * 60 * 1000L
+
 class GpsViewModel(application: Application) : AndroidViewModel(application) {
 
     private val gpsDataManager = GpsDataManager(application.applicationContext)
@@ -65,6 +71,12 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
     val supportsRawMeasurements: StateFlow<Boolean> = rawGnssManager.supportsRawMeasurements
     val rawMeasurements: StateFlow<List<RawMeasurement>> = rawGnssManager.measurements
     val rawClock: StateFlow<RawClockSnapshot?> = rawGnssManager.clock
+    val rawCapturePhase: StateFlow<CapturePhase> = rawGnssManager.capturePhase
+    val rawBufferStats: StateFlow<BufferStats> = rawGnssManager.bufferStats
+
+    /** Ende der laufenden Aufzeichnung (Gerätezeit); 0 = keine Aufzeichnung. */
+    val rawCaptureEndsAtMillis = MutableStateFlow(0L)
+    private var rawCaptureJob: Job? = null
 
     val selectedFilter = MutableStateFlow<Constellation?>(null)
     val selectedSort = MutableStateFlow(SatelliteSort.SIGNAL_DESC)
@@ -521,9 +533,9 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
-     * Exportiert die aktuellen Roh-Messungen als CSV (ein Kommentarkopf,
-     * dann eine Zeile pro Satellit × Band). `profile` koppelt Trennzeichen,
-     * Dezimalzeichen und BOM.
+     * Exportiert den Pufferinhalt als CSV: Kommentarkopf, dann eine Zeile pro
+     * Satellit × Band × Epoche. `profile` koppelt Trennzeichen, Dezimalzeichen
+     * und BOM.
      */
     fun exportRawCsv(uri: Uri, profile: CsvProfile): Boolean {
         return try {
@@ -534,13 +546,39 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
                 app = appVersionName(),
                 exportedAtUtc = utcNow()
             )
-            val content = MeasurementCsv.toCsv(rawMeasurements.value, rawClock.value, meta, profile)
+            val content = MeasurementCsv.toCsv(rawGnssManager.epochSnapshot(), meta, profile)
             app.contentResolver.openOutputStream(uri)?.use {
                 it.write(content.toByteArray(Charsets.UTF_8))
             } != null
         } catch (e: Exception) {
             false
         }
+    }
+
+    /** Startet eine zeitlich begrenzte Aufzeichnung; sie endet selbst. */
+    fun startRawCapture() {
+        rawGnssManager.startCapture()
+        rawCaptureEndsAtMillis.value = System.currentTimeMillis() + RAW_CAPTURE_DURATION_MS
+        rawCaptureJob?.cancel()
+        rawCaptureJob = viewModelScope.launch {
+            delay(RAW_CAPTURE_DURATION_MS)
+            rawGnssManager.finishCapture()
+            rawCaptureEndsAtMillis.value = 0L
+        }
+    }
+
+    /** Laufende Aufzeichnung abbrechen. */
+    fun cancelRawCapture() {
+        rawCaptureJob?.cancel()
+        rawCaptureEndsAtMillis.value = 0L
+        rawGnssManager.cancelCapture()
+    }
+
+    /** Fertige Aufzeichnung verwerfen (zurück zum Ringpuffer). */
+    fun discardRawCapture() {
+        rawCaptureJob?.cancel()
+        rawCaptureEndsAtMillis.value = 0L
+        rawGnssManager.discardCapture()
     }
 
     @Suppress("DEPRECATION")

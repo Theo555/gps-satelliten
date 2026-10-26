@@ -7,7 +7,7 @@ Native Android-App (Kotlin + Jetpack Compose) zur **Live-Anzeige von GNSS-Satell
 - **Keine `INTERNET`-Berechtigung.** Die App kann technisch keine Verbindungen nach außen aufbauen – kein Tracking, keine Analytics, keine versteckten Anfragen. Prüfbar im Manifest.
 - **Rein GNSS, kein Hybrid.** Bewusst ohne WLAN-, Funkzellen- oder Fused-Location-Ortung und ohne Google Play Services – nur Satelliten-Ortung, damit die App tatsächlich komplett offline bleibt.
 - **Im Flugmodus getestet.** Läuft sauber und flink auf älteren Geräten ohne jede Verbindung.
-- **~2 MB.** Kein Karten-SDK, keine Analytics-Bibliothek. Karten öffnen über `geo:`-Intents in einer externen App.
+- **~2 MB APK.** Kein Karten-SDK, keine Analytics-Bibliothek. Karten öffnen über `geo:`-Intents in einer externen App. *(Android zeigt nach der Installation ~11 MB an: Es legt zusätzlich eine maschinell übersetzte Kopie des Codes ab. Das macht es mit jeder App und lässt sich nicht abschalten.)*
 
 ## Download (fertige APK) ⬇️
 
@@ -138,7 +138,7 @@ Eigene Wander-/Radrouten lassen sich bequem mit **[BRouter](https://brouter.de/b
 
 ## Rohdaten-Export (CSV)
 
-Im **Messung-Tab** schreibt die Export-Karte die aktuell angezeigten Roh-Messungen als CSV – eine Zeile pro Satellit und Frequenzband. Es handelt sich um **einen Messsatz (eine Epoche)**, nicht um eine Aufzeichnung über die Zeit. Gedacht für die Auswertung mit Excel, pandas, QGIS oder gnuplot.
+Im **Messung-Tab** schreibt die Export-Karte die Roh-Messungen als CSV – eine Zeile pro Satellit, Frequenzband und Epoche. Der Export enthält automatisch die **letzten 60 Sekunden** (Ringpuffer), also eine kurze Zeitreihe statt nur einen Zeitpunkt. Für längere Aufnahmen gibt es **„5 Min. aufzeichnen“**: Die Aufzeichnung endet selbst und bietet dann den Export an. Gedacht für die Auswertung mit Excel, pandas, QGIS oder gnuplot.
 
 **Zwei Profile** – die Zeichen sind bewusst gekoppelt, nicht frei kombinierbar:
 
@@ -156,7 +156,7 @@ Deutsches Excel trennt Listen mit `;` und Dezimalzahlen mit `,`; eine RFC-Datei 
 # export_utc = 2026-10-25T12:33:07Z
 # geraet = samsung SM-N960F · hardware qcom · board msm8998
 # flags = state_flags: GnssMeasurement.getState() · code_lock/tow_known/msec_ambiguous: 1 ja, 0 nein
-svid,constellation,band,freq_hz,cn0_dbhz,time_ns,full_bias_ns,bias_ns,drift_nsps,leap_s,week_offset_ns,t_tx_raw_ns,t_tx_ns,sv_time_unc_ns,pseudorange_m,doppler_mps,adr_m,adr_state,phase_unc_m,state_flags,code_lock,tow_known,msec_ambiguous,multipath
+epoch,svid,constellation,band,freq_hz,cn0_dbhz,time_ns,full_bias_ns,bias_ns,drift_nsps,leap_s,week_offset_ns,t_tx_raw_ns,t_tx_ns,sv_time_unc_ns,pseudorange_m,doppler_mps,adr_m,adr_state,phase_unc_m,state_flags,code_lock,tow_known,msec_ambiguous,multipath
 ```
 
 `adr_m` ist die **accumulated delta range** – relativ zum Startzeitpunkt, keine absolute Trägerphase. `time_ns` ist die Empfängerzeit, `t_tx_ns` die Sendezeit des Satelliten; `full_bias_ns`, `bias_ns`, `drift_nsps` und `leap_s` sind die Empfängeruhr.

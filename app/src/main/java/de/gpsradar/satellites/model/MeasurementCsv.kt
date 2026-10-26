@@ -30,7 +30,7 @@ object MeasurementCsv {
     private const val WEEK_NANOS = 604_800_000_000_000.0
 
     private val HEADER = listOf(
-        "svid", "constellation", "band", "freq_hz", "cn0_dbhz",
+        "epoch", "svid", "constellation", "band", "freq_hz", "cn0_dbhz",
         "time_ns", "full_bias_ns", "bias_ns", "drift_nsps", "leap_s",
         "week_offset_ns", "t_tx_raw_ns", "t_tx_ns", "sv_time_unc_ns",
         "pseudorange_m", "doppler_mps", "adr_m", "adr_state", "phase_unc_m",
@@ -38,17 +38,12 @@ object MeasurementCsv {
     )
 
     fun toCsv(
-        measurements: List<RawMeasurement>,
-        clock: RawClockSnapshot?,
+        epochs: List<RawEpoch>,
         meta: CsvMeta,
         profile: CsvProfile
     ): String {
-        val weekOffsetNanos: Long? = clock?.fullBiasNanos
-            ?.takeIf { it != Long.MIN_VALUE }
-            ?.let { floor(-it.toDouble() / WEEK_NANOS) * WEEK_NANOS }
-            ?.toLong()
-
         val lines = mutableListOf<String>()
+        val totalRows = epochs.sumOf { it.rows.size }
 
         // Kommentarkopf (#-Zeilen, vor der Kopfzeile).
         val delimiterName = if (profile.delimiter == ',') "Komma" else "Semikolon"
@@ -58,46 +53,57 @@ object MeasurementCsv {
         lines += comment("geraet", meta.device, profile)
         lines += comment("android", meta.android, profile)
         lines += comment("app", meta.app, profile)
-        lines += comment("zeitbasis", "export_utc ist die Geräteuhr · time_ns ist GNSS-Zeit · alle *_ns sind Nanosekunden", profile)
-        lines += comment("hinweis", "adr_m ist accumulated delta range (relativ zur Epoche und keine absolute Trägerphase)", profile)
+        lines += comment("aufzeichnung", "${epochs.size} Epochen · $totalRows Zeilen · 1 Epoche = ein GnssMeasurementsEvent", profile)
+        lines += comment("zeitbasis", "export_utc ist die Geräteuhr · time_ns ist GNSS-Zeit · alle *_ns sind Nanosekunden · Epochen können Lücken haben", profile)
+        lines += comment("hinweis", "adr_m ist accumulated delta range (relativ zur Epoche und keine absolute Trägerphase) · adr_state Bit 1 gesetzt bedeutet gültig", profile)
         lines += comment("flags", "state_flags: GnssMeasurement.getState() · adr_state: accumulatedDeltaRangeState · code_lock/tow_known/msec_ambiguous: 1 ja, 0 nein", profile)
 
         lines += HEADER.joinToString(profile.delimiter.toString())
 
-        measurements.forEach { m ->
+        var epochIndex = 0
+        epochs.forEach { epoch ->
+            epochIndex++
+            val clock = epoch.clock
             val fullBiasNanos = clock?.fullBiasNanos?.takeIf { it != Long.MIN_VALUE }
             val biasNanos = clock?.biasNanos?.takeIf { !it.isNaN() }
             val driftNsPerSec = clock?.driftNsPerSec?.takeIf { !it.isNaN() }
             val leapSecond = clock?.leapSecond?.takeIf { it != Int.MIN_VALUE }
-            val tTxNanos = m.tTxRawNanos?.let { raw -> weekOffsetNanos?.let { raw + it } }
+            val weekOffsetNanos: Long? = fullBiasNanos
+                ?.let { floor(-it.toDouble() / WEEK_NANOS) * WEEK_NANOS }
+                ?.toLong()
 
-            val cells = listOf(
-                m.svid.toString(),
-                m.constellation.shortName,
-                m.bandShort,
-                fmtFloat(m.carrierFrequencyHz, "%.0f", profile),
-                fmtFloat(m.cn0DbHz, "%.1f", profile),
-                fmtLong(clock?.timeNanos),
-                fmtLong(fullBiasNanos),
-                fmtDouble(biasNanos, "%.6f", profile),
-                fmtDouble(driftNsPerSec, "%.6f", profile),
-                leapSecond?.toString() ?: "",
-                fmtLong(weekOffsetNanos),
-                fmtLong(m.tTxRawNanos),
-                fmtLong(tTxNanos),
-                fmtLong(m.svTimeUncertaintyNanos),
-                fmtDouble(m.pseudorangeMeters, "%.3f", profile),
-                fmtDouble(m.dopplerMetersPerSec, "%.1f", profile),
-                fmtDouble(m.carrierPhaseMeters, "%.1f", profile),
-                m.adrState.toString(),
-                fmtDouble(m.carrierPhaseUncertaintyMeters, "%.3f", profile),
-                m.stateFlags.toString(),
-                bool01(m.codeLock),
-                bool01(m.towKnown),
-                bool01(m.msecAmbiguous),
-                multipathToken(m.multipath)
-            )
-            lines += cells.joinToString(profile.delimiter.toString())
+            epoch.rows.forEach { m ->
+                val tTxNanos = m.tTxRawNanos?.let { raw -> weekOffsetNanos?.let { raw + it } }
+
+                val cells = listOf(
+                    epochIndex.toString(),
+                    m.svid.toString(),
+                    m.constellation.shortName,
+                    m.bandShort,
+                    fmtFloat(m.carrierFrequencyHz, "%.0f", profile),
+                    fmtFloat(m.cn0DbHz, "%.1f", profile),
+                    fmtLong(clock?.timeNanos),
+                    fmtLong(fullBiasNanos),
+                    fmtDouble(biasNanos, "%.6f", profile),
+                    fmtDouble(driftNsPerSec, "%.6f", profile),
+                    leapSecond?.toString() ?: "",
+                    fmtLong(weekOffsetNanos),
+                    fmtLong(m.tTxRawNanos),
+                    fmtLong(tTxNanos),
+                    fmtLong(m.svTimeUncertaintyNanos),
+                    fmtDouble(m.pseudorangeMeters, "%.3f", profile),
+                    fmtDouble(m.dopplerMetersPerSec, "%.1f", profile),
+                    fmtDouble(m.carrierPhaseMeters, "%.1f", profile),
+                    m.adrState.toString(),
+                    fmtDouble(m.carrierPhaseUncertaintyMeters, "%.3f", profile),
+                    m.stateFlags.toString(),
+                    bool01(m.codeLock),
+                    bool01(m.towKnown),
+                    bool01(m.msecAmbiguous),
+                    multipathToken(m.multipath)
+                )
+                lines += cells.joinToString(profile.delimiter.toString())
+            }
         }
 
         val body = lines.joinToString("\r\n") + "\r\n"
