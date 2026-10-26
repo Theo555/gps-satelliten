@@ -19,13 +19,18 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -37,8 +42,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import de.gpsradar.satellites.model.BufferStats
 import de.gpsradar.satellites.model.CapturePhase
 import de.gpsradar.satellites.model.Constellation
@@ -67,6 +74,8 @@ fun MeasurementScreen(
     onDiscardCapture: () -> Unit
 ) {
     var bandFilter by remember { mutableStateOf<String?>(null) }
+    var showExportDialog by remember { mutableStateOf(false) }
+    var showQualityDetails by remember { mutableStateOf(false) }
 
     val filtered = measurements.filter { m ->
         bandFilter == null || m.bandShort == bandFilter
@@ -75,31 +84,32 @@ fun MeasurementScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(12.dp)
+            .padding(horizontal = 12.dp, vertical = 6.dp)
     ) {
-        MeasurementHeader(clock = clock, count = measurements.size)
+        CompactHeader(
+            count = measurements.size,
+            clock = clock,
+            onOpenExport = { showExportDialog = true }
+        )
 
-        Spacer(modifier = Modifier.height(8.dp))
+        QualityLine(
+            measurements = measurements,
+            expanded = showQualityDetails,
+            onToggle = { showQualityDetails = !showQualityDetails }
+        )
 
-        RawDiagnostics(measurements)
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        CsvExportRow(
+        CaptureStatusLine(
             phase = capturePhase,
             stats = bufferStats,
             captureEndsAtMillis = captureEndsAtMillis,
-            onExportCsv = onExportCsv,
-            onStartCapture = onStartCapture,
-            onCancelCapture = onCancelCapture,
-            onDiscardCapture = onDiscardCapture
+            onOpenExport = { showExportDialog = true }
         )
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(4.dp))
 
         BandFilterRow(selected = bandFilter, onSelect = { bandFilter = it })
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(6.dp))
 
         if (filtered.isEmpty()) {
             Box(
@@ -116,8 +126,10 @@ fun MeasurementScreen(
             }
         } else {
             LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 items(filtered, key = { "${it.svid}-${it.bandShort}" }) { m ->
                     MeasurementRow(m)
@@ -125,54 +137,62 @@ fun MeasurementScreen(
             }
         }
     }
+
+    if (showExportDialog) {
+        ExportDialog(
+            phase = capturePhase,
+            stats = bufferStats,
+            captureEndsAtMillis = captureEndsAtMillis,
+            onExportCsv = onExportCsv,
+            onStartCapture = onStartCapture,
+            onCancelCapture = onCancelCapture,
+            onDiscardCapture = onDiscardCapture,
+            onDismiss = { showExportDialog = false }
+        )
+    }
 }
 
 @Composable
-private fun MeasurementHeader(clock: RawClockSnapshot?, count: Int) {
-    Card(
-        colors = CardDefaults.cardColors(containerColor = CardNavy),
-        shape = RoundedCornerShape(12.dp),
-        modifier = Modifier.fillMaxWidth()
+private fun CompactHeader(count: Int, clock: RawClockSnapshot?, onOpenExport: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Roh-Messungen",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-                Text(
-                    text = "$count Signalpfade",
-                    fontSize = 12.sp,
-                    color = Color(0xFF94A3B8)
-                )
-            }
-            if (clock != null) {
-                Spacer(modifier = Modifier.height(6.dp))
-                val time = SimpleDateFormat("HH:mm:ss", Locale.GERMANY).format(Date(clock.receivedAtMillis))
-                val driftText = if (clock.driftNsPerSec.isNaN()) "–" else "${String.format(Locale.US, "%.3f", clock.driftNsPerSec)} ns/s"
-                val leapText = if (clock.leapSecond == Int.MIN_VALUE) "unbekannt" else "${clock.leapSecond} s"
-                Text(
-                    text = "Empfangszeit $time · Uhr-Drift $driftText · Leap-Second $leapText",
-                    fontSize = 10.sp,
-                    color = Color(0xFFCBD5E1)
-                )
-            }
+        Text(
+            text = "Roh-Messungen",
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color.White
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(text = "$count Signalpfade", fontSize = 11.sp, color = Color(0xFF94A3B8))
+        if (clock != null) {
+            Spacer(modifier = Modifier.width(8.dp))
+            val time = SimpleDateFormat("HH:mm:ss", Locale.GERMANY).format(Date(clock.receivedAtMillis))
+            Text(text = time, fontSize = 11.sp, color = Color(0xFF94A3B8))
+        }
+        Spacer(modifier = Modifier.weight(1f))
+        IconButton(onClick = onOpenExport, modifier = Modifier.size(34.dp)) {
+            Icon(
+                imageVector = Icons.Default.FileDownload,
+                contentDescription = "CSV-Export und Aufzeichnung",
+                tint = Color(0xFF60A5FA),
+                modifier = Modifier.size(20.dp)
+            )
         }
     }
 }
 
 /**
- * Zeigt, wie brauchbar die Rohdaten des Geräts sind: Qualitätsmerkmale
- * (Code-Lock, TOW, Trägerphase) als Zusammenfassung über alle Messungen.
+ * Qualitäts-Zusammenfassung in einer Zeile; Details erst auf Antippen.
+ * Hält den Messung-Tab schlank, ohne Information zu verlieren.
  */
 @Composable
-private fun RawDiagnostics(measurements: List<RawMeasurement>) {
+private fun QualityLine(
+    measurements: List<RawMeasurement>,
+    expanded: Boolean,
+    onToggle: () -> Unit
+) {
     if (measurements.isEmpty()) return
 
     val total = measurements.size
@@ -183,36 +203,40 @@ private fun RawDiagnostics(measurements: List<RawMeasurement>) {
     val phaseOk = measurements.count { it.phaseValid && it.carrierPhaseMeters != null }
     val uncertainties = measurements.mapNotNull { it.carrierPhaseUncertaintyMeters }
 
-    Card(
-        colors = CardDefaults.cardColors(containerColor = CardNavy),
-        shape = RoundedCornerShape(12.dp),
-        modifier = Modifier.fillMaxWidth()
+    val allGood = lock == total && tow == total && msec == 0
+    val summary = if (withState == 0) {
+        "Qualität · Gerät meldet keine Merkmale"
+    } else {
+        "Qualität · Lock $lock/$total · TOW $tow/$total · $msec ms-mehrdeutig · Phase $phaseOk/$total"
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onToggle)
     ) {
-        Column(modifier = Modifier.padding(10.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                text = "Rohdaten-Qualität",
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF94A3B8)
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = "TOW bekannt $tow/$total · Code-Lock $lock/$total · ms-mehrdeutig $msec",
-                fontSize = 11.sp,
-                color = if (tow == total && msec == 0) SignalGreen else SignalOrange
-            )
-            Text(
-                text = buildString {
-                    append("Trägerphase gültig $phaseOk/$total")
-                    if (uncertainties.isNotEmpty()) {
-                        append(" · Unsicherheit Ø ")
-                        append(String.format(Locale.US, "%.2f", uncertainties.average()))
-                        append(" m")
-                    }
+                text = summary,
+                fontSize = 10.sp,
+                color = when {
+                    withState == 0 -> Color(0xFF94A3B8)
+                    allGood -> SignalGreen
+                    else -> SignalOrange
                 },
-                fontSize = 11.sp,
-                color = Color(0xFFCBD5E1)
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
             )
+            Text(
+                text = if (expanded) "▾" else "▸",
+                fontSize = 10.sp,
+                color = Color(0xFF94A3B8),
+                modifier = Modifier.padding(start = 4.dp)
+            )
+        }
+        if (expanded) {
+            Spacer(modifier = Modifier.height(2.dp))
             if (withState < total) {
                 Text(
                     text = "Status-Bits geliefert $withState/$total" +
@@ -221,19 +245,37 @@ private fun RawDiagnostics(measurements: List<RawMeasurement>) {
                     color = Color(0xFF94A3B8)
                 )
             }
+            if (uncertainties.isNotEmpty()) {
+                Text(
+                    text = "Trägerphase-Unsicherheit Ø " +
+                        String.format(Locale.US, "%.2f", uncertainties.average()) + " m",
+                    fontSize = 10.sp,
+                    color = Color(0xFF94A3B8)
+                )
+            }
+            Text(
+                text = "Trägerphase (adr_m) ist relativ; nur mit adr_state-Bit 1 gültig",
+                fontSize = 10.sp,
+                color = Color(0xFF94A3B8)
+            )
         }
     }
 }
 
+/**
+ * Export und Aufzeichnung liegen in einem Dialog statt in einer Dauer-Karte –
+ * so bleibt der Platz für die Messliste.
+ */
 @Composable
-private fun CsvExportRow(
+private fun ExportDialog(
     phase: CapturePhase,
     stats: BufferStats,
     captureEndsAtMillis: Long,
     onExportCsv: (Uri, CsvProfile) -> Boolean,
     onStartCapture: () -> Unit,
     onCancelCapture: () -> Unit,
-    onDiscardCapture: () -> Unit
+    onDiscardCapture: () -> Unit,
+    onDismiss: () -> Unit
 ) {
     var profile by remember { mutableStateOf(CsvProfile.UNIVERSAL) }
     val context = LocalContext.current
@@ -245,10 +287,10 @@ private fun CsvExportRow(
                 if (ok) "CSV exportiert" else "CSV-Export fehlgeschlagen",
                 Toast.LENGTH_SHORT
             ).show()
+            onDismiss()
         }
     }
 
-    // Sekundentakt nur während der Aufzeichnung (für den Countdown).
     var now by remember { mutableStateOf(System.currentTimeMillis()) }
     LaunchedEffect(phase) {
         while (phase == CapturePhase.CAPTURING) {
@@ -257,65 +299,123 @@ private fun CsvExportRow(
         }
     }
 
-    // Aufzeichnung ist von selbst zu Ende: kurz melden, Export steht darunter bereit.
+    fun launchExport() {
+        val suffix = if (profile == CsvProfile.UNIVERSAL) "universal" else "excel"
+        launcher.launch("rohdaten_$suffix.csv")
+    }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(shape = RoundedCornerShape(14.dp), color = CardNavy) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = "CSV-Export",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = statusText(phase, stats, captureEndsAtMillis, now),
+                    fontSize = 11.sp,
+                    color = if (phase == CapturePhase.CAPTURING) SignalGreen else Color(0xFF94A3B8)
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    BandChip(label = "universell (RFC)", active = profile == CsvProfile.UNIVERSAL) {
+                        profile = CsvProfile.UNIVERSAL
+                    }
+                    BandChip(label = "Excel (deutsch)", active = profile == CsvProfile.EXCEL_DE) {
+                        profile = CsvProfile.EXCEL_DE
+                    }
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+                when (phase) {
+                    CapturePhase.CAPTURING -> {
+                        OutlinedButton(onClick = onCancelCapture, modifier = Modifier.fillMaxWidth()) {
+                            Text("Aufzeichnung abbrechen")
+                        }
+                    }
+
+                    CapturePhase.FINISHED -> {
+                        Button(
+                            onClick = ::launchExport,
+                            enabled = stats.rows > 0,
+                            modifier = Modifier.fillMaxWidth()
+                        ) { Text("Exportieren") }
+                        Spacer(modifier = Modifier.height(6.dp))
+                        OutlinedButton(onClick = onDiscardCapture, modifier = Modifier.fillMaxWidth()) {
+                            Text("Verwerfen")
+                        }
+                    }
+
+                    CapturePhase.IDLE -> {
+                        Button(
+                            onClick = ::launchExport,
+                            enabled = stats.rows > 0,
+                            modifier = Modifier.fillMaxWidth()
+                        ) { Text("Exportieren") }
+                        Spacer(modifier = Modifier.height(6.dp))
+                        OutlinedButton(onClick = onStartCapture, modifier = Modifier.fillMaxWidth()) {
+                            Text("5 Min. aufzeichnen")
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) {
+                    Text("Schließen", fontSize = 12.sp)
+                }
+            }
+        }
+    }
+}
+
+/** Schmale Statuszeile, die nur während oder nach einer Aufzeichnung erscheint. */
+@Composable
+private fun CaptureStatusLine(
+    phase: CapturePhase,
+    stats: BufferStats,
+    captureEndsAtMillis: Long,
+    onOpenExport: () -> Unit
+) {
+    if (phase == CapturePhase.IDLE) return
+
+    val context = LocalContext.current
+    var now by remember { mutableStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(phase) {
+        while (phase == CapturePhase.CAPTURING) {
+            now = System.currentTimeMillis()
+            delay(1_000)
+        }
+    }
     LaunchedEffect(phase) {
         if (phase == CapturePhase.FINISHED) {
             Toast.makeText(context, "Aufzeichnung beendet – Export bereit", Toast.LENGTH_SHORT).show()
         }
     }
 
-    fun launchExport() {
-        val suffix = if (profile == CsvProfile.UNIVERSAL) "universal" else "excel"
-        launcher.launch("rohdaten_$suffix.csv")
-    }
-
-    Card(
-        colors = CardDefaults.cardColors(containerColor = CardNavy),
-        shape = RoundedCornerShape(12.dp),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(modifier = Modifier.padding(10.dp)) {
-            Text(
-                text = "CSV-Export",
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF94A3B8)
-            )
-            Spacer(modifier = Modifier.height(6.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                BandChip(label = "universell (RFC)", active = profile == CsvProfile.UNIVERSAL) {
-                    profile = CsvProfile.UNIVERSAL
-                }
-                BandChip(label = "Excel (deutsch)", active = profile == CsvProfile.EXCEL_DE) {
-                    profile = CsvProfile.EXCEL_DE
-                }
-            }
-            Spacer(modifier = Modifier.height(6.dp))
-            Text(
-                text = statusText(phase, stats, captureEndsAtMillis, now),
-                fontSize = 10.sp,
-                color = if (phase == CapturePhase.CAPTURING) SignalGreen else Color(0xFF94A3B8)
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                when (phase) {
-                    CapturePhase.CAPTURING -> {
-                        Button(onClick = onCancelCapture) { Text("Abbrechen") }
-                    }
-
-                    CapturePhase.FINISHED -> {
-                        Button(onClick = ::launchExport, enabled = stats.rows > 0) { Text("Exportieren") }
-                        OutlinedButton(onClick = onDiscardCapture) { Text("Verwerfen") }
-                    }
-
-                    CapturePhase.IDLE -> {
-                        Button(onClick = ::launchExport, enabled = stats.rows > 0) { Text("Exportieren") }
-                        OutlinedButton(onClick = onStartCapture) { Text("5 Min. aufzeichnen") }
-                    }
-                }
-            }
+    val text = when (phase) {
+        CapturePhase.CAPTURING -> {
+            val remaining = ((captureEndsAtMillis - now) / 1000).coerceAtLeast(0).toInt()
+            "● Aufzeichnung läuft · noch ${remaining / 60}:${(remaining % 60).toString().padStart(2, '0')}" +
+                " · ${stats.epochs} Epochen · ${stats.rows} Zeilen"
         }
+
+        CapturePhase.FINISHED ->
+            "● Aufzeichnung fertig · ${stats.epochs} Epochen · ${stats.rows} Zeilen – antippen zum Export"
+
+        CapturePhase.IDLE -> ""
     }
+
+    Text(
+        text = text,
+        fontSize = 10.sp,
+        color = if (phase == CapturePhase.CAPTURING) SignalGreen else Color(0xFF60A5FA),
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onOpenExport)
+    )
 }
 
 private fun statusText(phase: CapturePhase, stats: BufferStats, endsAtMillis: Long, nowMillis: Long): String =
@@ -333,22 +433,6 @@ private fun statusText(phase: CapturePhase, stats: BufferStats, endsAtMillis: Lo
         CapturePhase.FINISHED ->
             "Aufzeichnung fertig · ${stats.epochs} Epochen · ${stats.rows} Zeilen"
     }
-
-@Composable
-private fun DiagBadge(text: String) {
-    Surface(
-        color = SignalOrange.copy(alpha = 0.16f),
-        shape = RoundedCornerShape(5.dp)
-    ) {
-        Text(
-            text = text,
-            fontSize = 9.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = SignalOrange,
-            modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
-        )
-    }
-}
 
 @Composable
 private fun BandFilterRow(selected: String?, onSelect: (String?) -> Unit) {
@@ -383,69 +467,73 @@ private fun BandChip(label: String, active: Boolean, onClick: () -> Unit) {
 private fun MeasurementRow(m: RawMeasurement) {
     Card(
         colors = CardDefaults.cardColors(containerColor = CardNavy),
-        shape = RoundedCornerShape(10.dp),
+        shape = RoundedCornerShape(8.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
-        Column(modifier = Modifier.padding(10.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    SatelliteBadge(m)
-                    Spacer(modifier = Modifier.width(6.dp))
-                    BandBadge(m.bandShort)
-                }
+        Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)) {
+            // Zeile 1: Satellit, Band, Pseudorange, C/N0
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                SatelliteBadge(m)
+                Spacer(modifier = Modifier.width(6.dp))
+                BandBadge(m.bandShort)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = m.pseudorangeMeters
+                        ?.let { String.format(Locale.GERMANY, "%.3f km", it / 1000.0) } ?: "–",
+                    fontSize = 11.sp,
+                    color = Color(0xFFCBD5E1),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
                 Text(
                     text = "${String.format(Locale.US, "%.1f", m.cn0DbHz)} dB-Hz",
-                    fontSize = 13.sp,
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                     color = cn0Color(m.cn0DbHz)
                 )
             }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                MeasureValue(
-                    label = "Pseudorange",
-                    value = m.pseudorangeMeters?.let { String.format(Locale.GERMANY, "%.3f km", it / 1000.0) } ?: "–"
+            // Zeile 2: Doppler, Trägerphase, Hinweis-Marker
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = buildString {
+                        append("Dop ")
+                        append(String.format(Locale.US, "%.1f", m.dopplerMetersPerSec))
+                        append(" m/s · Ph ")
+                        append(
+                            m.carrierPhaseMeters?.let { phase ->
+                                if (kotlin.math.abs(phase) >= 1_000_000.0) {
+                                    String.format(Locale.GERMANY, "%.0f m", phase)
+                                } else {
+                                    String.format(Locale.GERMANY, "%.1f m", phase)
+                                }
+                            } ?: "–"
+                        )
+                    },
+                    fontSize = 10.sp,
+                    color = Color(0xFF94A3B8),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
                 )
-                MeasureValue(
-                    label = "Doppler",
-                    value = String.format(Locale.US, "%.1f m/s", m.dopplerMetersPerSec)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                MeasureValue(
-                    label = "Trägerphase",
-                    value = m.carrierPhaseMeters?.let { String.format(Locale.GERMANY, "%.1f m", it) } ?: "–"
-                )
-                MultipathLabel(m.multipath)
-            }
-
-            // Qualitätsmerkmale der Messung.
-            if (!m.towKnown || m.msecAmbiguous || !m.codeLock) {
-                Spacer(modifier = Modifier.height(6.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    if (!m.towKnown) DiagBadge("TOW unbekannt")
-                    if (m.msecAmbiguous) DiagBadge("ms-mehrdeutig")
-                    if (!m.codeLock) DiagBadge("kein Code-Lock")
-                }
+                if (m.multipath == MultipathState.DETECTED) FlagText("⚠ MP")
+                if (!m.codeLock) FlagText("Lock")
+                if (m.msecAmbiguous) FlagText("ms")
+                if (!m.towKnown) FlagText("TOW")
             }
         }
     }
+}
+
+@Composable
+private fun FlagText(text: String) {
+    Text(
+        text = text,
+        fontSize = 9.sp,
+        fontWeight = FontWeight.SemiBold,
+        color = SignalOrange,
+        modifier = Modifier.padding(start = 5.dp)
+    )
 }
 
 @Composable
@@ -479,24 +567,6 @@ private fun BandBadge(short: String) {
             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
         )
     }
-}
-
-@Composable
-private fun MeasureValue(label: String, value: String) {
-    Column {
-        Text(label, fontSize = 10.sp, color = Color(0xFF94A3B8))
-        Text(value, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
-    }
-}
-
-@Composable
-private fun MultipathLabel(state: MultipathState) {
-    val (text, color) = when (state) {
-        MultipathState.DETECTED -> "⚠ Multipfad" to SignalOrange
-        MultipathState.NOT_DETECTED -> "✓ kein Multipfad" to SignalGreen
-        MultipathState.UNKNOWN -> "Multipfad ?" to Color(0xFF94A3B8)
-    }
-    Text(text = text, fontSize = 10.sp, color = color)
 }
 
 private fun cn0Color(cn0: Float): Color = when {
