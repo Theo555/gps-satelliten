@@ -1,0 +1,12 @@
+1.3.5
+* Rohdaten als CSV exportieren: alle Satelliten mit Zeitstempel,
+  Signalstärke, Pseudorange, Doppler, Trägerphase und Qualitätsmerkmalen
+* Aufzeichnung über 5 Minuten, dazu die letzten 60 Sekunden als Puffer
+* Zwei Formate: universell (Komma, Punkt als Dezimaltrennzeichen) und
+  Excel DE (Semikolon)
+* Messung-Seite kompakter: eine Qualitätszeile, Export im Dialog, zwei
+  Zeilen je Satellit
+* Satellitensysteme werden zuverlässig erkannt (Galileo war vorher als
+  unbekannt gelistet), GLONASS-Zeit gilt als bekannt
+* Bildschirm bleibt an, solange Messwerte mitgelesen werden
+* Spendenlink entfernt, dafür Verweis auf die Dokumentation

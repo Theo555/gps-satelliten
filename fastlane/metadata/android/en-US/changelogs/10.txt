@@ -1,0 +1,12 @@
+1.3.5
+* Export raw data as CSV: all satellites with timestamp, signal strength,
+  pseudorange, Doppler, carrier phase and quality flags
+* Recording over 5 minutes, plus the last 60 seconds as a buffer
+* Two formats: universal (comma, dot as decimal separator) and Excel DE
+  (semicolon)
+* Measurement page more compact: one quality line, export in a dialog,
+  two lines per satellite
+* Satellite systems are detected reliably (Galileo was listed as unknown
+  before), GLONASS time counts as known
+* Screen stays on while measurements are being read
+* Donation link removed, documentation link added instead
