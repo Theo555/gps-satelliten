@@ -43,4 +43,32 @@ if [ -n "${extra}" ]; then
   printf '%s\n' "${extra}" | sed 's/^/  /' >&2
 fi
 
+# F-Droid nutzt dieselben Bilder (fastlane). Abweichungen sollen auffallen,
+# damit README und F-Droid nicht auseinanderlaufen.
+FASTLANE="fastlane/metadata/android/en-US/images/phoneScreenshots"
+if [ -d "${FASTLANE}" ]; then
+  while IFS= read -r name; do
+    [ -n "${name}" ] || continue
+    target=$(find "${FASTLANE}" -maxdepth 1 -type f -name "*-${name}" | head -1)
+    if [ -z "${target}" ]; then
+      echo "check-screenshots: ${name} fehlt in ${FASTLANE}" >&2
+      status=1
+    elif ! cmp -s "${DIR}/${name}" "${target}"; then
+      echo "check-screenshots: ${target} ist nicht identisch mit ${DIR}/${name}" >&2
+      status=1
+    fi
+  done <<< "${present}"
+
+  while IFS= read -r path; do
+    [ -n "${path}" ] || continue
+    base=$(basename "${path}")
+    name=${base#*-}
+    if [ ! -f "${DIR}/${name}" ]; then
+      echo "check-screenshots: ${path} hat kein Gegenstück in ${DIR}/" >&2
+    fi
+  done <<< "$(find "${FASTLANE}" -maxdepth 1 -type f -name '*.jpg')"
+else
+  echo "check-screenshots: ${FASTLANE} fehlt (F-Droid hätte keine Screenshots)" >&2
+fi
+
 exit "${status}"

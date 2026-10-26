@@ -32,9 +32,12 @@ Der Ordner `f-droid/` ist frei gewählt und nur für uns.
    („donation links need verification“). Der Link steht ausschließlich in der
    README unter `## Unterstützung`, also an der Stelle, die die Policy als
    Nachweis akzeptiert.
-3. **Screenshots**: nach
-   `fastlane/metadata/android/<locale>/images/phoneScreenshots/` legen
-   (JPG oder PNG, Hochformat). Ohne Screenshots ist der Eintrag karg.
+3. **Screenshots**: liegen in
+   `fastlane/metadata/android/en-US/images/phoneScreenshots/` (numerisch
+   benannt für die Reihenfolge). Es sind **dieselben Dateien** wie in
+   `screenshots/` – `tools/check-screenshots.sh` bricht ab, wenn sie
+   nicht mehr byte-gleich sind. Also nur an einer Stelle austauschen
+   (`screenshots/`) und die fastlane-Kopie mitziehen.
 4. **Changelog**: `changelogs/<versionCode>.txt`. Beim nächsten Release
    also `9.txt`.
 5. **E-Mail-Adresse** `t.kichtan@gmail.com` wird öffentlich sichtbar.
