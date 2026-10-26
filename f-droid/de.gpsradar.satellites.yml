@@ -26,6 +26,13 @@ RepoType: git
 Repo: https://github.com/Theo555/gps-satelliten
 
 Builds:
+  - versionName: 1.3.5
+    versionCode: 10
+    commit: a7fd75b435e1cdfdde06256b054260ebc4ec1675
+    gradle:
+      - yes
+    output: app/build/outputs/apk/release/app-release-unsigned.apk
+
   - versionName: 1.3.4
     versionCode: 9
     commit: bc8f63adfea11e4a1fe8b290d46b2f11f105f1bd
@@ -43,8 +50,8 @@ Builds:
 AutoUpdateMode: Version
 UpdateCheckMode: Tags
 
-CurrentVersion: 1.3.4
-CurrentVersionCode: 9
+CurrentVersion: 1.3.5
+CurrentVersionCode: 10
 
 # Hinweise für später:
 # - Bei jedem neuen Release einen Eintrag unter Builds ergänzen und
