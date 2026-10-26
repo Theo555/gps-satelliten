@@ -1,0 +1,6 @@
+1.3.6
+* Der Simulationsmodus startet nicht mehr von selbst: erfundene Satelliten
+  und eine perfekte Position werden nie mehr als echte Messwerte gezeigt
+* Ist die Simulation eingeschaltet, warnt jetzt ein deutlich sichtbares
+  oranges Band darüber, dass keine echten GNSS-Daten angezeigt werden
+* Die Simulation bleibt über das Science-Symbol in der Kopfzeile erreichbar

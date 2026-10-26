@@ -1,0 +1,6 @@
+1.3.6
+* The simulation mode no longer starts on its own: invented satellites and
+  a perfect position are never shown as real measurements again
+* While the simulation is active, a clearly visible orange banner warns
+  that no real GNSS data is being displayed
+* The simulation is still reachable via the science icon in the top bar

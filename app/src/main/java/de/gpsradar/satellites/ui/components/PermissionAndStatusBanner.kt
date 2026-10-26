@@ -149,39 +149,42 @@ fun PermissionAndStatusBanner(
             }
         }
 
-        // Demo Mode Banner
+        // Demo Mode Banner – bewusst auffällig: hier sind keine echten Daten
         if (state.isDemoMode) {
             Surface(
-                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.85f),
+                color = SignalOrange,
                 shape = RoundedCornerShape(10.dp),
                 modifier = Modifier.fillMaxWidth().testTag("demo_mode_banner")
             ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
                             imageVector = Icons.Default.Science,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
+                            tint = CardNavy,
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "Simulation aktiv (Realistischer Satelliten-Orbit)",
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                            text = "SIMULATION – keine echten GNSS-Daten",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = CardNavy
                         )
                     }
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "Satelliten und Position sind erfunden. Zum echten Empfang unten auf Live GPS tippen.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = CardNavy
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
                     OutlinedButton(
                         onClick = onToggleDemoMode,
                         modifier = Modifier.height(32.dp).testTag("switch_to_real_gps_btn"),
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 2.dp)
                     ) {
-                        Text("Live GPS", fontSize = 11.sp)
+                        Text("Live GPS starten", fontSize = 11.sp)
                     }
                 }
             }

@@ -235,14 +235,9 @@ class GpsDataManager(private val context: Context) : SensorEventListener {
             // Rein offline: nur GNSS-Position verwenden.
         }
 
-        // Check if after 3.5 seconds we have 0 satellites (e.g. emulator or inside concrete building)
-        scope.launch {
-            delay(3500)
-            if (_gpsState.value.satellites.isEmpty() && !_gpsState.value.isDemoMode) {
-                // Auto-suggest or enable realistic demo mode so user sees immediate live data
-                enableDemoMode(true)
-            }
-        }
+        // Kein automatischer Simulationsmodus: erfundene Satelliten und eine
+        // perfekte Position dürfen nie als echte Messwerte erscheinen. Die
+        // Simulation lässt sich nur bewusst über den Schalter einschalten.
     }
 
     fun stopTracking() {
