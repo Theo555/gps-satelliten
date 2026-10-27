@@ -70,24 +70,28 @@ Keine Lust, selbst zu kompilieren? Lade einfach die fertige APK herunter und ins
 
 ## Screenshots
 
-<p align="center">
-  <img src="screenshots/radar.jpg" width="200" alt="Radar" />
-  <img src="screenshots/signal.jpg" width="200" alt="Signale" />
-  <img src="screenshots/liste.jpg" width="200" alt="Satellitenliste" />
-  <img src="screenshots/position.jpg" width="200" alt="Position" />
-</p>
+Alle Bilder sind Vorschaubilder – **anklicken** öffnet das jeweilige Bild in voller Größe.
 
-<p align="center">
-  <img src="screenshots/navigation.jpg" width="200" alt="Navigation" />
-  <img src="screenshots/liste-detail.jpg" width="200" alt="Satelliten-Detail" />
-  <img src="screenshots/liste-rohdaten.jpg" width="200" alt="GNSS-Rohdaten" />
-  <img src="screenshots/position-dop.jpg" width="200" alt="DOP-Werte" />
-</p>
-
-<p align="center">
-  <img src="screenshots/messung.jpg" width="200" alt="Messung (Rohdaten)" />
-  <img src="screenshots/messung-export.jpg" width="200" alt="CSV-Export-Dialog" />
-</p>
+<table>
+  <tr>
+    <td align="center"><a href="screenshots/radar.jpg"><img src="screenshots/radar.jpg" width="150" alt="Radar" /></a><br /><sub>Radar · Satelliten am Himmel</sub></td>
+    <td align="center"><a href="screenshots/signal.jpg"><img src="screenshots/signal.jpg" width="150" alt="Signale" /></a><br /><sub>Signale · C/N₀ je Satellit</sub></td>
+    <td align="center"><a href="screenshots/liste.jpg"><img src="screenshots/liste.jpg" width="150" alt="Satellitenliste" /></a><br /><sub>Liste · sortier- und filterbar</sub></td>
+    <td align="center"><a href="screenshots/position.jpg"><img src="screenshots/position.jpg" width="150" alt="Position" /></a><br /><sub>Position · Koordinaten in drei Formaten</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><a href="screenshots/navigation.jpg"><img src="screenshots/navigation.jpg" width="150" alt="Navigation" /></a><br /><sub>Navigation · Zielpunkt mit Richtung</sub></td>
+    <td align="center"><a href="screenshots/liste-detail.jpg"><img src="screenshots/liste-detail.jpg" width="150" alt="Satelliten-Detail" /></a><br /><sub>Details · Signal, Winkel, Ephemeride</sub></td>
+    <td align="center"><a href="screenshots/liste-rohdaten.jpg"><img src="screenshots/liste-rohdaten.jpg" width="150" alt="GNSS-Rohdaten" /></a><br /><sub>Rohdaten · Navigationsnachrichten</sub></td>
+    <td align="center"><a href="screenshots/position-dop.jpg"><img src="screenshots/position-dop.jpg" width="150" alt="DOP-Werte" /></a><br /><sub>Genauigkeit · DOP-Werte</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><a href="screenshots/messung.jpg"><img src="screenshots/messung.jpg" width="150" alt="Messung (Rohdaten)" /></a><br /><sub>Messung · Rohdaten je Signalpfad</sub></td>
+    <td align="center"><a href="screenshots/messung-export.jpg"><img src="screenshots/messung-export.jpg" width="150" alt="CSV-Export-Dialog" /></a><br /><sub>Export · CSV mit zwei Profilen</sub></td>
+    <td></td>
+    <td></td>
+  </tr>
+</table>
 
 ## Technik
 
