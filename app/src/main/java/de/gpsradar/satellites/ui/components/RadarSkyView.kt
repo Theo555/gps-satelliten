@@ -54,9 +54,11 @@ import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import de.gpsradar.satellites.R
 import de.gpsradar.satellites.model.Constellation
 import de.gpsradar.satellites.model.GpsLocationState
 import de.gpsradar.satellites.model.SatelliteInfo
@@ -119,7 +121,11 @@ fun RadarSkyView(
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = if (state.isHeadingUp) "Kompass oben (${state.compassHeading.toInt()}°)" else "Nord oben (0°)",
+                    text = if (state.isHeadingUp) {
+                        stringResource(R.string.orientation_heading_up, state.compassHeading.toInt())
+                    } else {
+                        stringResource(R.string.orientation_north_up)
+                    },
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium
                 )
@@ -140,7 +146,7 @@ fun RadarSkyView(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "Zenith (90°)",
+                        text = stringResource(R.string.label_zenith),
                         fontSize = 11.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -491,7 +497,7 @@ private fun ConstellationFilterRow(
         FilterChip(
             selected = selectedFilter == null,
             onClick = { onFilterSelected(null) },
-            label = { Text("Alle (${allSatellites.size})", fontSize = 12.sp) },
+            label = { Text(stringResource(R.string.filter_all, allSatellites.size), fontSize = 12.sp) },
             colors = FilterChipDefaults.filterChipColors(
                 selectedContainerColor = MaterialTheme.colorScheme.primary,
                 selectedLabelColor = Color.Black

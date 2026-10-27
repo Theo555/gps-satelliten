@@ -36,8 +36,52 @@
     <string name="almanac">Almanach</string>
 
     <string name="demo_mode_banner">Simulationsmodus aktiv (Realistisches Satelliten-Szenario)</string>
-    <string name="switch_to_real">Zu Live-GPS wechseln</string>
+    <string name="switch_to_real">Live GPS starten</string>
     <string name="switch_to_demo">Simulation aktivieren</string>
-    <string name="orientation_north_up">Nord oben</string>
-    <string name="orientation_heading_up">Kompass oben</string>
+    <string name="orientation_north_up">Nord oben (0°)</string>
+    <string name="orientation_heading_up">Kompass oben (%1$d°)</string>
+
+    <!-- Banner, Statuszeile, Radar -->
+    <string name="btn_activate">Aktivieren</string>
+    <string name="demo_banner_title">SIMULATION – keine echten GNSS-Daten</string>
+    <string name="demo_banner_text">Satelliten und Position sind erfunden. Zum echten Empfang unten auf Live GPS tippen.</string>
+    <string name="label_sats">"Sats: "</string>
+    <string name="label_avg_snr">"Ø SNR: "</string>
+    <string name="label_accuracy_short">"Genau: "</string>
+    <string name="label_zenith">Zenith (90°)</string>
+    <string name="filter_all">Alle (%1$d)</string>
+
+    <!-- Über die App -->
+    <string name="about_title">Über diese App</string>
+    <string name="about_version">Version %1$s</string>
+    <string name="about_version_code">Version %1$s · Code %2$d</string>
+    <string name="about_intro">Diese App wurde von einem 70-jährigen Entwickler aus Frust über überladene, werbeverseuchte und datenhungrige Apps gebaut. Sie ist ein reines Werkzeug für GNSS-Enthusiasten und Geocacher.</string>
+    <string name="about_privacy_label" formatted="false">100 % Datenschutz:</string>
+    <string name="about_privacy_text">Keine Internet-Berechtigung, keine Tracker. Standort, Wegpunkte und Tracks bleiben auf dem Gerät.</string>
+    <string name="about_honest_label">Ehrliche Daten:</string>
+    <string name="about_honest_text">Was die Hardware nicht liefert, wird als „–“ angezeigt. Keine Fantasiewerte.</string>
+    <string name="about_free_label">Kostenlos &amp; frei:</string>
+    <string name="about_free_text">Uneingeschränkt nutzbar – ohne Werbung, ohne Abos.</string>
+    <string name="about_raw_title">Rohdaten &amp; Messung</string>
+    <string name="about_raw_para">Der Messung-Tab zeigt pro Satellit und Frequenzband die Roh-Messungen des GNSS-Chipsatzes. Der CSV-Export enthält automatisch die letzten 60 Sekunden; für längere Reihen gibt es „5 Min. aufzeichnen“. Wie viele Werte ankommen, hängt vom Gerät ab: bei schwacher Sicht oder im Stromsparmodus des Chips fehlen Code-Lock, TOW oder ganze Signale.</string>
+    <string name="about_raw_more_label">Mehr Rohdaten:</string>
+    <string name="about_raw_more_text">In den Android-Entwickleroptionen gibt es „Vollst. GNSS-Messung erzwingen“. Damit trackt der Chip dauerhaft vollständig – auf Kosten des Akkuverbrauchs.</string>
+    <string name="about_pseudorange_label">Pseudorange:</string>
+    <string name="about_pseudorange_text">Wird nur berechnet, wenn die Zeitbasis stimmt. Für GLONASS und BeiDou bleibt sie deshalb leer – die App schätzt nichts.</string>
+    <string name="about_docs_title">Dokumentation &amp; Projekt</string>
+    <string name="about_docs_para">Die Erläuterungen hier sind bewusst kurz gehalten und funktionieren ohne Netz. Tiefergehende Details – Rohdaten-Export und CSV-Spalten, Profile, Bauhinweise, Voraussetzungen – stehen in der README auf GitHub.</string>
+    <string name="about_docs_btn">Ausführliche Doku (README)</string>
+    <string name="about_tech_title">Technik</string>
+    <string name="about_tech_lang_label">Sprache &amp; UI:</string>
+    <string name="about_tech_system_label">System:</string>
+    <string name="about_tech_system_text">Android 7.0 oder neuer</string>
+    <string name="about_tech_gnss_label">GNSS:</string>
+    <string name="about_tech_sensors_label">Sensoren:</string>
+    <string name="about_tech_sensors_text">Kompass aus Beschleunigungs- und Magnetfeldsensor</string>
+    <string name="about_tech_map_label">Karte:</string>
+    <string name="about_tech_map_text">wird an eine installierte Karten-App übergeben</string>
+    <string name="about_license_title">Lizenz</string>
+    <string name="about_license_line">MIT-Lizenz · © 2026 TK</string>
+    <string name="about_license_text">Der Quelltext ist frei einsehbar und darf unter den Bedingungen der MIT-Lizenz weiterverwendet werden.</string>
+    <string name="about_license_btn">Quellcode auf GitHub</string>
 </resources>

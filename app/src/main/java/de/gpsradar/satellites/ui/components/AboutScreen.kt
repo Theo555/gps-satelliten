@@ -51,7 +51,7 @@ fun AboutScreen(
             .padding(12.dp)
             .testTag("about_screen")
     ) {
-        AboutCard("Über diese App") {
+        AboutCard(stringResource(R.string.about_title)) {
             Text(
                 text = stringResource(R.string.app_name),
                 style = MaterialTheme.typography.titleMedium,
@@ -59,88 +59,90 @@ fun AboutScreen(
                 color = Color.White
             )
             Text(
-                text = buildString {
-                    append("Version ").append(versionName)
-                    if (versionCode > 0) append(" · Code ").append(versionCode)
+                text = if (versionCode > 0) {
+                    stringResource(R.string.about_version_code, versionName, versionCode)
+                } else {
+                    stringResource(R.string.about_version, versionName)
                 },
                 fontSize = 12.sp,
                 color = AccentCyan
             )
             Spacer(modifier = Modifier.height(8.dp))
-            AboutParagraph(
-                "Diese App wurde von einem 70-jährigen Entwickler aus Frust über " +
-                    "überladene, werbeverseuchte und datenhungrige Apps gebaut. " +
-                    "Sie ist ein reines Werkzeug für GNSS-Enthusiasten und Geocacher."
-            )
+            AboutParagraph(stringResource(R.string.about_intro))
             Spacer(modifier = Modifier.height(4.dp))
             AboutBullet(
-                "100 % Datenschutz:",
-                "Keine Internet-Berechtigung, keine Tracker. Standort, Wegpunkte und " +
-                    "Tracks bleiben auf dem Gerät."
+                stringResource(R.string.about_privacy_label),
+                stringResource(R.string.about_privacy_text)
             )
             AboutBullet(
-                "Ehrliche Daten:",
-                "Was die Hardware nicht liefert, wird als „–“ angezeigt. Keine Fantasiewerte."
+                stringResource(R.string.about_honest_label),
+                stringResource(R.string.about_honest_text)
             )
             AboutBullet(
-                "Kostenlos & frei:",
-                "Uneingeschränkt nutzbar – ohne Werbung, ohne Abos."
+                stringResource(R.string.about_free_label),
+                stringResource(R.string.about_free_text)
             )
         }
 
-        AboutCard("Rohdaten & Messung") {
-            AboutParagraph(
-                "Der Messung-Tab zeigt pro Satellit und Frequenzband die Roh-Messungen des " +
-                    "GNSS-Chipsatzes. Der CSV-Export enthält automatisch die letzten 60 Sekunden; " +
-                    "für längere Reihen gibt es „5 Min. aufzeichnen“. Wie viele Werte ankommen, " +
-                    "hängt vom Gerät ab: bei schwacher Sicht oder im Stromsparmodus des Chips " +
-                    "fehlen Code-Lock, TOW oder ganze Signale."
-            )
+        AboutCard(stringResource(R.string.about_raw_title)) {
+            AboutParagraph(stringResource(R.string.about_raw_para))
             Spacer(modifier = Modifier.height(4.dp))
             AboutBullet(
-                "Mehr Rohdaten:",
-                "In den Android-Entwickleroptionen gibt es „Vollst. GNSS-Messung erzwingen“. " +
-                    "Damit trackt der Chip dauerhaft vollständig – auf Kosten des Akkuverbrauchs."
+                stringResource(R.string.about_raw_more_label),
+                stringResource(R.string.about_raw_more_text)
             )
             AboutBullet(
-                "Pseudorange:",
-                "Wird nur berechnet, wenn die Zeitbasis stimmt. Für GLONASS und BeiDou " +
-                    "bleibt sie deshalb leer – die App schätzt nichts."
+                stringResource(R.string.about_pseudorange_label),
+                stringResource(R.string.about_pseudorange_text)
             )
         }
 
-        AboutCard("Dokumentation & Projekt") {
-            AboutParagraph(
-                "Die Erläuterungen hier sind bewusst kurz gehalten und funktionieren ohne " +
-                    "Netz. Tiefergehende Details – Rohdaten-Export und CSV-Spalten, Profile, " +
-                    "Bauhinweise, Voraussetzungen – stehen in der README auf GitHub."
-            )
+        AboutCard(stringResource(R.string.about_docs_title)) {
+            AboutParagraph(stringResource(R.string.about_docs_para))
             Spacer(modifier = Modifier.height(4.dp))
             TextButton(
                 onClick = onOpenReadme,
                 modifier = Modifier.testTag("about_readme_btn")
             ) {
-                Text("Ausführliche Doku (README)", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                Text(
+                    stringResource(R.string.about_docs_btn),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
             }
         }
 
-        AboutCard("Technik") {
-            AboutBullet("Sprache & UI:", "Kotlin 2.2 · Jetpack Compose (Material 3)")
-            AboutBullet("System:", "Android 7.0 oder neuer")
-            AboutBullet("GNSS:", "GnssStatus, GnssMeasurements, GnssNavigationMessage, LocationManager")
-            AboutBullet("Sensoren:", "Kompass aus Beschleunigungs- und Magnetfeldsensor")
-            AboutBullet("Karte:", "wird an eine installierte Karten-App übergeben")
+        AboutCard(stringResource(R.string.about_tech_title)) {
+            AboutBullet(
+                stringResource(R.string.about_tech_lang_label),
+                "Kotlin 2.2 · Jetpack Compose (Material 3)"
+            )
+            AboutBullet(
+                stringResource(R.string.about_tech_system_label),
+                stringResource(R.string.about_tech_system_text)
+            )
+            AboutBullet(
+                stringResource(R.string.about_tech_gnss_label),
+                "GnssStatus, GnssMeasurements, GnssNavigationMessage, LocationManager"
+            )
+            AboutBullet(
+                stringResource(R.string.about_tech_sensors_label),
+                stringResource(R.string.about_tech_sensors_text)
+            )
+            AboutBullet(
+                stringResource(R.string.about_tech_map_label),
+                stringResource(R.string.about_tech_map_text)
+            )
         }
 
-        AboutCard("Lizenz") {
+        AboutCard(stringResource(R.string.about_license_title)) {
             Text(
-                text = "MIT-Lizenz · © 2026 TK",
+                text = stringResource(R.string.about_license_line),
                 fontSize = 12.sp,
                 color = Color(0xFFCBD5E1)
             )
             Text(
-                text = "Der Quelltext ist frei einsehbar und darf unter den Bedingungen " +
-                    "der MIT-Lizenz weiterverwendet werden.",
+                text = stringResource(R.string.about_license_text),
                 fontSize = 11.sp,
                 color = Color(0xFF94A3B8),
                 lineHeight = 16.sp
@@ -149,7 +151,11 @@ fun AboutScreen(
                 onClick = onOpenRepository,
                 modifier = Modifier.testTag("about_repository_btn")
             ) {
-                Text("Quellcode auf GitHub", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                Text(
+                    stringResource(R.string.about_license_btn),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
             }
         }
     }

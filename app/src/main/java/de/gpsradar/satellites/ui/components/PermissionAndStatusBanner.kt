@@ -143,7 +143,7 @@ fun PermissionAndStatusBanner(
                         },
                         modifier = Modifier.testTag("open_settings_btn")
                     ) {
-                        Text("Aktivieren", fontSize = 12.sp)
+                        Text(stringResource(R.string.btn_activate), fontSize = 12.sp)
                     }
                 }
             }
@@ -166,7 +166,7 @@ fun PermissionAndStatusBanner(
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "SIMULATION – keine echten GNSS-Daten",
+                            text = stringResource(R.string.demo_banner_title),
                             style = MaterialTheme.typography.labelLarge,
                             fontWeight = FontWeight.Bold,
                             color = CardNavy
@@ -174,7 +174,7 @@ fun PermissionAndStatusBanner(
                     }
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = "Satelliten und Position sind erfunden. Zum echten Empfang unten auf Live GPS tippen.",
+                        text = stringResource(R.string.demo_banner_text),
                         style = MaterialTheme.typography.labelSmall,
                         color = CardNavy
                     )
@@ -184,7 +184,7 @@ fun PermissionAndStatusBanner(
                         modifier = Modifier.height(32.dp).testTag("switch_to_real_gps_btn"),
                         contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 2.dp)
                     ) {
-                        Text("Live GPS starten", fontSize = 11.sp)
+                        Text(stringResource(R.string.switch_to_real), fontSize = 11.sp)
                     }
                 }
             }
@@ -234,7 +234,7 @@ private fun TelemetryQuickStrip(state: GpsLocationState) {
             // Satellites count
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = "Sats: ",
+                    text = stringResource(R.string.label_sats),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -249,7 +249,7 @@ private fun TelemetryQuickStrip(state: GpsLocationState) {
             // Average C/N0
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = "Ø SNR: ",
+                    text = stringResource(R.string.label_avg_snr),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -264,7 +264,7 @@ private fun TelemetryQuickStrip(state: GpsLocationState) {
             // Accuracy
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = "Genau: ",
+                    text = stringResource(R.string.label_accuracy_short),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
