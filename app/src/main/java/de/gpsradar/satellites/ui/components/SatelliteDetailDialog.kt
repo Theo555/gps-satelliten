@@ -43,11 +43,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import de.gpsradar.satellites.R
 import de.gpsradar.satellites.model.Constellation
 import de.gpsradar.satellites.model.GnssNavMessage
 import de.gpsradar.satellites.model.SatelliteInfo
@@ -115,7 +117,7 @@ fun SatelliteDetailDialog(
                                 )
                             }
                             Text(
-                                text = "Satelliten-ID: PRN #${satellite.svid}",
+                                text = stringResource(R.string.detail_id_fmt, satellite.svid),
                                 fontSize = 11.sp,
                                 color = Color(0xFF94A3B8)
                             )
@@ -125,7 +127,7 @@ fun SatelliteDetailDialog(
                     IconButton(onClick = onDismiss) {
                         Icon(
                             imageVector = Icons.Default.Close,
-                            contentDescription = "Schließen",
+                            contentDescription = stringResource(R.string.btn_close),
                             tint = Color(0xFF94A3B8)
                         )
                     }
@@ -151,7 +153,7 @@ fun SatelliteDetailDialog(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "Signalstärke (C/N₀)",
+                                text = stringResource(R.string.detail_signal),
                                 fontSize = 12.sp,
                                 color = Color(0xFF94A3B8)
                             )
@@ -190,13 +192,17 @@ fun SatelliteDetailDialog(
                 ) {
                     DetailCard(
                         modifier = Modifier.weight(1f),
-                        label = "Höhenwinkel",
+                        label = stringResource(R.string.elevation),
                         value = String.format(Locale.US, "%.1f°", satellite.elevationDegrees),
-                        hint = if (satellite.elevationDegrees > 45f) "Hoch am Himmel" else "Nahe Horizont"
+                        hint = if (satellite.elevationDegrees > 45f) {
+                            stringResource(R.string.hint_elev_high)
+                        } else {
+                            stringResource(R.string.hint_elev_low)
+                        }
                     )
                     DetailCard(
                         modifier = Modifier.weight(1f),
-                        label = "Azimut (Richtung)",
+                        label = stringResource(R.string.detail_azimuth),
                         value = String.format(Locale.US, "%.1f°", satellite.azimuthDegrees),
                         hint = getAzimuthCompass(satellite.azimuthDegrees)
                     )
@@ -208,15 +214,27 @@ fun SatelliteDetailDialog(
                 ) {
                     DetailCard(
                         modifier = Modifier.weight(1f),
-                        label = "Positions-Fix",
-                        value = if (satellite.usedInFix) "Im Fix verwendet" else "Nur in Sicht",
-                        hint = if (satellite.usedInFix) "Trägt zur Positionsberechnung bei" else "Signal zu schwach oder keine Ephemeride"
+                        label = stringResource(R.string.detail_fix),
+                        value = if (satellite.usedInFix) {
+                            stringResource(R.string.detail_used_in_fix)
+                        } else {
+                            stringResource(R.string.detail_view_only)
+                        },
+                        hint = if (satellite.usedInFix) {
+                            stringResource(R.string.hint_fix_used)
+                        } else {
+                            stringResource(R.string.hint_fix_not)
+                        }
                     )
                     DetailCard(
                         modifier = Modifier.weight(1f),
-                        label = "Trägerfrequenz",
+                        label = stringResource(R.string.detail_carrier),
                         value = satellite.carrierFrequencyLabel,
-                        hint = if (satellite.carrierFrequencyHz != null) "Multi-Frequenz fähig" else "Standardband"
+                        hint = if (satellite.carrierFrequencyHz != null) {
+                            stringResource(R.string.hint_multiband)
+                        } else {
+                            stringResource(R.string.hint_single_band)
+                        }
                     )
                 }
 
@@ -234,20 +252,20 @@ fun SatelliteDetailDialog(
                             horizontalArrangement = Arrangement.SpaceAround
                         ) {
                             OrbitDataIndicator(
-                                name = "Ephemeriden-Daten",
+                                name = stringResource(R.string.detail_ephemeris),
                                 hasData = satellite.hasEphemeris
                             )
                             OrbitDataIndicator(
-                                name = "Almanach-Daten",
+                                name = stringResource(R.string.detail_almanac),
                                 hasData = satellite.hasAlmanac
                             )
                         }
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             text = when {
-                                !supportsNavigationMessages -> "Gerät liefert keine GNSS-Rohdaten"
-                                navigationMessages.isEmpty() -> "Rohdaten ansehen ⌄"
-                                else -> "Rohdaten ansehen (${navigationMessages.size}) ⌄"
+                                !supportsNavigationMessages -> stringResource(R.string.detail_no_raw)
+                                navigationMessages.isEmpty() -> stringResource(R.string.detail_show_raw)
+                                else -> stringResource(R.string.detail_show_raw_n, navigationMessages.size)
                             },
                             fontSize = 10.sp,
                             color = if (supportsNavigationMessages) Color(0xFF60A5FA) else Color(0xFF64748B),
@@ -260,7 +278,7 @@ fun SatelliteDetailDialog(
                     onClick = onDismiss,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("Schließen")
+                    Text(stringResource(R.string.btn_close))
                 }
             }
         }
@@ -307,7 +325,7 @@ private fun OrbitDataIndicator(name: String, hasData: Boolean) {
             )
             Spacer(modifier = Modifier.width(6.dp))
             Text(
-                text = if (hasData) "Vorhanden" else "Fehlt",
+                text = if (hasData) stringResource(R.string.state_present) else stringResource(R.string.state_missing),
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
                 color = if (hasData) SignalGreen else Color.Gray
@@ -317,17 +335,18 @@ private fun OrbitDataIndicator(name: String, hasData: Boolean) {
     }
 }
 
+@Composable
 private fun getAzimuthCompass(deg: Float): String {
     val normalized = (deg % 360f + 360f) % 360f
     return when {
-        normalized in 337.5f..360f || normalized < 22.5f -> "Nord"
-        normalized in 22.5f..67.5f -> "Nordost"
-        normalized in 67.5f..112.5f -> "Ost"
-        normalized in 112.5f..157.5f -> "Südost"
-        normalized in 157.5f..202.5f -> "Süd"
-        normalized in 202.5f..247.5f -> "Südwest"
-        normalized in 247.5f..292.5f -> "West"
-        else -> "Nordwest"
+        normalized in 337.5f..360f || normalized < 22.5f -> stringResource(R.string.dir_n)
+        normalized in 22.5f..67.5f -> stringResource(R.string.dir_ne)
+        normalized in 67.5f..112.5f -> stringResource(R.string.dir_e)
+        normalized in 112.5f..157.5f -> stringResource(R.string.dir_se)
+        normalized in 157.5f..202.5f -> stringResource(R.string.dir_s)
+        normalized in 202.5f..247.5f -> stringResource(R.string.dir_sw)
+        normalized in 247.5f..292.5f -> stringResource(R.string.dir_w)
+        else -> stringResource(R.string.dir_nw)
     }
 }
 
@@ -351,13 +370,13 @@ private fun NavigationRawDataSheet(
                 .padding(bottom = 24.dp)
         ) {
             Text(
-                text = "GNSS-Rohdaten",
+                text = stringResource(R.string.raw_title),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 color = Color.White
             )
             Text(
-                text = "Navigationsnachrichten für ${satellite.identifier} (Ephemeride/Almanach)",
+                text = stringResource(R.string.raw_subtitle_fmt, satellite.identifier),
                 fontSize = 11.sp,
                 color = Color(0xFF94A3B8)
             )
@@ -365,7 +384,7 @@ private fun NavigationRawDataSheet(
 
             if (messages.isEmpty()) {
                 Text(
-                    text = "Noch keine Navigationsnachricht empfangen. Die Daten treffen unregelmäßig ein (je Satellit alle paar Sekunden bis Minuten).",
+                    text = stringResource(R.string.raw_empty),
                     fontSize = 12.sp,
                     color = Color(0xFFCBD5E1)
                 )

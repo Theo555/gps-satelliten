@@ -45,9 +45,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import de.gpsradar.satellites.R
 import de.gpsradar.satellites.model.Constellation
 import de.gpsradar.satellites.model.GpsLocationState
 import de.gpsradar.satellites.model.SatelliteInfo
@@ -84,7 +87,12 @@ fun SatelliteListScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "${satellites.size} Satelliten (${state.satellitesInFix} im Fix)",
+                text = pluralStringResource(
+                    R.plurals.list_count,
+                    satellites.size,
+                    satellites.size,
+                    state.satellitesInFix
+                ),
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold,
                 color = Color.White
@@ -144,7 +152,7 @@ fun SatelliteListScreen(
             FilterChip(
                 selected = selectedFilter == null,
                 onClick = { onFilterSelected(null) },
-                label = { Text("Alle (${state.satellites.size})", fontSize = 11.sp) },
+                label = { Text(stringResource(R.string.filter_all, state.satellites.size), fontSize = 11.sp) },
                 colors = FilterChipDefaults.filterChipColors(
                     selectedContainerColor = MaterialTheme.colorScheme.primary,
                     selectedLabelColor = Color.Black
@@ -185,7 +193,7 @@ fun SatelliteListScreen(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "Keine Satelliten gefunden",
+                    text = stringResource(R.string.list_empty),
                     style = MaterialTheme.typography.bodyMedium,
                     color = Color(0xFF94A3B8)
                 )
@@ -292,7 +300,7 @@ private fun SatelliteItemCard(
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                text = "IM FIX",
+                                text = stringResource(R.string.badge_fix_upper),
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = SignalGreen
@@ -305,7 +313,7 @@ private fun SatelliteItemCard(
                         shape = RoundedCornerShape(20.dp)
                     ) {
                         Text(
-                            text = "SICHT",
+                            text = stringResource(R.string.badge_view_upper),
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Medium,
                             color = Color(0xFF94A3B8),
@@ -323,7 +331,7 @@ private fun SatelliteItemCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "C/N₀:",
+                    text = stringResource(R.string.label_cn0),
                     fontSize = 11.sp,
                     color = Color(0xFFCBD5E1),
                     modifier = Modifier.width(40.dp)

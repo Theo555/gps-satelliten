@@ -40,9 +40,11 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import de.gpsradar.satellites.R
 import de.gpsradar.satellites.model.Constellation
 import de.gpsradar.satellites.model.GpsLocationState
 import de.gpsradar.satellites.model.SatelliteInfo
@@ -106,7 +108,7 @@ fun SignalBarChart(
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "Signalstärke C/N₀ (dB-Hz)",
+                            text = stringResource(R.string.chart_title),
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold,
                             color = Color.White
@@ -134,7 +136,7 @@ fun SignalBarChart(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "Keine Satelliten für diesen Filter verfügbar",
+                            text = stringResource(R.string.chart_empty),
                             style = MaterialTheme.typography.bodyMedium,
                             color = Color(0xFF94A3B8)
                         )
@@ -225,7 +227,7 @@ private fun SatelliteSignalBar(
                 if (sat.usedInFix) {
                     Icon(
                         imageVector = Icons.Default.Check,
-                        contentDescription = "Im Fix",
+                        contentDescription = stringResource(R.string.satellites_in_fix),
                         tint = Color.Black,
                         modifier = Modifier
                             .size(14.dp)
@@ -283,10 +285,10 @@ private fun SignalSummaryCard(satellites: List<SatelliteInfo>) {
                 .padding(12.dp),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            MetricPill(label = "Stark (>35)", value = "$strongCount", color = SignalGreen)
-            MetricPill(label = "Mittel (25-35)", value = "$mediumCount", color = SignalYellow)
-            MetricPill(label = "Schwach (<25)", value = "$weakCount", color = SignalOrange)
-            MetricPill(label = "Im Fix", value = "$inFixCount", color = MaterialTheme.colorScheme.primary)
+            MetricPill(label = stringResource(R.string.summary_strong), value = "$strongCount", color = SignalGreen)
+            MetricPill(label = stringResource(R.string.summary_medium), value = "$mediumCount", color = SignalYellow)
+            MetricPill(label = stringResource(R.string.summary_weak), value = "$weakCount", color = SignalOrange)
+            MetricPill(label = stringResource(R.string.satellites_in_fix), value = "$inFixCount", color = MaterialTheme.colorScheme.primary)
         }
     }
 }
@@ -339,7 +341,7 @@ private fun SignalFilterRow(
         FilterChip(
             selected = selectedFilter == null,
             onClick = { onFilterSelected(null) },
-            label = { Text("Alle (${allSatellites.size})", fontSize = 11.sp) },
+            label = { Text(stringResource(R.string.filter_all, allSatellites.size), fontSize = 11.sp) },
             colors = FilterChipDefaults.filterChipColors(
                 selectedContainerColor = MaterialTheme.colorScheme.primary,
                 selectedLabelColor = Color.Black

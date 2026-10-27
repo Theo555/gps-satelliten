@@ -84,4 +84,55 @@
     <string name="about_license_line">MIT-Lizenz · © 2026 TK</string>
     <string name="about_license_text">Der Quelltext ist frei einsehbar und darf unter den Bedingungen der MIT-Lizenz weiterverwendet werden.</string>
     <string name="about_license_btn">Quellcode auf GitHub</string>
+
+    <!-- Signaldiagramm -->
+    <string name="chart_title">Signalstärke C/N₀ (dB-Hz)</string>
+    <string name="chart_empty">Keine Satelliten für diesen Filter verfügbar</string>
+    <string name="summary_strong">Stark (&gt;35)</string>
+    <string name="summary_medium">Mittel (25-35)</string>
+    <string name="summary_weak">Schwach (&lt;25)</string>
+
+    <!-- Satelliten-Details -->
+    <string name="btn_close">Schließen</string>
+    <string name="detail_id_fmt">Satelliten-ID: PRN #%1$d</string>
+    <string name="detail_signal">Signalstärke (C/N₀)</string>
+    <string name="detail_azimuth">Azimut (Richtung)</string>
+    <string name="detail_fix">Positions-Fix</string>
+    <string name="detail_carrier">Trägerfrequenz</string>
+    <string name="detail_used_in_fix">Im Fix verwendet</string>
+    <string name="detail_view_only">Nur in Sicht</string>
+    <string name="hint_elev_high">Hoch am Himmel</string>
+    <string name="hint_elev_low">Nahe Horizont</string>
+    <string name="hint_fix_used">Trägt zur Positionsberechnung bei</string>
+    <string name="hint_fix_not">Signal zu schwach oder keine Ephemeride</string>
+    <string name="hint_multiband">Multi-Frequenz fähig</string>
+    <string name="hint_single_band">Standardband</string>
+    <string name="detail_ephemeris">Ephemeriden-Daten</string>
+    <string name="detail_almanac">Almanach-Daten</string>
+    <string name="detail_no_raw">Gerät liefert keine GNSS-Rohdaten</string>
+    <string name="detail_show_raw">Rohdaten ansehen ⌄</string>
+    <string name="detail_show_raw_n">Rohdaten ansehen (%1$d) ⌄</string>
+    <string name="state_present">Vorhanden</string>
+    <string name="state_missing">Fehlt</string>
+    <string name="dir_n">Nord</string>
+    <string name="dir_ne">Nordost</string>
+    <string name="dir_e">Ost</string>
+    <string name="dir_se">Südost</string>
+    <string name="dir_s">Süd</string>
+    <string name="dir_sw">Südwest</string>
+    <string name="dir_w">West</string>
+    <string name="dir_nw">Nordwest</string>
+    <string name="raw_title">GNSS-Rohdaten</string>
+    <string name="raw_subtitle_fmt">Navigationsnachrichten für %1$s (Ephemeride/Almanach)</string>
+    <string name="raw_empty">Noch keine Navigationsnachricht empfangen. Die Daten treffen unregelmäßig ein (je Satellit alle paar Sekunden bis Minuten).</string>
+
+    <!-- Satellitenliste -->
+    <string name="list_empty">Keine Satelliten gefunden</string>
+    <string name="badge_fix_upper">IM FIX</string>
+    <string name="badge_view_upper">SICHT</string>
+    <string name="label_cn0">C/N₀:</string>
+    <plurals name="list_count">
+        <item quantity="one">%1$d Satellit (%2$d im Fix)</item>
+        <item quantity="other">%1$d Satelliten (%2$d im Fix)</item>
+    </plurals>
 </resources>

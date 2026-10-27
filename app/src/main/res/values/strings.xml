@@ -84,4 +84,55 @@
     <string name="about_license_line">MIT License · © 2026 TK</string>
     <string name="about_license_text">The source code is freely viewable and may be reused under the terms of the MIT License.</string>
     <string name="about_license_btn">Source code on GitHub</string>
+
+    <!-- Signaldiagramm -->
+    <string name="chart_title">Signal strength C/N₀ (dB-Hz)</string>
+    <string name="chart_empty">No satellites available for this filter</string>
+    <string name="summary_strong">Strong (&gt;35)</string>
+    <string name="summary_medium">Medium (25-35)</string>
+    <string name="summary_weak">Weak (&lt;25)</string>
+
+    <!-- Satelliten-Details -->
+    <string name="btn_close">Close</string>
+    <string name="detail_id_fmt">Satellite ID: PRN #%1$d</string>
+    <string name="detail_signal">Signal strength (C/N₀)</string>
+    <string name="detail_azimuth">Azimuth (bearing)</string>
+    <string name="detail_fix">Position fix</string>
+    <string name="detail_carrier">Carrier frequency</string>
+    <string name="detail_used_in_fix">Used in fix</string>
+    <string name="detail_view_only">In view only</string>
+    <string name="hint_elev_high">High in the sky</string>
+    <string name="hint_elev_low">Near the horizon</string>
+    <string name="hint_fix_used">Contributes to the position solution</string>
+    <string name="hint_fix_not">Signal too weak or no ephemeris</string>
+    <string name="hint_multiband">Multi-frequency capable</string>
+    <string name="hint_single_band">Standard band</string>
+    <string name="detail_ephemeris">Ephemeris data</string>
+    <string name="detail_almanac">Almanac data</string>
+    <string name="detail_no_raw">Device provides no GNSS raw data</string>
+    <string name="detail_show_raw">Show raw data ⌄</string>
+    <string name="detail_show_raw_n">Show raw data (%1$d) ⌄</string>
+    <string name="state_present">Present</string>
+    <string name="state_missing">Missing</string>
+    <string name="dir_n">N</string>
+    <string name="dir_ne">NE</string>
+    <string name="dir_e">E</string>
+    <string name="dir_se">SE</string>
+    <string name="dir_s">S</string>
+    <string name="dir_sw">SW</string>
+    <string name="dir_w">W</string>
+    <string name="dir_nw">NW</string>
+    <string name="raw_title">GNSS raw data</string>
+    <string name="raw_subtitle_fmt">Navigation messages for %1$s (ephemeris/almanac)</string>
+    <string name="raw_empty">No navigation message received yet. The data arrives irregularly – per satellite every few seconds to minutes.</string>
+
+    <!-- Satellitenliste -->
+    <string name="list_empty">No satellites found</string>
+    <string name="badge_fix_upper">IN FIX</string>
+    <string name="badge_view_upper">IN VIEW</string>
+    <string name="label_cn0">C/N₀:</string>
+    <plurals name="list_count">
+        <item quantity="one">%1$d satellite (%2$d in fix)</item>
+        <item quantity="other">%1$d satellites (%2$d in fix)</item>
+    </plurals>
 </resources>
