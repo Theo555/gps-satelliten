@@ -1,5 +1,7 @@
 # GPS Satelliten 📡
 
+**Deutsch** · [English](README.en.md)
+
 Native Android-App (Kotlin + Jetpack Compose) zur **Live-Anzeige von GNSS-Satelliten** – mit Himmels-Radar, Signalanalyse, Positionsanzeige und vollwertigen **Geocaching-Funktionen**. Läuft komplett offline, ohne Werbung und ohne Datenweitergabe – zuverlässig vom älteren Smartphone bis zum aktuellen Flaggschiff.
 
 ## Prinzipien (prüfbar, nicht nur behauptet)
@@ -33,7 +35,7 @@ Keine Lust, selbst zu kompilieren? Lade einfach die fertige APK herunter und ins
 - **Messung-Tab** – pro Satellit und Frequenzband (**L1/L5/L2/E1/E5a/E5b**): C/N₀, **Pseudorange**, Doppler, Trägerphase und Multipfad-Erkennung
 - **Ehrliche Anzeige** – Werte, die das Gerät nicht liefert (z. B. Pseudorange oder Uhr-Drift), erscheinen als „–“ bzw. „unbekannt“ statt als Fantasiezahl
 - **Rohdaten-Qualität** – eine Zeile mit Code-Lock, TOW, ms-Mehrdeutigkeit und Trägerphase; antippen klappt Details auf
-- **CSV-Export** – die Roh-Messungen als **Zeitreihe** (letzte 60 s, optional 5 Minuten Aufzeichnung), wahlweise RFC-konform oder für deutsches Excel (Details unter [Rohdaten-Export](#rohden-export-csv))
+- **CSV-Export** – die Roh-Messungen als **Zeitreihe** (letzte 60 s, optional 5 Minuten Aufzeichnung), wahlweise RFC-konform oder für deutsches Excel (Details unter [Rohdaten-Export](#rohdaten-export-csv))
 - Hinweis: Der Messung-Tab erscheint nur auf Geräten, die **GNSS-Roh-Messungen** (`GnssMeasurements`) unterstützen.
 
 ### 📍 Positionsbestimmung
