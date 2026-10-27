@@ -1,0 +1,7 @@
+1.3.7
+* Bilingual: English is now the default language, German ships as a
+  separate translation – the app follows the system language
+* All messages and screen reader labels are translated, plus an English
+  README and screenshots in both languages
+* Recorded tracks are now named "Recording 2026-10-27 15:04"
+  (ISO date, sorts correctly in any language)
