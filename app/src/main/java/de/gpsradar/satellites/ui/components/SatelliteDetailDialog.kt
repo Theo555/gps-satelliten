@@ -162,7 +162,7 @@ fun SatelliteDetailDialog(
                                 shape = RoundedCornerShape(12.dp)
                             ) {
                                 Text(
-                                    text = "${satellite.signalQuality.label} (${String.format(Locale.US, "%.1f dB-Hz", satellite.cn0DbHz)})",
+                                    text = "${stringResource(satellite.signalQuality.labelRes)} (${String.format(Locale.US, "%.1f dB-Hz", satellite.cn0DbHz)})",
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = barColor,

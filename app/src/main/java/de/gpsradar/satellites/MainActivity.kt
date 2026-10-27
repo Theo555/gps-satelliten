@@ -14,6 +14,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -82,13 +83,13 @@ import de.gpsradar.satellites.ui.theme.SpaceNavy
 private const val REPOSITORY_URL = "https://github.com/Theo555/gps-satelliten"
 private const val README_URL = "https://github.com/Theo555/gps-satelliten#readme"
 
-enum class AppTab(val title: String, val icon: ImageVector, val tag: String) {
-    RADAR("Radar", Icons.Default.Radar, "tab_radar"),
-    SIGNALS("Signale", Icons.Default.BarChart, "tab_signals"),
-    LIST("Liste", Icons.AutoMirrored.Filled.List, "tab_list"),
-    POSITION("Position", Icons.Default.MyLocation, "tab_position"),
-    NAVIGATION("Nav", Icons.Default.Navigation, "tab_navigation"),
-    MESSUNG("Messung", Icons.Default.Speed, "tab_measurement")
+enum class AppTab(@StringRes val titleRes: Int, val icon: ImageVector, val tag: String) {
+    RADAR(R.string.tab_radar, Icons.Default.Radar, "tab_radar"),
+    SIGNALS(R.string.tab_signals, Icons.Default.BarChart, "tab_signals"),
+    LIST(R.string.tab_list, Icons.AutoMirrored.Filled.List, "tab_list"),
+    POSITION(R.string.tab_position, Icons.Default.MyLocation, "tab_position"),
+    NAVIGATION(R.string.tab_navigation, Icons.Default.Navigation, "tab_navigation"),
+    MESSUNG(R.string.tab_measurement, Icons.Default.Speed, "tab_measurement")
 }
 
 class MainActivity : ComponentActivity() {
@@ -237,7 +238,7 @@ fun GpsAppMainScreen(
                         ) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Zurück",
+                                contentDescription = stringResource(R.string.cd_back),
                                 tint = Color.White
                             )
                         }
@@ -252,7 +253,11 @@ fun GpsAppMainScreen(
                             color = Color.White
                         )
                         Text(
-                            text = (if (gpsState.isDemoMode) "Simulation aktiv" else "GNSS Empfänger") + " · v$versionName",
+                            text = if (gpsState.isDemoMode) {
+                                stringResource(R.string.app_subtitle_simulation, versionName)
+                            } else {
+                                stringResource(R.string.app_subtitle_gnss, versionName)
+                            },
                             fontSize = 11.sp,
                             color = if (gpsState.isDemoMode) AccentCyan else Color(0xFF94A3B8)
                         )
@@ -270,7 +275,7 @@ fun GpsAppMainScreen(
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Outlined.HelpOutline,
-                            contentDescription = "Über die App",
+                            contentDescription = stringResource(R.string.cd_about),
                             tint = if (showAbout) AccentCyan else Color(0xFF94A3B8),
                             modifier = Modifier.size(20.dp)
                         )
@@ -282,7 +287,7 @@ fun GpsAppMainScreen(
                     ) {
                         Icon(
                             imageVector = if (gpsState.isDemoMode) Icons.Filled.Science else Icons.Outlined.Science,
-                            contentDescription = "Simulationsmodus umschalten",
+                            contentDescription = stringResource(R.string.cd_toggle_simulation),
                             tint = if (gpsState.isDemoMode) AccentCyan else Color(0xFF94A3B8)
                         )
                     }
@@ -304,14 +309,16 @@ fun GpsAppMainScreen(
                         icon = {
                             Icon(
                                 imageVector = tab.icon,
-                                contentDescription = tab.title,
+                                contentDescription = stringResource(tab.titleRes),
                                 modifier = Modifier.size(22.dp)
                             )
                         },
                         label = {
                             Text(
-                                text = tab.title,
-                                fontSize = 11.sp,
+                                text = stringResource(tab.titleRes),
+                                fontSize = 10.sp,
+                                maxLines = 1,
+                                softWrap = false,
                                 fontWeight = if (currentTab == tab) FontWeight.Bold else FontWeight.Normal
                             )
                         },

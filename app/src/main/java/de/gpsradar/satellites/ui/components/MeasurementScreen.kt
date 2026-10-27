@@ -213,9 +213,12 @@ private fun QualityLine(
 
     val allGood = lock == total && tow == total && msec == 0
     val summary = if (withState == 0) {
-        "Qualität · Gerät meldet keine Merkmale"
+        stringResource(R.string.meas_quality_none)
     } else {
-        "Qualität · Lock $lock/$total · TOW $tow/$total · $msec ms-mehrdeutig · Phase $phaseOk/$total"
+        stringResource(
+            R.string.meas_quality_fmt,
+            lock, total, tow, total, msec, phaseOk, total
+        )
     }
 
     Column(

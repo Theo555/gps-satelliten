@@ -160,7 +160,7 @@ private fun FixStatusCard(state: GpsLocationState) {
                 Spacer(modifier = Modifier.width(12.dp))
                 Column {
                     Text(
-                        text = state.fixType.label,
+                        text = stringResource(state.fixType.labelRes),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = fixColor

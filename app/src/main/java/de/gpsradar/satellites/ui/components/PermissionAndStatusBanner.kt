@@ -224,7 +224,7 @@ private fun TelemetryQuickStrip(state: GpsLocationState) {
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(
-                    text = state.fixType.label,
+                    text = stringResource(state.fixType.labelRes),
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
                     color = fixColor

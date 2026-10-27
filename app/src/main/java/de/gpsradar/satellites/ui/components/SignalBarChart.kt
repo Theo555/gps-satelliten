@@ -93,37 +93,38 @@ fun SignalBarChart(
                     .fillMaxSize()
                     .padding(12.dp)
             ) {
-                // Header & Legend
+                // Header
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.SignalCellularAlt,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = stringResource(R.string.chart_title),
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
-                    }
+                    Icon(
+                        imageVector = Icons.Default.SignalCellularAlt,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = stringResource(R.string.chart_title),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                }
 
-                    // Quality color legend
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        LegendDot(color = SignalGreen, label = ">35")
-                        LegendDot(color = SignalYellow, label = "25-35")
-                        LegendDot(color = SignalOrange, label = "<25")
-                    }
+                Spacer(modifier = Modifier.height(4.dp))
+
+                // Quality color legend – eigene Zeile, damit der laengere
+                // englische Titel nicht mit der Legende kollidiert.
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    LegendDot(color = SignalGreen, label = ">35")
+                    LegendDot(color = SignalYellow, label = "25-35")
+                    LegendDot(color = SignalOrange, label = "<25")
                 }
 
                 Spacer(modifier = Modifier.height(10.dp))

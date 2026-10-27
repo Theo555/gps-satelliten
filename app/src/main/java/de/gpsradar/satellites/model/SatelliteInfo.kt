@@ -1,5 +1,8 @@
 package de.gpsradar.satellites.model
 
+import androidx.annotation.StringRes
+import de.gpsradar.satellites.R
+
 data class SatelliteInfo(
     val svid: Int,
     val constellation: Constellation,
@@ -26,9 +29,9 @@ data class SatelliteInfo(
         }
 }
 
-enum class SignalQuality(val label: String) {
-    STRONG("Stark"),
-    MEDIUM("Mittel"),
-    WEAK("Schwach"),
-    NONE("Kein Signal")
+enum class SignalQuality(@StringRes val labelRes: Int) {
+    STRONG(R.string.quality_strong),
+    MEDIUM(R.string.quality_medium),
+    WEAK(R.string.quality_weak),
+    NONE(R.string.quality_none)
 }

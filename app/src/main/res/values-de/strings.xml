@@ -310,4 +310,25 @@
     <string name="btn_calculate">Berechnen</string>
     <string name="default_waypoint_name">Ziel</string>
     <string name="cache_type_choose">Typ wählen</string>
+
+    <!-- Nach der Screenshot-Pruefung ergaenzt -->
+    <string name="tab_navigation">Nav</string>
+    <string name="tab_measurement">Messung</string>
+    <string name="app_subtitle_gnss">GNSS Empfänger · v%1$s</string>
+    <string name="app_subtitle_simulation">Simulation aktiv · v%1$s</string>
+    <string name="sort_signal">Signalstärke (C/N₀)</string>
+    <string name="sort_in_fix">Im Fix zuerst</string>
+    <string name="sort_elevation">Höhenwinkel</string>
+    <string name="sort_svid">Satelliten-ID</string>
+    <string name="quality_strong">Stark</string>
+    <string name="quality_medium">Mittel</string>
+    <string name="quality_weak">Schwach</string>
+    <string name="quality_none">Kein Signal</string>
+    <string name="meas_quality_none">Qualität · Gerät meldet keine Merkmale</string>
+    <string name="meas_quality_fmt">Qualität · Lock %1$d/%2$d · TOW %3$d/%4$d · %5$d ms-mehrdeutig · Phase %6$d/%7$d</string>
+    <string name="nav_status_parity_ok">Parität OK</string>
+    <string name="nav_status_parity_rebuilt">Parität rekonstruiert</string>
+    <string name="cd_back">Zurück</string>
+    <string name="cd_about">Über die App</string>
+    <string name="cd_toggle_simulation">Simulationsmodus umschalten</string>
 </resources>

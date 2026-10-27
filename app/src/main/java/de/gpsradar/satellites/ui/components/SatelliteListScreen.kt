@@ -113,7 +113,7 @@ fun SatelliteListScreen(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = selectedSort.label,
+                        text = stringResource(selectedSort.labelRes),
                         fontSize = 12.sp,
                         maxLines = 1
                     )
@@ -130,7 +130,7 @@ fun SatelliteListScreen(
                 ) {
                     SatelliteSort.entries.forEach { sortOption ->
                         DropdownMenuItem(
-                            text = { Text(sortOption.label) },
+                            text = { Text(stringResource(sortOption.labelRes)) },
                             onClick = {
                                 onSortSelected(sortOption)
                                 sortMenuExpanded = false

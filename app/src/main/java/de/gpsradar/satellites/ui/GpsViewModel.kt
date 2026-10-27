@@ -6,9 +6,11 @@ import android.net.Uri
 import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
+import androidx.annotation.StringRes
 import androidx.documentfile.provider.DocumentFile
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import de.gpsradar.satellites.R
 import org.json.JSONArray
 import org.json.JSONObject
 import java.text.SimpleDateFormat
@@ -46,11 +48,11 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-enum class SatelliteSort(val label: String) {
-    SIGNAL_DESC("Signalstärke (C/N₀)"),
-    IN_FIX_FIRST("Im Fix zuerst"),
-    ELEVATION_DESC("Höhenwinkel"),
-    SVID_ASC("Satelliten-ID")
+enum class SatelliteSort(@StringRes val labelRes: Int) {
+    SIGNAL_DESC(R.string.sort_signal),
+    IN_FIX_FIRST(R.string.sort_in_fix),
+    ELEVATION_DESC(R.string.sort_elevation),
+    SVID_ASC(R.string.sort_svid)
 }
 
 private const val MIN_RECORD_DISTANCE_M = 5.0

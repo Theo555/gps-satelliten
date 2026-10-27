@@ -17,6 +17,7 @@ import android.os.Looper
 import androidx.core.content.ContextCompat
 import androidx.core.location.GnssStatusCompat
 import androidx.core.location.LocationManagerCompat
+import de.gpsradar.satellites.R
 import de.gpsradar.satellites.model.Constellation
 import de.gpsradar.satellites.model.FixType
 import de.gpsradar.satellites.model.GnssNavMessage
@@ -384,8 +385,8 @@ class GpsDataManager(private val context: Context) : SensorEventListener {
     }
 
     private fun navStatusLabel(status: Int): String = when (status) {
-        GnssNavigationMessage.STATUS_PARITY_PASSED -> "Parität OK"
-        GnssNavigationMessage.STATUS_PARITY_REBUILT -> "Parität rekonstruiert"
+        GnssNavigationMessage.STATUS_PARITY_PASSED -> context.getString(R.string.nav_status_parity_ok)
+        GnssNavigationMessage.STATUS_PARITY_REBUILT -> context.getString(R.string.nav_status_parity_rebuilt)
         else -> "Status 0x${Integer.toHexString(status)}"
     }
 

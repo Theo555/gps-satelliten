@@ -1,11 +1,13 @@
 package de.gpsradar.satellites.model
 
+import androidx.annotation.StringRes
+import de.gpsradar.satellites.R
 import java.util.Locale
 
-enum class FixType(val label: String) {
-    NO_FIX("Kein Fix"),
-    FIX_2D("2D Fix"),
-    FIX_3D("3D Fix")
+enum class FixType(@StringRes val labelRes: Int) {
+    NO_FIX(R.string.fix_none),
+    FIX_2D(R.string.fix_2d),
+    FIX_3D(R.string.fix_3d)
 }
 
 data class GpsLocationState(
