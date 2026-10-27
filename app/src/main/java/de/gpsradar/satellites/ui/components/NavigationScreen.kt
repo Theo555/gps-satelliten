@@ -1183,7 +1183,7 @@ private fun CacheRow(
                         if (cache.archived) {
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "ARCHIVIERT",
+                                text = stringResource(R.string.cache_archived),
                                 fontSize = 9.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFFF87171)
@@ -1292,7 +1292,7 @@ private fun WaypointRow(
                         Spacer(modifier = Modifier.width(4.dp))
                         Icon(
                             imageVector = Icons.Default.CheckCircle,
-                            contentDescription = "Gefunden",
+                            contentDescription = stringResource(R.string.cd_found),
                             tint = SignalGreen,
                             modifier = Modifier.size(14.dp)
                         )
@@ -1334,7 +1334,7 @@ private fun WaypointRow(
             ) {
                 Icon(
                     imageVector = Icons.Default.Place,
-                    contentDescription = "In Karte öffnen",
+                    contentDescription = stringResource(R.string.btn_open_map),
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(18.dp)
                 )
@@ -1358,7 +1358,7 @@ private fun WaypointRow(
             ) {
                 Icon(
                     imageVector = Icons.Default.Edit,
-                    contentDescription = "Bearbeiten",
+                    contentDescription = stringResource(R.string.cd_edit),
                     tint = Color(0xFF94A3B8),
                     modifier = Modifier.size(16.dp)
                 )
@@ -1370,7 +1370,7 @@ private fun WaypointRow(
             ) {
                 Icon(
                     imageVector = Icons.Default.Delete,
-                    contentDescription = "Löschen",
+                    contentDescription = stringResource(R.string.btn_delete),
                     tint = Color(0xFF94A3B8),
                     modifier = Modifier.size(16.dp)
                 )
@@ -1389,11 +1389,11 @@ private fun AddWaypointDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Position speichern") },
+        title = { Text(stringResource(R.string.btn_save_position)) },
         text = {
             Column {
                 Text(
-                    text = "Name für diesen Zielpunkt:",
+                    text = stringResource(R.string.dlg_waypoint_name),
                     fontSize = 12.sp,
                     color = Color(0xFFCBD5E1)
                 )
@@ -1402,12 +1402,12 @@ private fun AddWaypointDialog(
                     value = name,
                     onValueChange = { name = it },
                     singleLine = true,
-                    placeholder = { Text("z. B. Parkplatz, Zelt, Aussichtspunkt") },
+                    placeholder = { Text(stringResource(R.string.ph_parking)) },
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "Code / GC-Nummer (optional):",
+                    text = stringResource(R.string.dlg_waypoint_code),
                     fontSize = 12.sp,
                     color = Color(0xFFCBD5E1)
                 )
@@ -1416,19 +1416,19 @@ private fun AddWaypointDialog(
                     value = code,
                     onValueChange = { code = it },
                     singleLine = true,
-                    placeholder = { Text("z. B. GC12345") },
+                    placeholder = { Text(stringResource(R.string.ph_gc)) },
                     modifier = Modifier.fillMaxWidth()
                 )
             }
         },
         confirmButton = {
             TextButton(onClick = { onConfirm(name, code) }) {
-                Text("Speichern")
+                Text(stringResource(R.string.btn_save))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Abbrechen")
+                Text(stringResource(R.string.btn_cancel))
             }
         }
     )
@@ -1443,14 +1443,15 @@ private fun ManualWaypointDialog(
     var code by remember { mutableStateOf("") }
     var coords by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
+    val errorCoordinates = stringResource(R.string.error_coordinates)
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Zielpunkt manuell anlegen") },
+        title = { Text(stringResource(R.string.dlg_manual_title)) },
         text = {
             Column {
                 Text(
-                    text = "Name für diesen Zielpunkt:",
+                    text = stringResource(R.string.dlg_waypoint_name),
                     fontSize = 12.sp,
                     color = Color(0xFFCBD5E1)
                 )
@@ -1459,12 +1460,12 @@ private fun ManualWaypointDialog(
                     value = name,
                     onValueChange = { name = it },
                     singleLine = true,
-                    placeholder = { Text("z. B. Final, Stage 1") },
+                    placeholder = { Text(stringResource(R.string.ph_final_stage)) },
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "Code / GC-Nummer (optional):",
+                    text = stringResource(R.string.dlg_waypoint_code),
                     fontSize = 12.sp,
                     color = Color(0xFFCBD5E1)
                 )
@@ -1473,12 +1474,12 @@ private fun ManualWaypointDialog(
                     value = code,
                     onValueChange = { code = it },
                     singleLine = true,
-                    placeholder = { Text("z. B. GC12345") },
+                    placeholder = { Text(stringResource(R.string.ph_gc)) },
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "Koordinaten:",
+                    text = stringResource(R.string.dlg_coordinates),
                     fontSize = 12.sp,
                     color = Color(0xFFCBD5E1)
                 )
@@ -1488,7 +1489,7 @@ private fun ManualWaypointDialog(
                     onValueChange = { coords = it; error = null },
                     singleLine = true,
                     isError = error != null,
-                    placeholder = { Text("z. B. 52.520008, 13.404954") },
+                    placeholder = { Text(stringResource(R.string.ph_coordinates)) },
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(modifier = Modifier.height(6.dp))
@@ -1500,7 +1501,7 @@ private fun ManualWaypointDialog(
                     )
                 } else {
                     Text(
-                        text = "Formate: Dezimal · N 52° 31.200 E 013° 24.297 · 52° 31' 12\" N",
+                        text = stringResource(R.string.dlg_formats_examples),
                         fontSize = 10.sp,
                         color = Color(0xFF94A3B8)
                     )
@@ -1511,17 +1512,17 @@ private fun ManualWaypointDialog(
             TextButton(onClick = {
                 val parsed = Coordinates.parse(coords)
                 if (parsed == null) {
-                    error = "Koordinaten nicht erkannt. Bitte Dezimal, DDM oder DMS verwenden."
+                    error = errorCoordinates
                 } else {
                     onConfirm(name, code, parsed.latitude, parsed.longitude)
                 }
             }) {
-                Text("Speichern")
+                Text(stringResource(R.string.btn_save))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Abbrechen")
+                Text(stringResource(R.string.btn_cancel))
             }
         }
     )
@@ -1544,13 +1545,15 @@ private fun EditWaypointDialog(
     var cacheType by remember { mutableStateOf(waypoint.cacheType ?: "") }
     var typeMenuExpanded by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
+    val errorCoordinates = stringResource(R.string.error_coordinates)
+    val defaultWaypointName = stringResource(R.string.default_waypoint_name)
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Zielpunkt bearbeiten") },
+        title = { Text(stringResource(R.string.dlg_edit_title)) },
         text = {
             Column {
-                Text("Name:", fontSize = 12.sp, color = Color(0xFFCBD5E1))
+                Text(stringResource(R.string.dlg_name), fontSize = 12.sp, color = Color(0xFFCBD5E1))
                 Spacer(modifier = Modifier.height(8.dp))
                 OutlinedTextField(
                     value = name,
@@ -1559,7 +1562,7 @@ private fun EditWaypointDialog(
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(modifier = Modifier.height(8.dp))
-                Text("Code / GC-Nummer (optional):", fontSize = 12.sp, color = Color(0xFFCBD5E1))
+                Text(stringResource(R.string.dlg_waypoint_code), fontSize = 12.sp, color = Color(0xFFCBD5E1))
                 Spacer(modifier = Modifier.height(8.dp))
                 OutlinedTextField(
                     value = code,
@@ -1568,7 +1571,7 @@ private fun EditWaypointDialog(
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(modifier = Modifier.height(8.dp))
-                Text("Koordinaten:", fontSize = 12.sp, color = Color(0xFFCBD5E1))
+                Text(stringResource(R.string.dlg_coordinates), fontSize = 12.sp, color = Color(0xFFCBD5E1))
                 Spacer(modifier = Modifier.height(8.dp))
                 OutlinedTextField(
                     value = coords,
@@ -1578,13 +1581,13 @@ private fun EditWaypointDialog(
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(modifier = Modifier.height(8.dp))
-                Text("Hint (optional):", fontSize = 12.sp, color = Color(0xFFCBD5E1))
+                Text(stringResource(R.string.dlg_hint), fontSize = 12.sp, color = Color(0xFFCBD5E1))
                 Spacer(modifier = Modifier.height(8.dp))
                 OutlinedTextField(
                     value = hint,
                     onValueChange = { hint = it },
                     singleLine = false,
-                    placeholder = { Text("z. B. ROT13-verschlüsselter Hinweis") },
+                    placeholder = { Text(stringResource(R.string.ph_hint)) },
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(modifier = Modifier.height(8.dp))
@@ -1596,21 +1599,21 @@ private fun EditWaypointDialog(
                         value = difficulty,
                         onValueChange = { difficulty = it },
                         singleLine = true,
-                        label = { Text("Schwierigkeit", fontSize = 11.sp) },
-                        placeholder = { Text("1.0–5.0") },
+                        label = { Text(stringResource(R.string.label_difficulty), fontSize = 11.sp) },
+                        placeholder = { Text(stringResource(R.string.ph_rating)) },
                         modifier = Modifier.weight(1f)
                     )
                     OutlinedTextField(
                         value = terrain,
                         onValueChange = { terrain = it },
                         singleLine = true,
-                        label = { Text("Gelände", fontSize = 11.sp) },
-                        placeholder = { Text("1.0–5.0") },
+                        label = { Text(stringResource(R.string.label_terrain), fontSize = 11.sp) },
+                        placeholder = { Text(stringResource(R.string.ph_rating)) },
                         modifier = Modifier.weight(1f)
                     )
                 }
                 Spacer(modifier = Modifier.height(8.dp))
-                Text("Cache-Typ (optional):", fontSize = 12.sp, color = Color(0xFFCBD5E1))
+                Text(stringResource(R.string.dlg_cache_type), fontSize = 12.sp, color = Color(0xFFCBD5E1))
                 Spacer(modifier = Modifier.height(8.dp))
                 Box {
                     OutlinedButton(
@@ -1618,7 +1621,11 @@ private fun EditWaypointDialog(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(
-                            text = if (cacheType.isBlank()) "Typ wählen" else "${cacheTypeEmoji(cacheType)} $cacheType",
+                            text = if (cacheType.isBlank()) {
+                                stringResource(R.string.cache_type_choose)
+                            } else {
+                                "${cacheTypeEmoji(cacheType)} $cacheType"
+                            },
                             fontSize = 12.sp,
                             maxLines = 1
                         )
@@ -1628,7 +1635,7 @@ private fun EditWaypointDialog(
                         onDismissRequest = { typeMenuExpanded = false }
                     ) {
                         DropdownMenuItem(
-                            text = { Text("Keiner") },
+                            text = { Text(stringResource(R.string.cache_type_none)) },
                             onClick = { cacheType = ""; typeMenuExpanded = false }
                         )
                         CACHE_TYPES.forEach { type ->
@@ -1643,7 +1650,7 @@ private fun EditWaypointDialog(
                 if (error != null) {
                     Text(error!!, fontSize = 11.sp, color = MaterialTheme.colorScheme.error)
                 } else {
-                    Text("Formate: Dezimal · DDM · DMS", fontSize = 10.sp, color = Color(0xFF94A3B8))
+                    Text(stringResource(R.string.dlg_formats_short), fontSize = 10.sp, color = Color(0xFF94A3B8))
                 }
             }
         },
@@ -1651,11 +1658,11 @@ private fun EditWaypointDialog(
             TextButton(onClick = {
                 val parsed = Coordinates.parse(coords)
                 if (parsed == null) {
-                    error = "Koordinaten nicht erkannt. Bitte Dezimal, DDM oder DMS verwenden."
+                    error = errorCoordinates
                 } else {
                     onConfirm(
                         waypoint.copy(
-                            name = name.ifBlank { "Ziel" },
+                            name = name.ifBlank { defaultWaypointName },
                             code = code.trim().ifBlank { null },
                             latitude = parsed.latitude,
                             longitude = parsed.longitude,
@@ -1667,12 +1674,12 @@ private fun EditWaypointDialog(
                     )
                 }
             }) {
-                Text("Speichern")
+                Text(stringResource(R.string.btn_save))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Abbrechen")
+                Text(stringResource(R.string.btn_cancel))
             }
         }
     )
@@ -1688,42 +1695,43 @@ private fun ProjectionDialog(
     var bearing by remember { mutableStateOf("") }
     var distance by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
+    val errorProjection = stringResource(R.string.error_projection)
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Projektion") },
+        title = { Text(stringResource(R.string.dlg_projection_title)) },
         text = {
             Column {
                 if (baseName == null) {
                     Text(
-                        text = "Aktiviere zuerst einen Zielpunkt als Basis.",
+                        text = stringResource(R.string.proj_no_base),
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.error
                     )
                 } else {
-                    Text("Basis: $baseName", fontSize = 12.sp, color = Color(0xFFCBD5E1))
+                    Text(stringResource(R.string.proj_base, baseName), fontSize = 12.sp, color = Color(0xFFCBD5E1))
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text("Peilung (0–360°):", fontSize = 12.sp, color = Color(0xFFCBD5E1))
+                    Text(stringResource(R.string.proj_bearing), fontSize = 12.sp, color = Color(0xFFCBD5E1))
                     Spacer(modifier = Modifier.height(8.dp))
                     OutlinedTextField(
                         value = bearing,
                         onValueChange = { bearing = it; error = null },
                         singleLine = true,
-                        placeholder = { Text("z. B. 245") },
+                        placeholder = { Text(stringResource(R.string.ph_bearing)) },
                         modifier = Modifier.fillMaxWidth()
                     )
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text("Entfernung (m):", fontSize = 12.sp, color = Color(0xFFCBD5E1))
+                    Text(stringResource(R.string.proj_distance), fontSize = 12.sp, color = Color(0xFFCBD5E1))
                     Spacer(modifier = Modifier.height(8.dp))
                     OutlinedTextField(
                         value = distance,
                         onValueChange = { distance = it; error = null },
                         singleLine = true,
-                        placeholder = { Text("z. B. 120") },
+                        placeholder = { Text(stringResource(R.string.ph_distance)) },
                         modifier = Modifier.fillMaxWidth()
                     )
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text("Name für neuen Zielpunkt (optional):", fontSize = 12.sp, color = Color(0xFFCBD5E1))
+                    Text(stringResource(R.string.proj_new_name), fontSize = 12.sp, color = Color(0xFFCBD5E1))
                     Spacer(modifier = Modifier.height(8.dp))
                     OutlinedTextField(
                         value = name,
@@ -1745,18 +1753,18 @@ private fun ProjectionDialog(
                     val b = bearing.toDoubleOrNull()
                     val d = distance.toDoubleOrNull()
                     if (b == null || b !in 0.0..360.0 || d == null || d <= 0.0) {
-                        error = "Ungültige Eingabe. Peilung 0–360°, Entfernung > 0."
+                        error = errorProjection
                     } else {
                         onConfirm(name, b, d)
                     }
                 }
             ) {
-                Text("Berechnen")
+                Text(stringResource(R.string.btn_calculate))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Abbrechen")
+                Text(stringResource(R.string.btn_cancel))
             }
         }
     )
@@ -1770,6 +1778,6 @@ private fun openInMap(context: Context, waypoint: Waypoint) {
     try {
         context.startActivity(Intent(Intent.ACTION_VIEW, uri))
     } catch (e: Exception) {
-        Toast.makeText(context, "Keine Karten-App gefunden", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, context.getString(R.string.toast_no_map_app), Toast.LENGTH_SHORT).show()
     }
 }

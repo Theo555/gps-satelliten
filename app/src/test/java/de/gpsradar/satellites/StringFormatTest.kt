@@ -38,7 +38,27 @@ class StringFormatTest {
     R.string.about_version to arrayOf<Any>("1.3.6"),
     R.string.about_version_code to arrayOf<Any>("1.3.6", 11L),
     R.string.orientation_heading_up to arrayOf<Any>(270),
-    R.string.filter_all to arrayOf<Any>(12)
+    R.string.filter_all to arrayOf<Any>(12),
+    R.string.detail_id_fmt to arrayOf<Any>(7),
+    R.string.detail_show_raw_n to arrayOf<Any>(3),
+    R.string.raw_subtitle_fmt to arrayOf<Any>("GPS-7"),
+    R.string.pos_used_sats to arrayOf<Any>(8, 12),
+    R.string.pos_fix_view to arrayOf<Any>(8, 12),
+    R.string.label_ttff to arrayOf<Any>(5),
+    R.string.share_position_text to arrayOf<Any>("52.520008° N, 13.404954° E", "52.520008", "13.404954"),
+    R.string.meas_state_bits to arrayOf<Any>(20, 30),
+    R.string.meas_phase_unc to arrayOf<Any>("0.42"),
+    R.string.meas_recording to arrayOf<Any>("4:12"),
+    R.string.meas_stats to arrayOf<Any>(3, 120),
+    R.string.nav_waypoints_title to arrayOf<Any>(4),
+    R.string.nav_section_caches to arrayOf<Any>(9),
+    R.string.nav_section_other to arrayOf<Any>(2),
+    R.string.nav_tracks_title to arrayOf<Any>(3),
+    R.string.nav_active_target to arrayOf<Any>("Parkplatz"),
+    R.string.nav_direction_fmt to arrayOf<Any>("245°", "SW (Südwest)"),
+    R.string.nav_track_progress to arrayOf<Any>(3, 42, "Anfang", "1,2 km"),
+    R.string.hint_prefix_fmt to arrayOf<Any>("Unter der Bank"),
+    R.string.proj_base to arrayOf<Any>("Parkplatz")
   )
 
   @Test
@@ -60,6 +80,33 @@ class StringFormatTest {
       assertTrue("leerer deutscher Text bei $name", text.isNotBlank())
       assertTrue("Platzhalter nicht ersetzt bei $name: $text", !text.contains("%"))
     }
+  }
+
+  @Test
+  fun `plural picks correct form in both languages`() {
+    assertEquals(
+      "1 satellite (0 in fix)",
+      context.resources.getQuantityString(R.plurals.list_count, 1, 1, 0)
+    )
+    assertEquals(
+      "5 satellites (2 in fix)",
+      context.resources.getQuantityString(R.plurals.list_count, 5, 5, 2)
+    )
+    val de = germanContext().resources
+    assertEquals("1 Satellit (0 im Fix)", de.getQuantityString(R.plurals.list_count, 1, 1, 0))
+    assertEquals("5 Satelliten (2 im Fix)", de.getQuantityString(R.plurals.list_count, 5, 5, 2))
+    assertEquals("1 Signalpfad", de.getQuantityString(R.plurals.meas_paths, 1, 1))
+    assertEquals("7 Signalpfade", de.getQuantityString(R.plurals.meas_paths, 7, 7))
+    assertEquals("1 signal path", context.resources.getQuantityString(R.plurals.meas_paths, 1, 1))
+
+    // Navigation: Plural für Dateien und Track-Metadaten
+    assertEquals("1 file exported", context.resources.getQuantityString(R.plurals.export_files, 1, 1))
+    assertEquals("3 Dateien exportiert", de.getQuantityString(R.plurals.export_files, 3, 3))
+    assertEquals("1 Punkt · 0,5 km · ▶ Ende", de.getQuantityString(R.plurals.track_meta, 1, 1, "0,5 km", "▶ Ende"))
+    assertEquals(
+      "„Tour“ wird mit 1 Punkt gelöscht. Das lässt sich nicht rückgängig machen.",
+      de.getQuantityString(R.plurals.dlg_delete_track_text, 1, "Tour", 1)
+    )
   }
 
   @Test
