@@ -331,4 +331,42 @@
     <string name="cd_back">Back</string>
     <string name="cd_about">About the app</string>
     <string name="cd_toggle_simulation">Toggle simulation mode</string>
+
+    <!-- Import results and action messages -->
+    <string name="import_summary_empty">No waypoints or tracks found in the file</string>
+    <string name="import_summary_none_valid">No valid waypoints or tracks found (%1$d skipped)</string>
+    <string name="import_summary_imported">%1$s imported</string>
+    <string name="import_summary_with_skipped">%1$s, %2$d skipped</string>
+    <string name="import_join_and">" and "</string>
+    <plurals name="import_part_caches">
+        <item quantity="one">%1$d cache</item>
+        <item quantity="other">%1$d caches</item>
+    </plurals>
+    <plurals name="import_part_waypoints">
+        <item quantity="one">%1$d waypoint</item>
+        <item quantity="other">%1$d waypoints</item>
+    </plurals>
+    <plurals name="import_part_tracks">
+        <item quantity="one">%1$d track</item>
+        <item quantity="other">%1$d tracks</item>
+    </plurals>
+    <string name="import_err_gpx_unreadable">GPX file could not be parsed</string>
+    <string name="import_err_invalid_xml">Invalid XML: %1$s</string>
+    <string name="import_err_unknown">unknown error</string>
+    <string name="import_err_invalid_json">Invalid JSON</string>
+    <string name="import_err_file_unreadable">File could not be read</string>
+    <string name="import_skip_waypoint_no_coords">Waypoint skipped – no valid coordinates</string>
+    <string name="import_skip_trackpoint_no_coords">Track point skipped – no valid coordinates</string>
+    <string name="import_skip_track_too_short">%1$s skipped – fewer than 2 points</string>
+    <string name="import_skip_json_entry_not_object">Entry %1$d is not a JSON object</string>
+    <string name="import_skip_json_waypoint_no_coords">Waypoint "%1$s" skipped – no valid coordinates</string>
+    <string name="msg_track_too_short">Too few points for a track</string>
+    <string name="msg_track_saved">Track with %1$d points saved</string>
+    <string name="msg_no_active_target">No active target selected</string>
+    <string name="msg_waypoint_projected">Projected waypoint created</string>
+    <string name="msg_link_no_app">No app found to open the link</string>
+    <string name="waypoint_default_name">Waypoint</string>
+    <string name="track_default_name">Recording %1$s</string>
+    <string name="cd_mark_found">Mark as found</string>
+    <string name="cd_mark_not_found">Mark as not found</string>
 </resources>

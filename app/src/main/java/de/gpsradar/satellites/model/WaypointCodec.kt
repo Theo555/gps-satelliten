@@ -10,32 +10,44 @@ import org.json.JSONArray
 import org.json.JSONObject
 import org.xmlpull.v1.XmlPullParser
 
+/** Grund, warum ein Eintrag beim Import übersprungen wurde.
+ *
+ * Bewusst ohne fertigen Text: Die Übersetzung passiert in der UI-Schicht
+ * (`de.gpsradar.satellites.ui.SkipReason.describe`), damit das Modell frei von
+ * Android-Abhängigkeiten und sprachunabhängig bleibt.
+ */
+sealed interface SkipReason {
+    /** Die Datei ließ sich nicht als GPX öffnen. */
+    data object GpxUnreadable : SkipReason
+
+    /** Strukturfehler mitten im GPX-Dokument (bereits Gelesenes bleibt erhalten). */
+    data class InvalidXml(val detail: String?) : SkipReason
+
+    data object WaypointWithoutCoordinates : SkipReason
+
+    data object TrackPointWithoutCoordinates : SkipReason
+
+    data class TrackTooShort(val name: String) : SkipReason
+
+    data object InvalidJson : SkipReason
+
+    data class JsonEntryNotObject(val index: Int) : SkipReason
+
+    data class JsonWaypointWithoutCoordinates(val name: String) : SkipReason
+
+    /** Die Datei konnte gar nicht erst gelesen werden. */
+    data object FileUnreadable : SkipReason
+}
+
 data class ImportResult(
     val caches: List<Cache>,
     val freeWaypoints: List<Waypoint>,
     val tracks: List<Track>,
-    val skipped: List<String>
+    val skipped: List<SkipReason>
 ) {
     /** Alle Wegpunkte flach (Caches aufgeklappt + freie Wegpunkte). */
     val waypoints: List<Waypoint>
         get() = caches.flatMap { it.waypoints } + freeWaypoints
-
-    /** Nutzerlesbare Zusammenfassung für die UI (Toast/Snackbar). */
-    fun toMessage(): String {
-        if (caches.isEmpty() && freeWaypoints.isEmpty() && tracks.isEmpty()) {
-            return when {
-                skipped.isEmpty() -> "Keine Zielpunkte oder Tracks in der Datei gefunden"
-                skipped.size == 1 -> skipped[0]
-                else -> "Keine gültigen Zielpunkte oder Tracks gefunden (${skipped.size} übersprungen)"
-            }
-        }
-        val parts = mutableListOf<String>()
-        if (caches.isNotEmpty()) parts.add("${caches.size} Cache(s)")
-        if (freeWaypoints.isNotEmpty()) parts.add("${freeWaypoints.size} Zielpunkt(e)")
-        if (tracks.isNotEmpty()) parts.add("${tracks.size} Track(s)")
-        val suffix = if (skipped.isNotEmpty()) ", ${skipped.size} übersprungen" else ""
-        return parts.joinToString(" und ") + " importiert" + suffix
-    }
 }
 
 /**
@@ -49,11 +61,11 @@ object WaypointCodec {
         val content: String
     )
 
-    fun parse(text: String): ImportResult {
+    fun parse(text: String, fallbackWaypointName: String = DEFAULT_WAYPOINT_NAME): ImportResult {
         val t = text.trim()
         return when {
-            t.startsWith("<") -> parseGpx(t)
-            t.startsWith("[") || t.startsWith("{") -> parseJson(t)
+            t.startsWith("<") -> parseGpx(t, fallbackWaypointName)
+            t.startsWith("[") || t.startsWith("{") -> parseJson(t, fallbackWaypointName)
             else -> ImportResult(emptyList(), emptyList(), emptyList(), emptyList())
         }
     }
@@ -124,13 +136,16 @@ object WaypointCodec {
     private const val GPX_NS_1_1 = "http://www.topografix.com/GPX/1/1"
     private const val GROUNDSPEAK_NS_PREFIX = "http://www.groundspeak.com/cache/"
 
+    /** Ersatzname für Zielpunkte ohne eigenen Namen, wenn der Aufrufer keinen übergibt. */
+    const val DEFAULT_WAYPOINT_NAME = "Waypoint"
+
     private val GC_CODE_PREFIX = Regex("^(GC[0-9A-Z_]+)", RegexOption.IGNORE_CASE)
     private val GC_CODE_FULL = Regex("^GC[0-9A-Z]{2,}$", RegexOption.IGNORE_CASE)
 
-    private fun parseGpx(text: String): ImportResult {
+    private fun parseGpx(text: String, fallbackWaypointName: String): ImportResult {
         val waypoints = mutableListOf<Waypoint>()
         val tracks = mutableListOf<Track>()
-        val skipped = mutableListOf<String>()
+        val skipped = mutableListOf<SkipReason>()
 
         val parser = try {
             Xml.newPullParser().apply {
@@ -138,7 +153,7 @@ object WaypointCodec {
                 setInput(StringReader(text))
             }
         } catch (e: Exception) {
-            return ImportResult(emptyList(), emptyList(), emptyList(), listOf("GPX-Datei konnte nicht geparst werden"))
+            return ImportResult(emptyList(), emptyList(), emptyList(), listOf(SkipReason.GpxUnreadable))
         }
 
         try {
@@ -146,7 +161,7 @@ object WaypointCodec {
             while (event != XmlPullParser.END_DOCUMENT) {
                 if (event == XmlPullParser.START_TAG) {
                     when {
-                        parser.isGpxElement("wpt") -> parseWaypoint(parser, waypoints, skipped)
+                        parser.isGpxElement("wpt") -> parseWaypoint(parser, waypoints, skipped, fallbackWaypointName)
                         parser.isGpxElement("trk") -> parseTrackLike(parser, "trk", "trkpt", tracks, skipped)
                         parser.isGpxElement("rte") -> parseTrackLike(parser, "rte", "rtept", tracks, skipped)
                         parser.isGpxElement("gpx") -> { /* Wurzelelement – absteigen, nicht überspringen */ }
@@ -157,19 +172,24 @@ object WaypointCodec {
             }
         } catch (e: Exception) {
             // Strukturfehler: bereits Gelesenes behalten, Rest als übersprungen melden.
-            skipped.add("Ungültiges XML: ${e.message ?: "unbekannter Fehler"}")
+            skipped.add(SkipReason.InvalidXml(e.message))
         }
 
         val grouping = groupWaypoints(waypoints)
         return ImportResult(grouping.caches, grouping.freeWaypoints, tracks, skipped)
     }
 
-    private fun parseWaypoint(parser: XmlPullParser, out: MutableList<Waypoint>, skipped: MutableList<String>) {
+    private fun parseWaypoint(
+        parser: XmlPullParser,
+        out: MutableList<Waypoint>,
+        skipped: MutableList<SkipReason>,
+        fallbackWaypointName: String
+    ) {
         val lat = parser.attr("lat")?.toDoubleOrNull()
         val lon = parser.attr("lon")?.toDoubleOrNull()
 
         if (lat == null || lon == null || lat !in -90.0..90.0 || lon !in -180.0..180.0) {
-            skipped.add("Wegpunkt ohne gültige Koordinaten übersprungen")
+            skipped.add(SkipReason.WaypointWithoutCoordinates)
             skipElement(parser)
             return
         }
@@ -208,7 +228,7 @@ object WaypointCodec {
             }
         }
 
-        val fallbackName = rawName ?: "Ziel"
+        val fallbackName = rawName ?: fallbackWaypointName
         val codeFromName = GC_CODE_PREFIX.find(fallbackName.trim())?.groupValues?.get(1)
         val codeFromDesc = desc?.let { GC_CODE_PREFIX.find(it.trim())?.groupValues?.get(1) }
         val isGc = GC_CODE_FULL.matches(fallbackName.trim())
@@ -290,7 +310,7 @@ object WaypointCodec {
         kind: String,
         pointTag: String,
         out: MutableList<Track>,
-        skipped: MutableList<String>
+        skipped: MutableList<SkipReason>
     ) {
         var name: String? = null
         val points = mutableListOf<TrackPoint>()
@@ -302,7 +322,7 @@ object WaypointCodec {
                     parser.isGpxElement("name") -> name = readElementText(parser)
                     parser.isGpxElement(pointTag) -> {
                         val pt = parseTrackPoint(parser)
-                        if (pt != null) points.add(pt) else skipped.add("Trackpunkt ohne gültige Koordinaten übersprungen")
+                        if (pt != null) points.add(pt) else skipped.add(SkipReason.TrackPointWithoutCoordinates)
                     }
                     parser.isGpxElement("trkseg") -> { /* Segment absteigen, enthält die <trkpt> */ }
                     else -> skipElement(parser)
@@ -315,7 +335,7 @@ object WaypointCodec {
         if (points.size >= 2) {
             out.add(Track(id = System.currentTimeMillis() + out.size + 1_000_000L, name = trackName, points = points))
         } else {
-            skipped.add("$trackName mit weniger als 2 Punkten übersprungen")
+            skipped.add(SkipReason.TrackTooShort(trackName))
         }
     }
 
@@ -539,35 +559,35 @@ object WaypointCodec {
         return arr.toString(2)
     }
 
-    private fun parseJson(text: String): ImportResult {
+    private fun parseJson(text: String, fallbackWaypointName: String): ImportResult {
         return try {
-            jsonArrayToWaypoints(JSONArray(text))
+            jsonArrayToWaypoints(JSONArray(text), fallbackWaypointName)
         } catch (e: Exception) {
             try {
                 val obj = JSONObject(text)
                 val arr = obj.optJSONArray("waypoints")
-                if (arr != null) jsonArrayToWaypoints(arr)
+                if (arr != null) jsonArrayToWaypoints(arr, fallbackWaypointName)
                 else ImportResult(emptyList(), emptyList(), emptyList(), emptyList())
             } catch (e2: Exception) {
-                ImportResult(emptyList(), emptyList(), emptyList(), listOf("Ungültiges JSON"))
+                ImportResult(emptyList(), emptyList(), emptyList(), listOf(SkipReason.InvalidJson))
             }
         }
     }
 
-    private fun jsonArrayToWaypoints(arr: JSONArray): ImportResult {
+    private fun jsonArrayToWaypoints(arr: JSONArray, fallbackWaypointName: String): ImportResult {
         val waypoints = mutableListOf<Waypoint>()
-        val skipped = mutableListOf<String>()
+        val skipped = mutableListOf<SkipReason>()
         for (i in 0 until arr.length()) {
             val o = arr.optJSONObject(i)
             if (o == null) {
-                skipped.add("Eintrag ${i + 1} ist kein JSON-Objekt")
+                skipped.add(SkipReason.JsonEntryNotObject(i + 1))
                 continue
             }
             val lat = o.optDouble("lat", Double.NaN)
             val lon = o.optDouble("lon", Double.NaN)
-            val name = o.optString("name", "").ifBlank { "Ziel" }
+            val name = o.optString("name", "").ifBlank { fallbackWaypointName }
             if (lat.isNaN() || lon.isNaN() || lat !in -90.0..90.0 || lon !in -180.0..180.0) {
-                skipped.add("Zielpunkt \"$name\" ohne gültige Koordinaten übersprungen")
+                skipped.add(SkipReason.JsonWaypointWithoutCoordinates(name))
                 continue
             }
             waypoints.add(

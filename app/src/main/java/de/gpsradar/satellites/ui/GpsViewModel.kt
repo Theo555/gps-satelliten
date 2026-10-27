@@ -33,6 +33,7 @@ import de.gpsradar.satellites.model.Navigation
 import de.gpsradar.satellites.model.RawClockSnapshot
 import de.gpsradar.satellites.model.RawMeasurement
 import de.gpsradar.satellites.model.SatelliteInfo
+import de.gpsradar.satellites.model.SkipReason
 import de.gpsradar.satellites.model.Track
 import de.gpsradar.satellites.model.TrackPoint
 import de.gpsradar.satellites.model.Waypoint
@@ -67,6 +68,10 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
 
     private val gpsDataManager = GpsDataManager(application.applicationContext)
     private val rawGnssManager = RawGnssManager(application.applicationContext)
+
+    /** Kurzform für übersetzte Meldungen. */
+    private fun str(@StringRes id: Int, vararg args: Any): String =
+        getApplication<Application>().getString(id, *args)
 
     val rawGpsState: StateFlow<GpsLocationState> = gpsDataManager.gpsState
     val supportsNavigationMessages: StateFlow<Boolean> = gpsDataManager.supportsNavigationMessages
@@ -206,7 +211,7 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
     fun addWaypoint(name: String, code: String?, latitude: Double, longitude: Double) {
         val wp = Waypoint(
             id = System.currentTimeMillis(),
-            name = name.ifBlank { "Ziel" },
+            name = name.ifBlank { str(R.string.waypoint_default_name) },
             latitude = latitude,
             longitude = longitude,
             code = code?.trim()?.ifBlank { null }
@@ -394,7 +399,10 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun defaultRecordingName(): String =
-        "Aufzeichnung ${SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.GERMANY).format(Date())}"
+        str(
+            R.string.track_default_name,
+            SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US).format(Date())
+        )
 
     fun stopRecording(name: String): String {
         recordingJob?.cancel()
@@ -404,7 +412,7 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
         val points = _recordingPoints.value
         _recordingPoints.value = emptyList()
         if (points.size < 2) {
-            return "Zu wenige Punkte für einen Track"
+            return str(R.string.msg_track_too_short)
         }
         val track = Track(
             id = System.currentTimeMillis(),
@@ -413,7 +421,7 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
         )
         tracks.value = tracks.value + track
         persistTracks()
-        return "Track mit ${points.size} Punkten gespeichert"
+        return str(R.string.msg_track_saved, points.size)
     }
 
     fun deleteTrack(id: Long) {
@@ -435,7 +443,7 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
 
     fun projectWaypoint(name: String, bearingDegrees: Double, distanceMeters: Double): String {
         val base = waypoints.value.find { it.id == activeWaypointId.value }
-            ?: return "Kein aktives Ziel ausgewählt"
+            ?: return str(R.string.msg_no_active_target)
         val (lat, lon) = Navigation.project(base.latitude, base.longitude, bearingDegrees, distanceMeters)
         val wp = Waypoint(
             id = System.currentTimeMillis(),
@@ -446,7 +454,7 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
         waypoints.value = waypoints.value + wp
         persistWaypoints()
         setActiveWaypoint(wp.id)
-        return "Projizierter Zielpunkt angelegt"
+        return str(R.string.msg_waypoint_projected)
     }
 
     fun toggleFound(id: Long) {
@@ -482,10 +490,10 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         if (text == null) {
-            return ImportResult(emptyList(), emptyList(), emptyList(), listOf("Datei konnte nicht gelesen werden"))
+            return ImportResult(emptyList(), emptyList(), emptyList(), listOf(SkipReason.FileUnreadable))
         }
 
-        val result = WaypointCodec.parse(text)
+        val result = WaypointCodec.parse(text, str(R.string.waypoint_default_name))
 
         if (result.waypoints.isNotEmpty()) {
             waypoints.value = waypoints.value + result.waypoints

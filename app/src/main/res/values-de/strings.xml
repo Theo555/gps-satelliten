@@ -331,4 +331,42 @@
     <string name="cd_back">Zurück</string>
     <string name="cd_about">Über die App</string>
     <string name="cd_toggle_simulation">Simulationsmodus umschalten</string>
+
+    <!-- Import-Ergebnisse und Aktionsmeldungen -->
+    <string name="import_summary_empty">Keine Zielpunkte oder Tracks in der Datei gefunden</string>
+    <string name="import_summary_none_valid">Keine gültigen Zielpunkte oder Tracks gefunden (%1$d übersprungen)</string>
+    <string name="import_summary_imported">%1$s importiert</string>
+    <string name="import_summary_with_skipped">%1$s, %2$d übersprungen</string>
+    <string name="import_join_and">" und "</string>
+    <plurals name="import_part_caches">
+        <item quantity="one">%1$d Cache</item>
+        <item quantity="other">%1$d Caches</item>
+    </plurals>
+    <plurals name="import_part_waypoints">
+        <item quantity="one">%1$d Zielpunkt</item>
+        <item quantity="other">%1$d Zielpunkte</item>
+    </plurals>
+    <plurals name="import_part_tracks">
+        <item quantity="one">%1$d Track</item>
+        <item quantity="other">%1$d Tracks</item>
+    </plurals>
+    <string name="import_err_gpx_unreadable">GPX-Datei konnte nicht geparst werden</string>
+    <string name="import_err_invalid_xml">Ungültiges XML: %1$s</string>
+    <string name="import_err_unknown">unbekannter Fehler</string>
+    <string name="import_err_invalid_json">Ungültiges JSON</string>
+    <string name="import_err_file_unreadable">Datei konnte nicht gelesen werden</string>
+    <string name="import_skip_waypoint_no_coords">Wegpunkt ohne gültige Koordinaten übersprungen</string>
+    <string name="import_skip_trackpoint_no_coords">Trackpunkt ohne gültige Koordinaten übersprungen</string>
+    <string name="import_skip_track_too_short">%1$s mit weniger als 2 Punkten übersprungen</string>
+    <string name="import_skip_json_entry_not_object">Eintrag %1$d ist kein JSON-Objekt</string>
+    <string name="import_skip_json_waypoint_no_coords">Zielpunkt "%1$s" ohne gültige Koordinaten übersprungen</string>
+    <string name="msg_track_too_short">Zu wenige Punkte für einen Track</string>
+    <string name="msg_track_saved">Track mit %1$d Punkten gespeichert</string>
+    <string name="msg_no_active_target">Kein aktives Ziel ausgewählt</string>
+    <string name="msg_waypoint_projected">Projizierter Zielpunkt angelegt</string>
+    <string name="msg_link_no_app">Keine App zum Öffnen des Links gefunden</string>
+    <string name="waypoint_default_name">Ziel</string>
+    <string name="track_default_name">Aufzeichnung %1$s</string>
+    <string name="cd_mark_found">Als gefunden markieren</string>
+    <string name="cd_mark_not_found">Als nicht gefunden markieren</string>
 </resources>

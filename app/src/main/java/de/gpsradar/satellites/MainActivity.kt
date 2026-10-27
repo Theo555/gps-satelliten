@@ -473,6 +473,6 @@ private fun openUrl(context: Context, url: String) {
     try {
         context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
     } catch (e: Exception) {
-        Toast.makeText(context, "Keine App zum Öffnen des Links gefunden", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, context.getString(R.string.msg_link_no_app), Toast.LENGTH_SHORT).show()
     }
 }

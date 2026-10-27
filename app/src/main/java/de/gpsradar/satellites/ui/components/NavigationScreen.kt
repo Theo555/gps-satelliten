@@ -85,6 +85,7 @@ import de.gpsradar.satellites.model.WaypointCodec
 import de.gpsradar.satellites.model.cacheTypeEmoji
 import de.gpsradar.satellites.ui.theme.CardNavy
 import de.gpsradar.satellites.ui.theme.SignalGreen
+import de.gpsradar.satellites.ui.toMessage
 import java.util.Locale
 
 @Composable
@@ -200,7 +201,7 @@ private fun WaypointsCard(
     val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         uri?.let { u ->
             val result = onImportWaypoints(u)
-            Toast.makeText(context, result.toMessage(), Toast.LENGTH_LONG).show()
+            Toast.makeText(context, result.toMessage(context), Toast.LENGTH_LONG).show()
         }
     }
 
@@ -1346,7 +1347,11 @@ private fun WaypointRow(
             ) {
                 Icon(
                     imageVector = if (waypoint.found) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
-                    contentDescription = if (waypoint.found) "Als nicht gefunden markieren" else "Als gefunden markieren",
+                    contentDescription = if (waypoint.found) {
+                        stringResource(R.string.cd_mark_not_found)
+                    } else {
+                        stringResource(R.string.cd_mark_found)
+                    },
                     tint = if (waypoint.found) SignalGreen else Color(0xFF64748B),
                     modifier = Modifier.size(20.dp)
                 )
