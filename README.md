@@ -135,7 +135,25 @@ Die Release-APK liegt danach unter `app/build/outputs/apk/release/app-release.ap
 
 ## Eigene Tracks erstellen
 
-Eigene Wander-/Radrouten lassen sich bequem mit **[BRouter](https://brouter.de/brouter-web)** erstellen: Route zeichnen → als **GPX** exportieren → in der App unter **Nav → Importieren (GPX/JSON)** importieren und der Route folgen.
+Eigene Wander-/Radrouten lassen sich bequem mit **[BRouter](https://brouter.de/brouter-web)** erstellen: Route zeichnen → als **GPX** exportieren → in der App unter **Nav → Importieren (GPX/JSON)** importieren und der Route folgen. Schneller und ohne Konto geht es auch mit **[GraphHopper Maps](https://graphhopper.com/maps/)**.
+
+## Tracks ansehen und weiterverwenden
+
+Aufgezeichnete Tracks gehen als **GPX** raus und lassen sich überall öffnen, wo GPX gelesen wird. Eine Auswahl – alle Links geprüft (Stand 10/2026):
+
+| Zweck | Werkzeug | Hinweis |
+|---|---|---|
+| Ansehen, bearbeiten | **[gpx.studio](https://gpx.studio)** | Open Source, rechnet im Browser – die Datei verlässt das Gerät nicht. Höhenprofil, schneiden/verbinden/umdrehen |
+| Ansehen, auswerten | **[GPSVisualizer](https://www.gpsvisualizer.com)** | Sehr mächtig (Profile, Statistiken, Umrechnung in viele Formate), lädt die Datei aber hoch |
+| Ansehen mit 3D | **[VisuGPX](https://www.visugpx.com)** | Konto zum Speichern nötig |
+| Schneller Blick | **[onlinemapmaker](https://onlinemapmaker.com/de/gpx-online-file-viewer-view-gpx-data-on-map-get-elevation-profile/)** | Karte + Höhenprofil, werbefinanziert |
+| Offline am Rechner | **[GPXSee](https://www.gpxsee.org)** | Open Source für Windows/macOS/Linux, schnell |
+| Umrechnen | **[GPSBabel](https://www.gpsbabel.org)** | Der Klassiker für Formate, läuft offline |
+| Offline am Handy | **[OsmAnd](https://f-droid.org/packages/net.osmand.plus/)** · **[Organic Maps](https://f-droid.org/packages/app.organicmaps/)** | Beide aus F-Droid, Karten offline |
+| Karten | **[OpenStreetMap](https://www.openstreetmap.org)** · **[OpenTopoMap](https://opentopomap.org)** | |
+| Auswertung | **[QGIS](https://qgis.org)** | Ebenfalls praktisch für den CSV-Export der Rohmesswerte |
+
+Wer die eigene Wohnumgebung nicht aus der Hand geben will: **gpx.studio**, **GPXSee**, **GPSBabel** und **QGIS** rechnen auf dem eigenen Gerät. **GPSVisualizer** und **VisuGPX** bekommen die Datei auf ihren Server.
 
 ## Rohdaten-Export (CSV)
 
