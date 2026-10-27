@@ -135,4 +135,68 @@
         <item quantity="one">%1$d satellite (%2$d in fix)</item>
         <item quantity="other">%1$d satellites (%2$d in fix)</item>
     </plurals>
+
+    <!-- Position -->
+    <string name="toast_copied">Coordinates copied to clipboard</string>
+    <string name="share_position_text">I am here: %1$s\nhttps://maps.google.com/?q=%2$s,%3$s</string>
+    <string name="share_chooser">Share position</string>
+    <string name="pos_used_sats">%1$d of %2$d satellites used</string>
+    <string name="label_ttff">TTFF: %1$ds</string>
+    <string name="pos_geo_title">Geographic position</string>
+    <string name="btn_copy">Copy</string>
+    <string name="btn_share">Share</string>
+    <string name="coord_decimal">Decimal degrees:</string>
+    <string name="coord_dms">Degrees / minutes / seconds (DMS):</string>
+    <string name="coord_ddm">Degrees decimal minutes (DDM):</string>
+    <string name="pos_altitude">Altitude (MSL)</string>
+    <string name="quality_excellent">Excellent</string>
+    <string name="quality_good">Good</string>
+    <string name="quality_moderate">Moderate</string>
+    <string name="pos_speed">Speed</string>
+    <string name="pos_heading">Course / bearing</string>
+    <string name="pos_gnss_title">Satellite systems (GNSS status)</string>
+    <string name="pos_fix_view">%1$d in fix / %2$d in view</string>
+    <string name="pos_gps_time">GPS time:</string>
+    <string name="pos_last_update">Last update:</string>
+    <string name="pos_dop_title">Accuracy factors (DOP)</string>
+    <string name="pos_dop_nofix">No fix – DOP only available with enough satellites</string>
+    <string name="dop_hdop">HDOP (horizontal)</string>
+    <string name="dop_vdop">VDOP (vertical)</string>
+    <string name="dop_pdop">PDOP (position)</string>
+    <string name="dop_gdop">GDOP (overall)</string>
+    <string name="dir_full_n">N (North)</string>
+    <string name="dir_full_ne">NE (Northeast)</string>
+    <string name="dir_full_e">E (East)</string>
+    <string name="dir_full_se">SE (Southeast)</string>
+    <string name="dir_full_s">S (South)</string>
+    <string name="dir_full_sw">SW (Southwest)</string>
+    <string name="dir_full_w">W (West)</string>
+    <string name="dir_full_nw">NW (Northwest)</string>
+
+    <!-- Messung / Rohdaten -->
+    <string name="meas_empty">No raw measurements. Waiting for GNSS signals …</string>
+    <string name="meas_title">Raw measurements</string>
+    <plurals name="meas_paths">
+        <item quantity="one">%1$d signal path</item>
+        <item quantity="other">%1$d signal paths</item>
+    </plurals>
+    <string name="meas_export_cd">CSV export and recording</string>
+    <string name="meas_state_bits">Status bits delivered %1$d/%2$d</string>
+    <string name="meas_state_bits_none"> – device reports no quality flags</string>
+    <string name="meas_phase_unc">Carrier phase uncertainty Ø %1$s m</string>
+    <string name="meas_phase_note">Carrier phase (adr_m) is relative; only valid with adr_state bit 1</string>
+    <string name="meas_csv_export">CSV export</string>
+    <string name="profile_universal">universal (RFC)</string>
+    <string name="profile_excel_de">Excel (German)</string>
+    <string name="btn_cancel_record">Cancel recording</string>
+    <string name="btn_export">Export</string>
+    <string name="btn_discard">Discard</string>
+    <string name="btn_record_5min">Record 5 min</string>
+    <string name="toast_record_done">Recording finished – ready to export</string>
+    <string name="filter_all_short">All</string>
+    <string name="meas_export_hint">Export = last 60 s</string>
+    <string name="meas_recording">Recording · %1$s left</string>
+    <string name="meas_recording_done">Recording finished</string>
+    <string name="meas_tap_export">tap to export</string>
+    <string name="meas_stats">Epochs: %1$d · Rows: %2$d</string>
 </resources>

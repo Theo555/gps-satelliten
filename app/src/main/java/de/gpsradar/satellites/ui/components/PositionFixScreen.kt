@@ -4,6 +4,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.content.res.Resources
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -46,9 +47,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import de.gpsradar.satellites.R
 import de.gpsradar.satellites.model.Constellation
 import de.gpsradar.satellites.model.FixType
 import de.gpsradar.satellites.model.GpsLocationState
@@ -57,7 +60,7 @@ import de.gpsradar.satellites.ui.theme.SignalGreen
 import de.gpsradar.satellites.ui.theme.SignalOrange
 import de.gpsradar.satellites.ui.theme.SignalRed
 import de.gpsradar.satellites.ui.theme.SignalYellow
-import java.text.SimpleDateFormat
+import java.text.DateFormat
 import java.util.Date
 import java.util.Locale
 
@@ -86,17 +89,22 @@ fun PositionFixScreen(
                 val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                 val text = "${state.formattedCoordinatesDecimal}\n${state.formattedCoordinatesDms}\n${state.formattedCoordinatesDdm}"
                 clipboard.setPrimaryClip(ClipData.newPlainText("GPS Position", text))
-                Toast.makeText(context, "Koordinaten in die Zwischenablage kopiert", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, context.getString(R.string.toast_copied), Toast.LENGTH_SHORT).show()
             },
             onSharePosition = {
                 val lat = state.latitude ?: return@CoordinatesCard
                 val lon = state.longitude ?: return@CoordinatesCard
-                val text = "Ich bin hier: ${state.formattedCoordinatesDecimal}\nhttps://maps.google.com/?q=$lat,$lon"
+                val text = context.getString(
+                    R.string.share_position_text,
+                    state.formattedCoordinatesDecimal,
+                    lat.toString(),
+                    lon.toString()
+                )
                 val sendIntent = Intent(Intent.ACTION_SEND).apply {
                     type = "text/plain"
                     putExtra(Intent.EXTRA_TEXT, text)
                 }
-                context.startActivity(Intent.createChooser(sendIntent, "Position teilen"))
+                context.startActivity(Intent.createChooser(sendIntent, context.getString(R.string.share_chooser)))
             }
         )
 
@@ -158,7 +166,11 @@ private fun FixStatusCard(state: GpsLocationState) {
                         color = fixColor
                     )
                     Text(
-                        text = "${state.satellitesInFix} von ${state.satellitesInView} Satelliten verwendet",
+                        text = stringResource(
+                            R.string.pos_used_sats,
+                            state.satellitesInFix,
+                            state.satellitesInView
+                        ),
                         style = MaterialTheme.typography.bodySmall,
                         color = Color(0xFFCBD5E1)
                     )
@@ -183,7 +195,7 @@ private fun FixStatusCard(state: GpsLocationState) {
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = "TTFF: ${ttff}s",
+                            text = stringResource(R.string.label_ttff, ttff),
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Medium,
                             color = Color.White
@@ -221,7 +233,7 @@ private fun CoordinatesCard(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Geografische Position",
+                        text = stringResource(R.string.pos_geo_title),
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
                         color = Color.White
@@ -236,7 +248,7 @@ private fun CoordinatesCard(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.ContentCopy,
-                                contentDescription = "Kopieren",
+                                contentDescription = stringResource(R.string.btn_copy),
                                 tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(18.dp)
                             )
@@ -247,7 +259,7 @@ private fun CoordinatesCard(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Share,
-                                contentDescription = "Teilen",
+                                contentDescription = stringResource(R.string.btn_share),
                                 tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(18.dp)
                             )
@@ -260,7 +272,7 @@ private fun CoordinatesCard(
 
             // Decimal format
             Text(
-                text = "Dezimalgrad:",
+                text = stringResource(R.string.coord_decimal),
                 fontSize = 11.sp,
                 color = Color(0xFF94A3B8)
             )
@@ -275,7 +287,7 @@ private fun CoordinatesCard(
 
             // DMS format
             Text(
-                text = "Grad / Minuten / Sekunden (GMS):",
+                text = stringResource(R.string.coord_dms),
                 fontSize = 11.sp,
                 color = Color(0xFF94A3B8)
             )
@@ -289,7 +301,7 @@ private fun CoordinatesCard(
 
             // DDM format (geocaching standard)
             Text(
-                text = "Grad Dezimalminuten (DDM):",
+                text = stringResource(R.string.coord_ddm),
                 fontSize = 11.sp,
                 color = Color(0xFF94A3B8)
             )
@@ -311,7 +323,7 @@ private fun DynamicsGrid(state: GpsLocationState) {
         // Altitude
         DynamicTile(
             modifier = Modifier.weight(1f),
-            title = "Höhe (MSL)",
+            title = stringResource(R.string.pos_altitude),
             value = state.altitudeMeters?.let { String.format(Locale.US, "%.1f m", it) } ?: "—",
             subtitle = state.altitudeMeters?.let { String.format(Locale.US, "%.0f ft", it * 3.28084) } ?: "—",
             icon = Icons.Default.Height,
@@ -321,10 +333,16 @@ private fun DynamicsGrid(state: GpsLocationState) {
         // Accuracy
         DynamicTile(
             modifier = Modifier.weight(1f),
-            title = "Genauigkeit",
+            title = stringResource(R.string.accuracy),
             value = state.accuracyMeters?.let { String.format(Locale.US, "±%.1f m", it) } ?: "—",
             subtitle = if (state.accuracyMeters != null) {
-                if (state.accuracyMeters < 3f) "Hervorragend" else if (state.accuracyMeters < 8f) "Gut" else "Mäßig"
+                if (state.accuracyMeters < 3f) {
+                    stringResource(R.string.quality_excellent)
+                } else if (state.accuracyMeters < 8f) {
+                    stringResource(R.string.quality_good)
+                } else {
+                    stringResource(R.string.quality_moderate)
+                }
             } else "—",
             icon = Icons.Default.Public,
             tint = SignalGreen
@@ -340,7 +358,7 @@ private fun DynamicsGrid(state: GpsLocationState) {
         // Speed
         DynamicTile(
             modifier = Modifier.weight(1f),
-            title = "Tempo",
+            title = stringResource(R.string.pos_speed),
             value = state.speedKmh?.let { String.format(Locale.US, "%.1f km/h", it) } ?: "0.0 km/h",
             subtitle = state.speedKmh?.let { String.format(Locale.US, "%.1f kn", it / 1.852f) } ?: "0.0 kn",
             icon = Icons.Default.Speed,
@@ -349,11 +367,12 @@ private fun DynamicsGrid(state: GpsLocationState) {
 
         // Bearing / Compass
         val heading = state.bearingDegrees ?: state.compassHeading
+        val res = LocalContext.current.resources
         DynamicTile(
             modifier = Modifier.weight(1f),
-            title = "Kurs / Peilung",
+            title = stringResource(R.string.pos_heading),
             value = String.format(Locale.US, "%.0f°", heading),
-            subtitle = getCompassDirection(heading),
+            subtitle = getCompassDirection(res, heading),
             icon = Icons.Default.Explore,
             tint = Color(0xFFE040FB)
         )
@@ -417,7 +436,7 @@ private fun ConstellationsBreakdownCard(state: GpsLocationState) {
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
             Text(
-                text = "Satellitensysteme (GNSS-Status)",
+                text = stringResource(R.string.pos_gnss_title),
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold,
                 color = Color.White
@@ -446,7 +465,7 @@ private fun ConstellationsBreakdownCard(state: GpsLocationState) {
                                 )
                             }
                             Text(
-                                text = "$inFix im Fix / $inView in Sicht",
+                                text = stringResource(R.string.pos_fix_view, inFix, inView),
                                 fontSize = 11.sp,
                                 color = Color(0xFFCBD5E1)
                             )
@@ -470,7 +489,8 @@ private fun ConstellationsBreakdownCard(state: GpsLocationState) {
 
 @Composable
 private fun TimeAndSensorCard(state: GpsLocationState) {
-    val dateFormat = SimpleDateFormat("dd.MM.yyyy HH:mm:ss", Locale.GERMANY)
+    // Datum/Uhrzeit in der Sprache und Schreibweise des Geräts
+    val dateFormat = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.MEDIUM)
     val gpsTimeStr = state.timeMillis?.let { dateFormat.format(Date(it)) } ?: "—"
     val lastUpdateStr = dateFormat.format(Date(state.lastUpdateTime))
 
@@ -484,7 +504,7 @@ private fun TimeAndSensorCard(state: GpsLocationState) {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text("GPS Zeit:", fontSize = 11.sp, color = Color(0xFF94A3B8))
+                Text(stringResource(R.string.pos_gps_time), fontSize = 11.sp, color = Color(0xFF94A3B8))
                 Text(gpsTimeStr, fontSize = 11.sp, color = Color.White, fontWeight = FontWeight.Medium)
             }
             Spacer(modifier = Modifier.height(4.dp))
@@ -492,7 +512,7 @@ private fun TimeAndSensorCard(state: GpsLocationState) {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text("Letzte Aktualisierung:", fontSize = 11.sp, color = Color(0xFF94A3B8))
+                Text(stringResource(R.string.pos_last_update), fontSize = 11.sp, color = Color(0xFF94A3B8))
                 Text(lastUpdateStr, fontSize = 11.sp, color = Color.White, fontWeight = FontWeight.Medium)
             }
         }
@@ -510,7 +530,7 @@ private fun DopCard(state: GpsLocationState) {
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
             Text(
-                text = "Genauigkeitsfaktoren (DOP)",
+                text = stringResource(R.string.pos_dop_title),
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold,
                 color = Color.White
@@ -519,7 +539,7 @@ private fun DopCard(state: GpsLocationState) {
 
             if (dop.hdop == null && dop.pdop == null) {
                 Text(
-                    text = "Kein Fix – DOP erst bei ausreichend Satelliten verfügbar",
+                    text = stringResource(R.string.pos_dop_nofix),
                     fontSize = 12.sp,
                     color = Color(0xFF94A3B8)
                 )
@@ -528,16 +548,16 @@ private fun DopCard(state: GpsLocationState) {
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    DopTile("HDOP (horizontal)", dop.hdop, good = 1.0, warn = 2.0, modifier = Modifier.weight(1f))
-                    DopTile("VDOP (vertikal)", dop.vdop, good = 1.0, warn = 2.0, modifier = Modifier.weight(1f))
+                    DopTile(stringResource(R.string.dop_hdop), dop.hdop, good = 1.0, warn = 2.0, modifier = Modifier.weight(1f))
+                    DopTile(stringResource(R.string.dop_vdop), dop.vdop, good = 1.0, warn = 2.0, modifier = Modifier.weight(1f))
                 }
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    DopTile("PDOP (Position)", dop.pdop, good = 3.0, warn = 5.0, modifier = Modifier.weight(1f))
-                    DopTile("GDOP (Gesamt)", dop.gdop, good = 4.0, warn = 6.0, modifier = Modifier.weight(1f))
+                    DopTile(stringResource(R.string.dop_pdop), dop.pdop, good = 3.0, warn = 5.0, modifier = Modifier.weight(1f))
+                    DopTile(stringResource(R.string.dop_gdop), dop.gdop, good = 4.0, warn = 6.0, modifier = Modifier.weight(1f))
                 }
             }
         }
@@ -578,16 +598,16 @@ private fun DopTile(
     }
 }
 
-internal fun getCompassDirection(deg: Float): String {
+internal fun getCompassDirection(res: Resources, deg: Float): String {
     val normalized = (deg % 360f + 360f) % 360f
     return when {
-        normalized >= 337.5f || normalized < 22.5f -> "N (Nord)"
-        normalized in 22.5f..67.5f -> "NO (Nordost)"
-        normalized in 67.5f..112.5f -> "O (Ost)"
-        normalized in 112.5f..157.5f -> "SO (Südost)"
-        normalized in 157.5f..202.5f -> "S (Süd)"
-        normalized in 202.5f..247.5f -> "SW (Südwest)"
-        normalized in 247.5f..292.5f -> "W (West)"
-        else -> "NW (Nordwest)"
+        normalized >= 337.5f || normalized < 22.5f -> res.getString(R.string.dir_full_n)
+        normalized in 22.5f..67.5f -> res.getString(R.string.dir_full_ne)
+        normalized in 67.5f..112.5f -> res.getString(R.string.dir_full_e)
+        normalized in 112.5f..157.5f -> res.getString(R.string.dir_full_se)
+        normalized in 157.5f..202.5f -> res.getString(R.string.dir_full_s)
+        normalized in 202.5f..247.5f -> res.getString(R.string.dir_full_sw)
+        normalized in 247.5f..292.5f -> res.getString(R.string.dir_full_w)
+        else -> res.getString(R.string.dir_full_nw)
     }
 }

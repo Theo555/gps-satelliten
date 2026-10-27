@@ -832,7 +832,7 @@ private fun ActiveTrackSummary(
                     color = if (finished) SignalGreen else Color.White
                 )
                 Text(
-                    text = "Richtung ${String.format(Locale.US, "%.0f°", bearing)} (${getCompassDirection(bearing.toFloat())})",
+                    text = "Richtung ${String.format(Locale.US, "%.0f°", bearing)} (${getCompassDirection(LocalContext.current.resources, bearing.toFloat())})",
                     fontSize = 11.sp,
                     color = Color(0xFFCBD5E1)
                 )
@@ -1010,7 +1010,7 @@ private fun ActiveTargetSummary(
                     color = Color.White
                 )
                 Text(
-                    text = "Richtung ${String.format(Locale.US, "%.0f°", bearing)} (${getCompassDirection(bearing.toFloat())})",
+                    text = "Richtung ${String.format(Locale.US, "%.0f°", bearing)} (${getCompassDirection(LocalContext.current.resources, bearing.toFloat())})",
                     fontSize = 11.sp,
                     color = Color(0xFFCBD5E1)
                 )

@@ -40,12 +40,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import android.content.res.Resources
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import de.gpsradar.satellites.R
 import de.gpsradar.satellites.model.BufferStats
 import de.gpsradar.satellites.model.CapturePhase
 import de.gpsradar.satellites.model.Constellation
@@ -119,7 +123,7 @@ fun MeasurementScreen(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "Keine Roh-Messungen. Warte auf GNSS-Signale …",
+                    text = stringResource(R.string.meas_empty),
                     fontSize = 12.sp,
                     color = Color(0xFF94A3B8)
                 )
@@ -159,23 +163,27 @@ private fun CompactHeader(count: Int, clock: RawClockSnapshot?, onOpenExport: ()
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
-            text = "Roh-Messungen",
+            text = stringResource(R.string.meas_title),
             fontSize = 14.sp,
             fontWeight = FontWeight.Bold,
             color = Color.White
         )
         Spacer(modifier = Modifier.width(8.dp))
-        Text(text = "$count Signalpfade", fontSize = 11.sp, color = Color(0xFF94A3B8))
+        Text(
+            text = pluralStringResource(R.plurals.meas_paths, count, count),
+            fontSize = 11.sp,
+            color = Color(0xFF94A3B8)
+        )
         if (clock != null) {
             Spacer(modifier = Modifier.width(8.dp))
-            val time = SimpleDateFormat("HH:mm:ss", Locale.GERMANY).format(Date(clock.receivedAtMillis))
+            val time = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date(clock.receivedAtMillis))
             Text(text = time, fontSize = 11.sp, color = Color(0xFF94A3B8))
         }
         Spacer(modifier = Modifier.weight(1f))
         IconButton(onClick = onOpenExport, modifier = Modifier.size(34.dp)) {
             Icon(
                 imageVector = Icons.Default.FileDownload,
-                contentDescription = "CSV-Export und Aufzeichnung",
+                contentDescription = stringResource(R.string.meas_export_cd),
                 tint = Color(0xFF60A5FA),
                 modifier = Modifier.size(20.dp)
             )
@@ -239,22 +247,24 @@ private fun QualityLine(
             Spacer(modifier = Modifier.height(2.dp))
             if (withState < total) {
                 Text(
-                    text = "Status-Bits geliefert $withState/$total" +
-                        if (withState == 0) " – Gerät meldet keine Qualitätsmerkmale" else "",
+                    text = stringResource(R.string.meas_state_bits, withState, total) +
+                        if (withState == 0) stringResource(R.string.meas_state_bits_none) else "",
                     fontSize = 10.sp,
                     color = Color(0xFF94A3B8)
                 )
             }
             if (uncertainties.isNotEmpty()) {
                 Text(
-                    text = "Trägerphase-Unsicherheit Ø " +
-                        String.format(Locale.US, "%.2f", uncertainties.average()) + " m",
+                    text = stringResource(
+                        R.string.meas_phase_unc,
+                        String.format(Locale.US, "%.2f", uncertainties.average())
+                    ),
                     fontSize = 10.sp,
                     color = Color(0xFF94A3B8)
                 )
             }
             Text(
-                text = "Trägerphase (adr_m) ist relativ; nur mit adr_state-Bit 1 gültig",
+                text = stringResource(R.string.meas_phase_note),
                 fontSize = 10.sp,
                 color = Color(0xFF94A3B8)
             )
@@ -308,23 +318,23 @@ private fun ExportDialog(
         Surface(shape = RoundedCornerShape(14.dp), color = CardNavy) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
-                    text = "CSV-Export",
+                    text = stringResource(R.string.meas_csv_export),
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = statusText(phase, stats, captureEndsAtMillis, now),
+                    text = statusText(LocalContext.current.resources, phase, stats, captureEndsAtMillis, now),
                     fontSize = 11.sp,
                     color = if (phase == CapturePhase.CAPTURING) SignalGreen else Color(0xFF94A3B8)
                 )
                 Spacer(modifier = Modifier.height(10.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    BandChip(label = "universell (RFC)", active = profile == CsvProfile.UNIVERSAL) {
+                    BandChip(label = stringResource(R.string.profile_universal), active = profile == CsvProfile.UNIVERSAL) {
                         profile = CsvProfile.UNIVERSAL
                     }
-                    BandChip(label = "Excel (deutsch)", active = profile == CsvProfile.EXCEL_DE) {
+                    BandChip(label = stringResource(R.string.profile_excel_de), active = profile == CsvProfile.EXCEL_DE) {
                         profile = CsvProfile.EXCEL_DE
                     }
                 }
@@ -332,7 +342,7 @@ private fun ExportDialog(
                 when (phase) {
                     CapturePhase.CAPTURING -> {
                         OutlinedButton(onClick = onCancelCapture, modifier = Modifier.fillMaxWidth()) {
-                            Text("Aufzeichnung abbrechen")
+                            Text(stringResource(R.string.btn_cancel_record))
                         }
                     }
 
@@ -341,10 +351,10 @@ private fun ExportDialog(
                             onClick = ::launchExport,
                             enabled = stats.rows > 0,
                             modifier = Modifier.fillMaxWidth()
-                        ) { Text("Exportieren") }
+                        ) { Text(stringResource(R.string.btn_export)) }
                         Spacer(modifier = Modifier.height(6.dp))
                         OutlinedButton(onClick = onDiscardCapture, modifier = Modifier.fillMaxWidth()) {
-                            Text("Verwerfen")
+                            Text(stringResource(R.string.btn_discard))
                         }
                     }
 
@@ -353,16 +363,16 @@ private fun ExportDialog(
                             onClick = ::launchExport,
                             enabled = stats.rows > 0,
                             modifier = Modifier.fillMaxWidth()
-                        ) { Text("Exportieren") }
+                        ) { Text(stringResource(R.string.btn_export)) }
                         Spacer(modifier = Modifier.height(6.dp))
                         OutlinedButton(onClick = onStartCapture, modifier = Modifier.fillMaxWidth()) {
-                            Text("5 Min. aufzeichnen")
+                            Text(stringResource(R.string.btn_record_5min))
                         }
                     }
                 }
                 Spacer(modifier = Modifier.height(4.dp))
                 TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) {
-                    Text("Schließen", fontSize = 12.sp)
+                    Text(stringResource(R.string.btn_close), fontSize = 12.sp)
                 }
             }
         }
@@ -389,19 +399,22 @@ private fun CaptureStatusLine(
     }
     LaunchedEffect(phase) {
         if (phase == CapturePhase.FINISHED) {
-            Toast.makeText(context, "Aufzeichnung beendet – Export bereit", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, context.getString(R.string.toast_record_done), Toast.LENGTH_SHORT).show()
         }
     }
 
     val text = when (phase) {
         CapturePhase.CAPTURING -> {
             val remaining = ((captureEndsAtMillis - now) / 1000).coerceAtLeast(0).toInt()
-            "● Aufzeichnung läuft · noch ${remaining / 60}:${(remaining % 60).toString().padStart(2, '0')}" +
-                " · ${stats.epochs} Epochen · ${stats.rows} Zeilen"
+            val clock = "${remaining / 60}:${(remaining % 60).toString().padStart(2, '0')}"
+            "● " + stringResource(R.string.meas_recording, clock) + " · " +
+                stringResource(R.string.meas_stats, stats.epochs, stats.rows)
         }
 
         CapturePhase.FINISHED ->
-            "● Aufzeichnung fertig · ${stats.epochs} Epochen · ${stats.rows} Zeilen – antippen zum Export"
+            "● " + stringResource(R.string.meas_recording_done) + " · " +
+                stringResource(R.string.meas_stats, stats.epochs, stats.rows) + " – " +
+                stringResource(R.string.meas_tap_export)
 
         CapturePhase.IDLE -> ""
     }
@@ -418,20 +431,23 @@ private fun CaptureStatusLine(
     )
 }
 
-private fun statusText(phase: CapturePhase, stats: BufferStats, endsAtMillis: Long, nowMillis: Long): String =
+private fun statusText(res: Resources, phase: CapturePhase, stats: BufferStats, endsAtMillis: Long, nowMillis: Long): String =
     when (phase) {
         CapturePhase.IDLE ->
-            "Export = letzte 60 s · ${stats.epochs} Epochen · ${stats.rows} Zeilen"
+            res.getString(R.string.meas_export_hint) + " · " +
+                res.getString(R.string.meas_stats, stats.epochs, stats.rows)
 
         CapturePhase.CAPTURING -> {
             val remaining = ((endsAtMillis - nowMillis) / 1000).coerceAtLeast(0).toInt()
             val minutes = remaining / 60
             val seconds = (remaining % 60).toString().padStart(2, '0')
-            "Aufzeichnung läuft · noch $minutes:$seconds · ${stats.epochs} Epochen · ${stats.rows} Zeilen"
+            res.getString(R.string.meas_recording, "$minutes:$seconds") + " · " +
+                res.getString(R.string.meas_stats, stats.epochs, stats.rows)
         }
 
         CapturePhase.FINISHED ->
-            "Aufzeichnung fertig · ${stats.epochs} Epochen · ${stats.rows} Zeilen"
+            res.getString(R.string.meas_recording_done) + " · " +
+                res.getString(R.string.meas_stats, stats.epochs, stats.rows)
     }
 
 @Composable
@@ -440,7 +456,7 @@ private fun BandFilterRow(selected: String?, onSelect: (String?) -> Unit) {
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        BandChip(label = "Alle", active = selected == null) { onSelect(null) }
+        BandChip(label = stringResource(R.string.filter_all_short), active = selected == null) { onSelect(null) }
         BandChip(label = "L1", active = selected == "L1") { onSelect("L1") }
         BandChip(label = "L5", active = selected == "L5") { onSelect("L5") }
     }
@@ -479,7 +495,7 @@ private fun MeasurementRow(m: RawMeasurement) {
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = m.pseudorangeMeters
-                        ?.let { String.format(Locale.GERMANY, "%.3f km", it / 1000.0) } ?: "–",
+                        ?.let { String.format(Locale.getDefault(), "%.3f km", it / 1000.0) } ?: "–",
                     fontSize = 11.sp,
                     color = Color(0xFFCBD5E1),
                     maxLines = 1,
@@ -503,9 +519,9 @@ private fun MeasurementRow(m: RawMeasurement) {
                         append(
                             m.carrierPhaseMeters?.let { phase ->
                                 if (kotlin.math.abs(phase) >= 1_000_000.0) {
-                                    String.format(Locale.GERMANY, "%.0f m", phase)
+                                    String.format(Locale.getDefault(), "%.0f m", phase)
                                 } else {
-                                    String.format(Locale.GERMANY, "%.1f m", phase)
+                                    String.format(Locale.getDefault(), "%.1f m", phase)
                                 }
                             } ?: "–"
                         )
