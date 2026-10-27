@@ -1,0 +1,43 @@
+<resources>
+    <string name="app_name">GPS Satelliten</string>
+    <string name="tab_radar">Radar</string>
+    <string name="tab_signals">Signale</string>
+    <string name="tab_list">Liste</string>
+    <string name="tab_position">Position</string>
+
+    <string name="permission_title">GPS-Berechtigung erforderlich</string>
+    <string name="permission_rationale">Um GPS- und GNSS-Satelliten, Signalstärken und Himmelskoordinaten anzuzeigen, benötigt die App Zugriff auf Ihren genauen Standort.</string>
+    <string name="btn_grant_permission">Standortberechtigung erlauben</string>
+
+    <string name="gps_disabled_title">GPS ist ausgeschaltet</string>
+    <string name="gps_disabled_desc">Bitte schalten Sie den Standortdienst / GPS in den Android-Einstellungen ein, um Live-Satellitendaten zu empfangen.</string>
+    <string name="btn_open_settings">Standort-Einstellungen</string>
+
+    <string name="satellites_in_view">In Sicht</string>
+    <string name="satellites_in_fix">Im Fix</string>
+    <string name="fix_status">Fix-Status</string>
+    <string name="fix_none">Kein Fix</string>
+    <string name="fix_2d">2D Fix</string>
+    <string name="fix_3d">3D Fix</string>
+
+    <string name="accuracy">Genauigkeit</string>
+    <string name="altitude">Höhe</string>
+    <string name="speed">Geschwindigkeit</string>
+    <string name="bearing">Richtung</string>
+    <string name="latitude">Breitengrad</string>
+    <string name="longitude">Längengrad</string>
+
+    <string name="elevation">Höhenwinkel</string>
+    <string name="azimuth">Azimut</string>
+    <string name="snr_cn0">Signal (C/N₀)</string>
+    <string name="constellation">System</string>
+    <string name="carrier_frequency">Frequenz</string>
+    <string name="ephemeris">Ephemeride</string>
+    <string name="almanac">Almanach</string>
+
+    <string name="demo_mode_banner">Simulationsmodus aktiv (Realistisches Satelliten-Szenario)</string>
+    <string name="switch_to_real">Zu Live-GPS wechseln</string>
+    <string name="switch_to_demo">Simulation aktivieren</string>
+    <string name="orientation_north_up">Nord oben</string>
+    <string name="orientation_heading_up">Kompass oben</string>
+</resources>
