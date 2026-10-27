@@ -199,4 +199,79 @@
     <string name="meas_recording_done">Aufzeichnung fertig</string>
     <string name="meas_tap_export">antippen zum Export</string>
     <string name="meas_stats">Epochen: %1$d · Zeilen: %2$d</string>
+
+    <!-- Navigation: Zielpunkte, Tracks, aktives Ziel -->
+    <plurals name="export_files">
+        <item quantity="one">%1$d Datei exportiert</item>
+        <item quantity="other">%1$d Dateien exportiert</item>
+    </plurals>
+    <string name="toast_export_failed">Export fehlgeschlagen</string>
+    <string name="toast_json_exported">JSON exportiert</string>
+    <string name="nav_waypoints_title">Zielpunkte (%1$d)</string>
+    <string name="nav_add_waypoint_cd">Ziel hinzufügen</string>
+    <string name="nav_no_waypoints">Noch keine Ziele gespeichert. Speichere deine aktuelle Position als Zielpunkt mit eigenem Namen.</string>
+    <string name="nav_section_caches">Caches (%1$d)</string>
+    <string name="nav_section_other">Weitere Zielpunkte (%1$d)</string>
+    <string name="btn_save_position">Position speichern</string>
+    <string name="btn_enter_coordinates">Koordinaten eingeben</string>
+    <string name="btn_projection">Projektion (Peilung + Entfernung)</string>
+    <string name="nav_file_transfer">Datei-Übertragung</string>
+    <string name="btn_import">Importieren (GPX / JSON)</string>
+    <string name="btn_export_gpx">Export GPX</string>
+    <string name="btn_export_json">Export JSON</string>
+    <string name="btn_delete">Löschen</string>
+    <string name="btn_cancel">Abbrechen</string>
+    <string name="btn_save">Speichern</string>
+    <string name="dlg_delete_waypoint_title">Zielpunkt löschen</string>
+    <string name="dlg_delete_waypoint_text">„%1$s“ wird gelöscht. Das lässt sich nicht rückgängig machen.</string>
+    <string name="nav_tracks_title">Tracks (%1$d)</string>
+    <plurals name="track_paused">
+        <item quantity="one">Aufzeichnung pausiert (%1$d Punkt)</item>
+        <item quantity="other">Aufzeichnung pausiert (%1$d Punkte)</item>
+    </plurals>
+    <plurals name="track_recording">
+        <item quantity="one">Aufzeichnung läuft … (%1$d Punkt)</item>
+        <item quantity="other">Aufzeichnung läuft … (%1$d Punkte)</item>
+    </plurals>
+    <string name="btn_resume">Fortsetzen</string>
+    <string name="btn_pause">Pause</string>
+    <string name="btn_stop">Beenden</string>
+    <string name="btn_start_recording">Spur aufzeichnen</string>
+    <string name="nav_no_tracks">Noch keine Tracks importiert. GPX-Tracks und -Routen werden als zusammenhängende Linie übernommen (nicht als einzelne Wegpunkte).</string>
+    <string name="dlg_stop_recording_title">Aufzeichnung beenden</string>
+    <string name="dlg_track_name">Name für den Track:</string>
+    <string name="dlg_delete_track_title">Track löschen</string>
+    <plurals name="dlg_delete_track_text">
+        <item quantity="one">„%1$s“ wird mit %2$d Punkt gelöscht. Das lässt sich nicht rückgängig machen.</item>
+        <item quantity="other">„%1$s“ wird mit %2$d Punkten gelöscht. Das lässt sich nicht rückgängig machen.</item>
+    </plurals>
+    <string name="cd_reverse_to_start">Richtung umkehren, aktuell zum Anfang</string>
+    <string name="cd_reverse_to_end">Richtung umkehren, aktuell zum Ende</string>
+    <string name="label_start">◀ Anfang</string>
+    <string name="label_end">▶ Ende</string>
+    <string name="label_to_start">◀ zum Anfang</string>
+    <string name="label_to_end">▶ zum Ende</string>
+    <string name="target_start">Anfang</string>
+    <string name="target_end">Ende</string>
+    <string name="nav_wait_fix_track">Warte auf GPS-Fix, um dem Track zu folgen …</string>
+    <string name="cd_dir_next_point">Richtung zum nächsten Trackpunkt</string>
+    <string name="track_reached">Ziel erreicht</string>
+    <string name="nav_direction_fmt">Richtung %1$s (%2$s)</string>
+    <string name="nav_track_progress">Punkt %1$d von %2$d · Ziel %3$s · Rest %4$s</string>
+    <string name="btn_stop_following">Folgen beenden</string>
+    <plurals name="track_meta">
+        <item quantity="one">%1$d Punkt · %2$s · %3$s</item>
+        <item quantity="other">%1$d Punkte · %2$s · %3$s</item>
+    </plurals>
+    <string name="label_following">Folgen</string>
+    <string name="cd_delete_track">Track löschen</string>
+    <string name="nav_wait_fix_target">Warte auf GPS-Fix, um Entfernung und Richtung zu berechnen …</string>
+    <string name="cd_dir_target">Richtung zum Ziel</string>
+    <string name="nav_active_target">Aktives Ziel: %1$s</string>
+    <string name="hint_prefix_fmt">Hint: %1$s</string>
+    <string name="hint_plain">Klartext</string>
+    <string name="hint_rot13">ROT13</string>
+    <string name="btn_show_hint">Hint anzeigen</string>
+    <string name="btn_open_map">In Karte öffnen</string>
+    <string name="btn_stop_target_nav">Ziel-Navigation beenden</string>
 </resources>

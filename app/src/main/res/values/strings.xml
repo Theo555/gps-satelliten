@@ -199,4 +199,79 @@
     <string name="meas_recording_done">Recording finished</string>
     <string name="meas_tap_export">tap to export</string>
     <string name="meas_stats">Epochs: %1$d · Rows: %2$d</string>
+
+    <!-- Navigation: Zielpunkte, Tracks, aktives Ziel -->
+    <plurals name="export_files">
+        <item quantity="one">%1$d file exported</item>
+        <item quantity="other">%1$d files exported</item>
+    </plurals>
+    <string name="toast_export_failed">Export failed</string>
+    <string name="toast_json_exported">JSON exported</string>
+    <string name="nav_waypoints_title">Waypoints (%1$d)</string>
+    <string name="nav_add_waypoint_cd">Add waypoint</string>
+    <string name="nav_no_waypoints">No waypoints saved yet. Save your current position as a waypoint with its own name.</string>
+    <string name="nav_section_caches">Caches (%1$d)</string>
+    <string name="nav_section_other">Other waypoints (%1$d)</string>
+    <string name="btn_save_position">Save position</string>
+    <string name="btn_enter_coordinates">Enter coordinates</string>
+    <string name="btn_projection">Projection (bearing + distance)</string>
+    <string name="nav_file_transfer">File transfer</string>
+    <string name="btn_import">Import (GPX / JSON)</string>
+    <string name="btn_export_gpx">Export GPX</string>
+    <string name="btn_export_json">Export JSON</string>
+    <string name="btn_delete">Delete</string>
+    <string name="btn_cancel">Cancel</string>
+    <string name="btn_save">Save</string>
+    <string name="dlg_delete_waypoint_title">Delete waypoint</string>
+    <string name="dlg_delete_waypoint_text">“%1$s” will be deleted. This cannot be undone.</string>
+    <string name="nav_tracks_title">Tracks (%1$d)</string>
+    <plurals name="track_paused">
+        <item quantity="one">Recording paused (%1$d point)</item>
+        <item quantity="other">Recording paused (%1$d points)</item>
+    </plurals>
+    <plurals name="track_recording">
+        <item quantity="one">Recording … (%1$d point)</item>
+        <item quantity="other">Recording … (%1$d points)</item>
+    </plurals>
+    <string name="btn_resume">Resume</string>
+    <string name="btn_pause">Pause</string>
+    <string name="btn_stop">Stop</string>
+    <string name="btn_start_recording">Record track</string>
+    <string name="nav_no_tracks">No tracks imported yet. GPX tracks and routes are imported as a continuous line (not as individual waypoints).</string>
+    <string name="dlg_stop_recording_title">Stop recording</string>
+    <string name="dlg_track_name">Track name:</string>
+    <string name="dlg_delete_track_title">Delete track</string>
+    <plurals name="dlg_delete_track_text">
+        <item quantity="one">“%1$s” will be deleted with %2$d point. This cannot be undone.</item>
+        <item quantity="other">“%1$s” will be deleted with %2$d points. This cannot be undone.</item>
+    </plurals>
+    <string name="cd_reverse_to_start">Reverse direction, currently to the start</string>
+    <string name="cd_reverse_to_end">Reverse direction, currently to the end</string>
+    <string name="label_start">◀ Start</string>
+    <string name="label_end">▶ End</string>
+    <string name="label_to_start">◀ to the start</string>
+    <string name="label_to_end">▶ to the end</string>
+    <string name="target_start">Start</string>
+    <string name="target_end">End</string>
+    <string name="nav_wait_fix_track">Waiting for GPS fix to follow the track …</string>
+    <string name="cd_dir_next_point">Direction to next track point</string>
+    <string name="track_reached">Destination reached</string>
+    <string name="nav_direction_fmt">Bearing %1$s (%2$s)</string>
+    <string name="nav_track_progress">Point %1$d of %2$d · target %3$s · left %4$s</string>
+    <string name="btn_stop_following">Stop following</string>
+    <plurals name="track_meta">
+        <item quantity="one">%1$d point · %2$s · %3$s</item>
+        <item quantity="other">%1$d points · %2$s · %3$s</item>
+    </plurals>
+    <string name="label_following">Following</string>
+    <string name="cd_delete_track">Delete track</string>
+    <string name="nav_wait_fix_target">Waiting for GPS fix to compute distance and bearing …</string>
+    <string name="cd_dir_target">Direction to target</string>
+    <string name="nav_active_target">Active target: %1$s</string>
+    <string name="hint_prefix_fmt">Hint: %1$s</string>
+    <string name="hint_plain">Plain</string>
+    <string name="hint_rot13">ROT13</string>
+    <string name="btn_show_hint">Show hint</string>
+    <string name="btn_open_map">Open in map</string>
+    <string name="btn_stop_target_nav">Stop target navigation</string>
 </resources>

@@ -63,6 +63,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -70,6 +72,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import de.gpsradar.satellites.R
 import de.gpsradar.satellites.model.CACHE_TYPES
 import de.gpsradar.satellites.model.Cache
 import de.gpsradar.satellites.model.Coordinates
@@ -206,7 +209,11 @@ private fun WaypointsCard(
             val count = onExportGpx(u)
             Toast.makeText(
                 context,
-                if (count > 0) "$count Datei(en) exportiert" else "Export fehlgeschlagen",
+                if (count > 0) {
+                    context.resources.getQuantityString(R.plurals.export_files, count, count)
+                } else {
+                    context.getString(R.string.toast_export_failed)
+                },
                 Toast.LENGTH_SHORT
             ).show()
         }
@@ -215,7 +222,11 @@ private fun WaypointsCard(
     val exportJsonLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
         uri?.let { u ->
             val ok = onExportJson(u)
-            Toast.makeText(context, if (ok) "JSON exportiert" else "Export fehlgeschlagen", Toast.LENGTH_SHORT).show()
+            Toast.makeText(
+                context,
+                if (ok) context.getString(R.string.toast_json_exported) else context.getString(R.string.toast_export_failed),
+                Toast.LENGTH_SHORT
+            ).show()
         }
     }
 
@@ -247,7 +258,7 @@ private fun WaypointsCard(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Zielpunkte (${waypoints.size})",
+                        text = stringResource(R.string.nav_waypoints_title, waypoints.size),
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
                         color = Color.White
@@ -260,7 +271,7 @@ private fun WaypointsCard(
                 ) {
                     Icon(
                         imageVector = Icons.Default.AddLocation,
-                        contentDescription = "Ziel hinzufügen",
+                        contentDescription = stringResource(R.string.nav_add_waypoint_cd),
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(22.dp)
                     )
@@ -285,14 +296,14 @@ private fun WaypointsCard(
 
             if (waypoints.isEmpty()) {
                 Text(
-                    text = "Noch keine Ziele gespeichert. Speichere deine aktuelle Position als Zielpunkt mit eigenem Namen.",
+                    text = stringResource(R.string.nav_no_waypoints),
                     fontSize = 12.sp,
                     color = Color(0xFFCBD5E1)
                 )
             } else {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (caches.isNotEmpty()) {
-                        SectionHeader("Caches (${caches.size})")
+                        SectionHeader(stringResource(R.string.nav_section_caches, caches.size))
                         caches.forEach { cache ->
                             CacheRow(
                                 state = state,
@@ -311,7 +322,7 @@ private fun WaypointsCard(
                         }
                     }
                     if (freeWaypoints.isNotEmpty()) {
-                        SectionHeader("Weitere Zielpunkte (${freeWaypoints.size})")
+                        SectionHeader(stringResource(R.string.nav_section_other, freeWaypoints.size))
                         freeWaypoints.forEach { wp ->
                             WaypointRow(
                                 state = state,
@@ -339,7 +350,7 @@ private fun WaypointsCard(
                     modifier = Modifier.size(16.dp)
                 )
                 Spacer(modifier = Modifier.width(6.dp))
-                Text("Position speichern")
+                Text(stringResource(R.string.btn_save_position))
             }
             Spacer(modifier = Modifier.height(8.dp))
             OutlinedButton(
@@ -352,7 +363,7 @@ private fun WaypointsCard(
                     modifier = Modifier.size(16.dp)
                 )
                 Spacer(modifier = Modifier.width(6.dp))
-                Text("Koordinaten eingeben")
+                Text(stringResource(R.string.btn_enter_coordinates))
             }
             Spacer(modifier = Modifier.height(8.dp))
             OutlinedButton(
@@ -365,13 +376,13 @@ private fun WaypointsCard(
                     modifier = Modifier.size(16.dp)
                 )
                 Spacer(modifier = Modifier.width(6.dp))
-                Text("Projektion (Peilung + Entfernung)")
+                Text(stringResource(R.string.btn_projection))
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
             Text(
-                text = "Datei-Übertragung",
+                text = stringResource(R.string.nav_file_transfer),
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold,
                 color = Color.White
@@ -392,7 +403,7 @@ private fun WaypointsCard(
                 },
                 modifier = Modifier.fillMaxWidth().testTag("import_btn")
             ) {
-                Text("Importieren (GPX / JSON)")
+                Text(stringResource(R.string.btn_import))
             }
             Spacer(modifier = Modifier.height(8.dp))
             Row(
@@ -403,13 +414,13 @@ private fun WaypointsCard(
                     onClick = { exportGpxLauncher.launch(null) },
                     modifier = Modifier.weight(1f).testTag("export_gpx_btn")
                 ) {
-                    Text("Export GPX", fontSize = 12.sp)
+                    Text(stringResource(R.string.btn_export_gpx), fontSize = 12.sp)
                 }
                 OutlinedButton(
                     onClick = { exportJsonLauncher.launch("gps_zielpunkte.json") },
                     modifier = Modifier.weight(1f).testTag("export_json_btn")
                 ) {
-                    Text("Export JSON", fontSize = 12.sp)
+                    Text(stringResource(R.string.btn_export_json), fontSize = 12.sp)
                 }
             }
         }
@@ -461,12 +472,9 @@ private fun WaypointsCard(
     pendingDeleteWaypoint?.let { wp ->
         AlertDialog(
             onDismissRequest = { pendingDeleteWaypointId = null },
-            title = { Text("Zielpunkt löschen") },
+            title = { Text(stringResource(R.string.dlg_delete_waypoint_title)) },
             text = {
-                Text(
-                    "„${wp.name}“ wird gelöscht. " +
-                        "Das lässt sich nicht rückgängig machen."
-                )
+                Text(stringResource(R.string.dlg_delete_waypoint_text, wp.name))
             },
             confirmButton = {
                 TextButton(
@@ -475,12 +483,12 @@ private fun WaypointsCard(
                         pendingDeleteWaypointId = null
                     }
                 ) {
-                    Text("Löschen")
+                    Text(stringResource(R.string.btn_delete))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { pendingDeleteWaypointId = null }) {
-                    Text("Abbrechen")
+                    Text(stringResource(R.string.btn_cancel))
                 }
             }
         )
@@ -530,7 +538,7 @@ private fun TracksCard(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Tracks (${tracks.size})",
+                        text = stringResource(R.string.nav_tracks_title, tracks.size),
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
                         color = Color.White
@@ -559,9 +567,17 @@ private fun TracksCard(
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 text = if (isRecordingPaused) {
-                                    "Aufzeichnung pausiert ($recordingPointCount Punkte)"
+                                    pluralStringResource(
+                                        R.plurals.track_paused,
+                                        recordingPointCount,
+                                        recordingPointCount
+                                    )
                                 } else {
-                                    "Aufzeichnung läuft … ($recordingPointCount Punkte)"
+                                    pluralStringResource(
+                                        R.plurals.track_recording,
+                                        recordingPointCount,
+                                        recordingPointCount
+                                    )
                                 },
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.SemiBold,
@@ -577,7 +593,7 @@ private fun TracksCard(
                                 },
                                 modifier = Modifier.weight(1f)
                             ) {
-                                Text(if (isRecordingPaused) "Fortsetzen" else "Pause")
+                                Text(if (isRecordingPaused) stringResource(R.string.btn_resume) else stringResource(R.string.btn_pause))
                             }
                             Button(
                                 onClick = {
@@ -586,7 +602,7 @@ private fun TracksCard(
                                 },
                                 modifier = Modifier.weight(1f)
                             ) {
-                                Text("Beenden")
+                                Text(stringResource(R.string.btn_stop))
                             }
                         }
                     }
@@ -602,7 +618,7 @@ private fun TracksCard(
                         modifier = Modifier.size(16.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Spur aufzeichnen")
+                    Text(stringResource(R.string.btn_start_recording))
                 }
             }
 
@@ -622,7 +638,7 @@ private fun TracksCard(
 
             if (tracks.isEmpty()) {
                 Text(
-                    text = "Noch keine Tracks importiert. GPX-Tracks und -Routen werden als zusammenhängende Linie übernommen (nicht als einzelne Wegpunkte).",
+                    text = stringResource(R.string.nav_no_tracks),
                     fontSize = 12.sp,
                     color = Color(0xFFCBD5E1)
                 )
@@ -644,11 +660,11 @@ private fun TracksCard(
     if (showStopDialog) {
         AlertDialog(
             onDismissRequest = { showStopDialog = false },
-            title = { Text("Aufzeichnung beenden") },
+            title = { Text(stringResource(R.string.dlg_stop_recording_title)) },
             text = {
                 Column {
                     Text(
-                        text = "Name für den Track:",
+                        text = stringResource(R.string.dlg_track_name),
                         fontSize = 12.sp,
                         color = Color(0xFFCBD5E1)
                     )
@@ -669,12 +685,12 @@ private fun TracksCard(
                         showStopDialog = false
                     }
                 ) {
-                    Text("Speichern")
+                    Text(stringResource(R.string.btn_save))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showStopDialog = false }) {
-                    Text("Abbrechen")
+                    Text(stringResource(R.string.btn_cancel))
                 }
             }
         )
@@ -683,11 +699,15 @@ private fun TracksCard(
     pendingDeleteTrack?.let { track ->
         AlertDialog(
             onDismissRequest = { pendingDeleteTrack = null },
-            title = { Text("Track löschen") },
+            title = { Text(stringResource(R.string.dlg_delete_track_title)) },
             text = {
                 Text(
-                    "„${track.name}“ wird mit ${track.points.size} Punkten gelöscht. " +
-                        "Das lässt sich nicht rückgängig machen."
+                    pluralStringResource(
+                        R.plurals.dlg_delete_track_text,
+                        track.points.size,
+                        track.name,
+                        track.points.size
+                    )
                 )
             },
             confirmButton = {
@@ -697,12 +717,12 @@ private fun TracksCard(
                         pendingDeleteTrack = null
                     }
                 ) {
-                    Text("Löschen")
+                    Text(stringResource(R.string.btn_delete))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { pendingDeleteTrack = null }) {
-                    Text("Abbrechen")
+                    Text(stringResource(R.string.btn_cancel))
                 }
             }
         )
@@ -717,15 +737,18 @@ private fun TracksCard(
 @Composable
 private fun DirectionToggle(reversed: Boolean, onToggle: () -> Unit) {
     val accent = if (reversed) Color(0xFFFBBF24) else SignalGreen
+    val reverseDescription = if (reversed) {
+        stringResource(R.string.cd_reverse_to_start)
+    } else {
+        stringResource(R.string.cd_reverse_to_end)
+    }
     Box(
         modifier = Modifier
             .minimumInteractiveComponentSize()
             .clip(RoundedCornerShape(8.dp))
             .clickable(role = Role.Button, onClick = onToggle)
             .semantics {
-                contentDescription =
-                    if (reversed) "Richtung umkehren, aktuell zum Anfang"
-                    else "Richtung umkehren, aktuell zum Ende"
+                contentDescription = reverseDescription
             }
             .testTag("reverse_active_track_btn"),
         contentAlignment = Alignment.Center
@@ -747,7 +770,7 @@ private fun DirectionToggle(reversed: Boolean, onToggle: () -> Unit) {
                 )
                 Spacer(modifier = Modifier.width(3.dp))
                 Text(
-                    text = if (reversed) "◀ Anfang" else "▶ Ende",
+                    text = if (reversed) stringResource(R.string.label_start) else stringResource(R.string.label_end),
                     fontSize = 10.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = accent
@@ -770,7 +793,7 @@ private fun ActiveTrackSummary(
 
     if (lat == null || lon == null) {
         Text(
-            text = "Warte auf GPS-Fix, um dem Track zu folgen …",
+            text = stringResource(R.string.nav_wait_fix_track),
             fontSize = 12.sp,
             color = Color(0xFFCBD5E1)
         )
@@ -802,7 +825,7 @@ private fun ActiveTrackSummary(
             ) {
                 Icon(
                     imageVector = Icons.Default.Navigation,
-                    contentDescription = "Richtung zum nächsten Trackpunkt",
+                    contentDescription = stringResource(R.string.cd_dir_next_point),
                     tint = if (finished) SignalGreen else MaterialTheme.colorScheme.primary,
                     modifier = Modifier
                         .size(28.dp)
@@ -823,7 +846,7 @@ private fun ActiveTrackSummary(
                 }
                 Text(
                     text = if (finished) {
-                        "Ziel erreicht"
+                        stringResource(R.string.track_reached)
                     } else {
                         formatDistance(distance)
                     },
@@ -832,12 +855,22 @@ private fun ActiveTrackSummary(
                     color = if (finished) SignalGreen else Color.White
                 )
                 Text(
-                    text = "Richtung ${String.format(Locale.US, "%.0f°", bearing)} (${getCompassDirection(LocalContext.current.resources, bearing.toFloat())})",
+                    text = stringResource(
+                        R.string.nav_direction_fmt,
+                        String.format(Locale.US, "%.0f°", bearing),
+                        getCompassDirection(LocalContext.current.resources, bearing.toFloat())
+                    ),
                     fontSize = 11.sp,
                     color = Color(0xFFCBD5E1)
                 )
                 Text(
-                    text = "Punkt ${idx + 1} von ${track.points.size} · Ziel ${if (track.reversed) "Anfang" else "Ende"} · Rest ${formatDistance(remaining)}",
+                    text = stringResource(
+                        R.string.nav_track_progress,
+                        idx + 1,
+                        track.points.size,
+                        if (track.reversed) stringResource(R.string.target_start) else stringResource(R.string.target_end),
+                        formatDistance(remaining)
+                    ),
                     fontSize = 11.sp,
                     color = Color(0xFFCBD5E1)
                 )
@@ -852,7 +885,7 @@ private fun ActiveTrackSummary(
                     contentAlignment = Alignment.CenterStart
                 ) {
                     Text(
-                        text = "Folgen beenden",
+                        text = stringResource(R.string.btn_stop_following),
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.primary
@@ -901,14 +934,20 @@ private fun TrackRow(
                     color = Color.White
                 )
                 Text(
-                    text = "${track.points.size} Punkte · ${formatDistance(track.lengthMeters)} · ${if (track.reversed) "◀ zum Anfang" else "▶ zum Ende"}",
+                    text = pluralStringResource(
+                        R.plurals.track_meta,
+                        track.points.size,
+                        track.points.size,
+                        formatDistance(track.lengthMeters),
+                        if (track.reversed) stringResource(R.string.label_to_start) else stringResource(R.string.label_to_end)
+                    ),
                     fontSize = 10.sp,
                     color = Color(0xFF94A3B8)
                 )
             }
             if (isActive) {
                 Text(
-                    text = "Folgen",
+                    text = stringResource(R.string.label_following),
                     fontSize = 11.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.primary
@@ -924,7 +963,7 @@ private fun TrackRow(
             ) {
                 Icon(
                     imageVector = Icons.Default.Delete,
-                    contentDescription = "Track löschen",
+                    contentDescription = stringResource(R.string.cd_delete_track),
                     tint = Color(0xFF94A3B8),
                     modifier = Modifier.size(18.dp)
                 )
@@ -956,7 +995,7 @@ private fun ActiveTargetSummary(
 
     if (lat == null || lon == null) {
         Text(
-            text = "Warte auf GPS-Fix, um Entfernung und Richtung zu berechnen …",
+            text = stringResource(R.string.nav_wait_fix_target),
             fontSize = 12.sp,
             color = Color(0xFFCBD5E1)
         )
@@ -984,7 +1023,7 @@ private fun ActiveTargetSummary(
             ) {
                 Icon(
                     imageVector = Icons.Default.Navigation,
-                    contentDescription = "Richtung zum Ziel",
+                    contentDescription = stringResource(R.string.cd_dir_target),
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier
                         .size(28.dp)
@@ -994,7 +1033,7 @@ private fun ActiveTargetSummary(
             Spacer(modifier = Modifier.width(14.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "Aktives Ziel: ${waypoint.name}",
+                    text = stringResource(R.string.nav_active_target, waypoint.name),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
                     color = Color.White
@@ -1010,7 +1049,11 @@ private fun ActiveTargetSummary(
                     color = Color.White
                 )
                 Text(
-                    text = "Richtung ${String.format(Locale.US, "%.0f°", bearing)} (${getCompassDirection(LocalContext.current.resources, bearing.toFloat())})",
+                    text = stringResource(
+                        R.string.nav_direction_fmt,
+                        String.format(Locale.US, "%.0f°", bearing),
+                        getCompassDirection(LocalContext.current.resources, bearing.toFloat())
+                    ),
                     fontSize = 11.sp,
                     color = Color(0xFFCBD5E1)
                 )
@@ -1020,14 +1063,14 @@ private fun ActiveTargetSummary(
                         val isR13 = hintR13Map[hintKey] ?: false
                         val hintText = if (isR13) WaypointCodec.rot13(waypoint.hint!!) else waypoint.hint!!
                         Text(
-                            text = "Hint: $hintText",
+                            text = stringResource(R.string.hint_prefix_fmt, hintText),
                             fontSize = 12.sp,
                             color = Color(0xFFCBD5E1)
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                text = "Klartext",
+                                text = stringResource(R.string.hint_plain),
                                 fontSize = 11.sp,
                                 fontWeight = if (isR13) FontWeight.Normal else FontWeight.Bold,
                                 color = if (isR13) Color(0xFF94A3B8) else MaterialTheme.colorScheme.primary,
@@ -1039,7 +1082,7 @@ private fun ActiveTargetSummary(
                                 color = Color(0xFF94A3B8)
                             )
                             Text(
-                                text = "ROT13",
+                                text = stringResource(R.string.hint_rot13),
                                 fontSize = 11.sp,
                                 fontWeight = if (isR13) FontWeight.Bold else FontWeight.Normal,
                                 color = if (isR13) MaterialTheme.colorScheme.primary else Color(0xFF94A3B8),
@@ -1048,7 +1091,7 @@ private fun ActiveTargetSummary(
                         }
                     } else {
                         Text(
-                            text = "Hint anzeigen",
+                            text = stringResource(R.string.btn_show_hint),
                             fontSize = 12.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.primary,
@@ -1059,7 +1102,7 @@ private fun ActiveTargetSummary(
 
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
-                    text = "In Karte öffnen",
+                    text = stringResource(R.string.btn_open_map),
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.primary,
@@ -1068,7 +1111,7 @@ private fun ActiveTargetSummary(
 
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "Ziel-Navigation beenden",
+                    text = stringResource(R.string.btn_stop_target_nav),
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.error,
