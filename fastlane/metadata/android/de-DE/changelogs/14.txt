@@ -1,0 +1,7 @@
+1.3.9
+* Geocaching-Dateien (Pocket Query): Ein Cache und seine Zusatzpunkte bleiben
+  jetzt eine Gruppe, statt als getrennte Einträge aufzutauchen
+* Der Import hängt nicht mehr, wenn eine GPX-Datei unvollständig ist – es
+  kommt eine Meldung, statt dass der Bildschirm einfriert
+* GPX-Dateien mit BOM (typisch für Windows-Editoren) und Dateien ohne
+  Namensraumangabe werden gelesen

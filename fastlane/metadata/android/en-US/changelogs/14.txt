@@ -1,0 +1,7 @@
+1.3.9
+* Geocaching files (Pocket Query): a cache and its additional waypoints now
+  stay one group instead of appearing as separate entries
+* Import no longer hangs on an incomplete GPX file – you get a message
+  instead of a frozen screen
+* GPX files with a BOM (typical for Windows editors) and files without a
+  namespace declaration are read
