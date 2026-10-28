@@ -19,11 +19,18 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.MyApplication">
+        <!-- Die Oberflaeche ist auf Hochformat ausgelegt; im Querformat sind die
+             Karten, Diagramme und die Messzeilen nicht mehr lesbar. Deshalb
+             festes Hochformat. Hinweis: Ab Android 16 (targetSdk 36) ignoriert
+             das System diese Sperre auf grossen Bildschirmen (kleinste Breite
+             ab 600 dp), z. B. Tablets und aufgeklappte Foldables. -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
             android:label="@string/app_name"
-            android:theme="@style/Theme.MyApplication">
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.MyApplication"
+            tools:ignore="LockedOrientationActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
