@@ -7,6 +7,6 @@
 * Die App bleibt im Hochformat – im Querformat war die Anzeige nicht
   mehr lesbar
 * Liefert der Empfänger keine Rohdaten, obwohl Satelliten sichtbar
-  sind, erklärt der Messung-Tab das jetzt und nennt die Abhilfe
-  (Standort einmal aus- und wieder einschalten); die Anzeige erholt
-  sich danach von selbst
+  sind, erklärt der Messung-Tab das jetzt und nennt beide Abhilfen
+  (Standort eine Minute aus/ein oder App schließen und ~90 s warten);
+  die Anzeige erholt sich danach von selbst

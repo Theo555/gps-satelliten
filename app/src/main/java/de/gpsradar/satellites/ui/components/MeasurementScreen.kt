@@ -124,15 +124,41 @@ fun MeasurementScreen(
                     .weight(1f),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = stringResource(
-                        if (rawStreamStalled) R.string.meas_stalled_hint else R.string.meas_empty
-                    ),
-                    fontSize = 12.sp,
-                    color = if (rawStreamStalled) Color(0xFFEAB308) else Color(0xFF94A3B8),
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(horizontal = 16.dp)
-                )
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.padding(horizontal = 20.dp)
+                ) {
+                    if (rawStreamStalled) {
+                        Text(
+                            text = stringResource(R.string.meas_stalled_title),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFFEAB308),
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = stringResource(R.string.meas_stalled_body),
+                            fontSize = 12.sp,
+                            color = Color(0xFF94A3B8),
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = stringResource(R.string.meas_stalled_help),
+                            fontSize = 12.sp,
+                            color = Color(0xFFE2E8F0),
+                            textAlign = TextAlign.Center
+                        )
+                    } else {
+                        Text(
+                            text = stringResource(R.string.meas_empty),
+                            fontSize = 12.sp,
+                            color = Color(0xFF94A3B8),
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
             }
         } else {
             LazyColumn(

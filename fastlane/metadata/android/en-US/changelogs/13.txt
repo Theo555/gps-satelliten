@@ -6,5 +6,6 @@
   could mix point and comma)
 * The app stays in portrait – the landscape layout was not readable
 * If the receiver sends no raw data although satellites are visible,
-  the Measure tab explains this and names the remedy (turn location
-  off and on again); the display recovers on its own afterwards
+  the Measure tab explains this and names both remedies (turn location
+  off for a minute, or close the app and wait ~90 s); the display
+  recovers on its own afterwards

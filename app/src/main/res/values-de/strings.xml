@@ -175,7 +175,9 @@
 
     <!-- Messung / Rohdaten -->
     <string name="meas_empty">Keine Roh-Messungen. Warte auf GNSS-Signale …</string>
-    <string name="meas_stalled_hint">Der Empfänger liefert keine Rohdaten, obwohl Satelliten sichtbar sind. Standort einmal aus- und wieder einschalten hilft.</string>
+    <string name="meas_stalled_title">Der Empfänger liefert keine Rohdaten</string>
+    <string name="meas_stalled_body">Satelliten sind da und die Position läuft weiter – nur der Rohdaten-Kanal bleibt stumm. Das passiert, wenn die App neu startet, während der GNSS-Empfänger noch läuft.</string>
+    <string name="meas_stalled_help">Abhilfe: Standort eine Minute aus- und wieder einschalten – oder die App schließen und etwa 90 Sekunden warten.</string>
     <string name="meas_title">Roh-Messungen</string>
     <plurals name="meas_paths">
         <item quantity="one">%1$d Signalpfad</item>
