@@ -14,6 +14,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import androidx.core.content.ContextCompat
 import androidx.core.location.GnssStatusCompat
 import androidx.core.location.LocationManagerCompat
@@ -36,12 +37,21 @@ import kotlinx.coroutines.launch
 import java.util.Locale
 import java.util.Random
 
+private const val TAG = "GpsDataManager"
+private const val NAV_REGISTER_ATTEMPTS = 5
+private const val NAV_REGISTER_RETRY_MS = 2000L
+
 class GpsDataManager(private val context: Context) : SensorEventListener {
 
     private val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as? LocationManager
     private val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as? SensorManager
     private val mainHandler = Handler(Looper.getMainLooper())
     private val scope = CoroutineScope(Dispatchers.Main + Job())
+
+    /** true, solange die Navigationsnachrichten registriert sind. */
+    private var navMessagesRegistered = false
+    private var navRegisterAttempts = 0
+    private val navRegisterRetry = Runnable { registerNavigationMessagesIfPossible() }
 
     private val _gpsState = MutableStateFlow(GpsLocationState())
     val gpsState: StateFlow<GpsLocationState> = _gpsState.asStateFlow()
@@ -149,8 +159,7 @@ class GpsDataManager(private val context: Context) : SensorEventListener {
 
     private val maxStoredNavMessages = 20
 
-    private val navMessageCallback = object : GnssNavigationMessage.Callback() {
-        override fun onGnssNavigationMessageReceived(event: GnssNavigationMessage) {
+    private val navMessageCallback = object : GnssNavigationMessage.Callback() {        override fun onGnssNavigationMessageReceived(event: GnssNavigationMessage) {
             if (isSimulated) return
             _navigationMessages.update { current ->
                 (current + navMessageFrom(event)).takeLast(maxStoredNavMessages)
@@ -307,27 +316,61 @@ class GpsDataManager(private val context: Context) : SensorEventListener {
             _supportsNavigationMessages.value = false
             return
         }
-        var supported = false
-        try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                supported = lm.gnssCapabilities.hasNavigationMessages()
-                if (supported) {
-                    lm.registerGnssNavigationMessageCallback(navMessageCallback)
-                }
-            } else {
-                supported = lm.registerGnssNavigationMessageCallback(navMessageCallback)
-            }
-        } catch (e: Exception) {
-            supported = false
+        if (!navMessagesRegistered) {
+            navRegisterAttempts = 0
+            registerNavigationMessagesIfPossible()
         }
-        _supportsNavigationMessages.value = supported
+
+        // Ab Android 10 sagt die Plattform die Fähigkeit direkt; der Rückgabewert
+        // der Registrierung ist kurz nach dem Start unzuverlässig.
+        _supportsNavigationMessages.value =
+            navigationMessagesCapable(lm) ?: navMessagesRegistered
+    }
+
+    private fun navigationMessagesCapable(lm: LocationManager): Boolean? =
+        // Ab Android 12 für normale Apps abrufbar; davor verlangt der Aufruf
+        // LOCATION_HARDWARE und wirft eine SecurityException.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            try {
+                lm.gnssCapabilities.hasNavigationMessages()
+            } catch (e: Exception) {
+                Log.d(TAG, "gnssCapabilities nicht lesbar", e)
+                null
+            }
+        } else {
+            null
+        }
+
+    @SuppressLint("MissingPermission")
+    private fun registerNavigationMessagesIfPossible() {
+        if (navMessagesRegistered) return
+        val lm = locationManager ?: return
+        val ok = try {
+            lm.registerGnssNavigationMessageCallback(navMessageCallback)
+        } catch (e: Exception) {
+            Log.w(TAG, "Navigationsnachrichten nicht registriert", e)
+            false
+        }
+        navMessagesRegistered = ok
+        if (ok) {
+            navRegisterAttempts = 0
+        } else if (navRegisterAttempts < NAV_REGISTER_ATTEMPTS) {
+            navRegisterAttempts++
+            Log.w(TAG, "Navigationsnachrichten noch nicht möglich (Versuch $navRegisterAttempts)")
+            mainHandler.postDelayed(navRegisterRetry, NAV_REGISTER_RETRY_MS)
+        }
     }
 
     private fun unregisterNavigationMessages() {
-        try {
-            locationManager?.unregisterGnssNavigationMessageCallback(navMessageCallback)
-        } catch (e: Exception) {
-            // ignore
+        mainHandler.removeCallbacks(navRegisterRetry)
+        navRegisterAttempts = 0
+        if (navMessagesRegistered) {
+            try {
+                locationManager?.unregisterGnssNavigationMessageCallback(navMessageCallback)
+            } catch (e: Exception) {
+                // ignore
+            }
+            navMessagesRegistered = false
         }
         _navigationMessages.value = emptyList()
     }

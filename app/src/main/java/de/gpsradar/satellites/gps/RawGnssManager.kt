@@ -7,6 +7,9 @@ import android.location.GnssMeasurement
 import android.location.GnssMeasurementsEvent
 import android.location.LocationManager
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
+import android.util.Log
 import de.gpsradar.satellites.model.BufferStats
 import de.gpsradar.satellites.model.CapturePhase
 import de.gpsradar.satellites.model.Constellation
@@ -22,12 +25,24 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlin.math.floor
 
+private const val TAG = "RawGnssManager"
+private const val MAX_REGISTER_ATTEMPTS = 5
+private const val REGISTER_RETRY_MS = 2000L
+
 /**
  * Sammelt GNSS-Roh-Messungen (GnssMeasurements) — ein Eintrag pro Satellit × Frequenzband.
  */
 class RawGnssManager(context: Context) {
 
     private val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as? LocationManager
+
+    private val handler = Handler(Looper.getMainLooper())
+
+    /** true, solange ein Mess-Callback registriert ist. */
+    private var registered = false
+    private var registerAttempts = 0
+
+    private val registerRetry = Runnable { registerIfPossible() }
 
     private val _supportsRawMeasurements = MutableStateFlow(false)
     val supportsRawMeasurements: StateFlow<Boolean> = _supportsRawMeasurements.asStateFlow()
@@ -60,6 +75,7 @@ class RawGnssManager(context: Context) {
     @SuppressLint("MissingPermission")
     fun start(hasPermission: Boolean) {
         if (!hasPermission) {
+            stop()
             _supportsRawMeasurements.value = false
             return
         }
@@ -68,27 +84,67 @@ class RawGnssManager(context: Context) {
             _supportsRawMeasurements.value = false
             return
         }
-        var supported = false
-        try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                supported = lm.gnssCapabilities.hasMeasurements()
-                if (supported) {
-                    lm.registerGnssMeasurementsCallback(callback)
-                }
-            } else {
-                supported = lm.registerGnssMeasurementsCallback(callback)
-            }
-        } catch (e: Exception) {
-            supported = false
+
+        if (!registered) {
+            registerAttempts = 0
+            registerIfPossible()
         }
-        _supportsRawMeasurements.value = supported
+
+        // Ab Android 10 sagt die Plattform die Fähigkeit direkt. Der Rückgabewert
+        // der Registrierung ist unzuverlässig: kurz nach dem Prozessstart oder
+        // wenn die GNSS-Engine gerade steht, liefert er false – das Gerät kann
+        // Rohdaten trotzdem. Deshalb nicht daran die Anzeige festmachen.
+        _supportsRawMeasurements.value = capabilitySupported(lm) ?: registered
+    }
+
+    /** Rohdaten-Fähigkeit laut Plattform (ab API 31); null, wenn nicht ermittelbar.
+     *  Auf Android 10/11 verlangt der Aufruf LOCATION_HARDWARE – eine Signatur-
+     *  Berechtigung, die normale Apps nicht bekommen. Dort entscheidet die
+     *  Registrierung.
+     */
+    private fun capabilitySupported(lm: LocationManager): Boolean? =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            try {
+                lm.gnssCapabilities.hasMeasurements()
+            } catch (e: Exception) {
+                Log.d(TAG, "gnssCapabilities nicht lesbar", e)
+                null
+            }
+        } else {
+            null
+        }
+
+    @SuppressLint("MissingPermission")
+    private fun registerIfPossible() {
+        if (registered) return
+        val lm = locationManager ?: return
+        val ok = try {
+            lm.registerGnssMeasurementsCallback(callback)
+        } catch (e: Exception) {
+            Log.w(TAG, "Rohdaten-Callback abgelehnt", e)
+            false
+        }
+        registered = ok
+        if (ok) {
+            registerAttempts = 0
+            Log.i(TAG, "Rohdaten-Callback registriert")
+        } else if (registerAttempts < MAX_REGISTER_ATTEMPTS) {
+            registerAttempts++
+            Log.w(TAG, "Rohdaten-Callback noch nicht möglich (Versuch $registerAttempts)")
+            handler.postDelayed(registerRetry, REGISTER_RETRY_MS)
+        }
     }
 
     fun stop() {
-        try {
-            locationManager?.unregisterGnssMeasurementsCallback(callback)
-        } catch (e: Exception) {
-            // ignore
+        handler.removeCallbacks(registerRetry)
+        registerAttempts = 0
+        if (registered) {
+            try {
+                locationManager?.unregisterGnssMeasurementsCallback(callback)
+            } catch (e: Exception) {
+                // ignore
+            }
+            registered = false
         }
         _measurements.value = emptyList()
         _clock.value = null

@@ -498,7 +498,7 @@ private fun MeasurementRow(m: RawMeasurement) {
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = m.pseudorangeMeters
-                        ?.let { String.format(Locale.getDefault(), "%.3f km", it / 1000.0) } ?: "–",
+                        ?.let { String.format(Locale.US, "%.3f km", it / 1000.0) } ?: "–",
                     fontSize = 11.sp,
                     color = Color(0xFFCBD5E1),
                     maxLines = 1,
@@ -522,9 +522,9 @@ private fun MeasurementRow(m: RawMeasurement) {
                         append(
                             m.carrierPhaseMeters?.let { phase ->
                                 if (kotlin.math.abs(phase) >= 1_000_000.0) {
-                                    String.format(Locale.getDefault(), "%.0f m", phase)
+                                    String.format(Locale.US, "%.0f m", phase)
                                 } else {
-                                    String.format(Locale.getDefault(), "%.1f m", phase)
+                                    String.format(Locale.US, "%.1f m", phase)
                                 }
                             } ?: "–"
                         )
