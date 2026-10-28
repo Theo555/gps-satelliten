@@ -1,0 +1,8 @@
+1.3.8
+* Der Messung-Tab bleibt jetzt auch auf Geräten da, auf denen die
+  Registrierung für Rohdaten beim Start kurz fehlschlägt (z. B. Note 9
+  mit Android 10) – die Registrierung wird mehrfach versucht
+* Messwerte werden einheitlich mit Punkt als Dezimalzeichen angezeigt
+  (vorher teils Punkt und Komma in derselben Zeile)
+* Die App bleibt im Hochformat – im Querformat war die Anzeige nicht
+  mehr lesbar
