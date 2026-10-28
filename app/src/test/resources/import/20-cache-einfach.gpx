@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="Import-Test" xmlns="http://www.topografix.com/GPX/1/1" xmlns:groundspeak="http://www.groundspeak.com/cache/1/0/1">
+  <wpt lat="51.690623" lon="7.892314">
+    <name>GC1ABCD - Alter Bahnhof</name>
+    <type>Geocache|Traditional Cache</type>
+    <groundspeak:cache id="12345" available="true" archived="false">
+      <groundspeak:name>Alter Bahnhof</groundspeak:name>
+      <groundspeak:difficulty>2.5</groundspeak:difficulty>
+      <groundspeak:terrain>3</groundspeak:terrain>
+      <groundspeak:encoded_hints>Unter der Bank, links.</groundspeak:encoded_hints>
+    </groundspeak:cache>
+  </wpt>
+</gpx>

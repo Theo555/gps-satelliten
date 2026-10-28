@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="Import-Test" xmlns="http://www.topografix.com/GPX/1/1">
+  <rte>
+    <name>Rundweg Innenstadt</name>
+    <rtept lat="51.69" lon="7.89"/>
+    <rtept lat="51.691" lon="7.892"/>
+    <rtept lat="51.692" lon="7.894"/>
+    <rtept lat="51.693" lon="7.896"/>
+    <rtept lat="51.694" lon="7.898"/>
+  </rte>
+</gpx>

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="Import-Test" xmlns="http://www.topografix.com/GPX/1/1" xmlns:groundspeak="http://www.groundspeak.com/cache/1/0/1">
+  <wpt lat="51.6800" lon="7.8800">
+    <name>GC3ALT - Verwittert</name>
+    <type>Geocache|Traditional Cache</type>
+    <groundspeak:cache id="30001" archived="true">
+      <groundspeak:name>Verwittert</groundspeak:name>
+      <groundspeak:difficulty>2</groundspeak:difficulty>
+      <groundspeak:terrain>2</groundspeak:terrain>
+    </groundspeak:cache>
+  </wpt>
+  <wpt lat="51.6810" lon="7.8810">
+    <name>GC3NEU - Frisch</name>
+    <type>Geocache|Traditional Cache</type>
+    <groundspeak:cache id="30002" archived="false">
+      <groundspeak:name>Frisch</groundspeak:name>
+      <groundspeak:difficulty>1</groundspeak:difficulty>
+      <groundspeak:terrain>1.5</groundspeak:terrain>
+    </groundspeak:cache>
+  </wpt>
+</gpx>

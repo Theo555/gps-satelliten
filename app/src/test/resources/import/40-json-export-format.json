@@ -1,0 +1,31 @@
+[
+  {
+    "name": "Rathaus",
+    "lat": 51.690623,
+    "lon": 7.892314,
+    "found": false
+  },
+  {
+    "name": "Alter Bahnhof",
+    "lat": 51.691,
+    "lon": 7.893,
+    "code": "GC1ABCD",
+    "description": "Tradi am Bahnhof",
+    "hint": "Unter der Bank",
+    "difficulty": 2.5,
+    "terrain": 3.0,
+    "cacheType": "Traditional Cache",
+    "found": true
+  },
+  {
+    "name": "Rätsel",
+    "lat": 51.692,
+    "lon": 7.894,
+    "code": "GC2TEST",
+    "hint": "none",
+    "difficulty": 4.0,
+    "terrain": 2.0,
+    "cacheType": "Unknown Cache",
+    "found": false
+  }
+]

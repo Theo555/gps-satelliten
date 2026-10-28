@@ -1,0 +1,22 @@
+[
+  {
+    "name": "Gut",
+    "lat": 51.69,
+    "lon": 7.89
+  },
+  "kaputter Eintrag",
+  {
+    "name": "OhneBreite",
+    "lon": 7.9
+  },
+  {
+    "name": "BreiteZuGross",
+    "lat": 999,
+    "lon": 7.91
+  },
+  {
+    "name": "AuchGut",
+    "lat": 51.72,
+    "lon": 7.92
+  }
+]

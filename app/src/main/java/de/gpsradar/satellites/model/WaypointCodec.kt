@@ -62,7 +62,10 @@ object WaypointCodec {
     )
 
     fun parse(text: String, fallbackWaypointName: String = DEFAULT_WAYPOINT_NAME): ImportResult {
-        val t = text.trim()
+        // Windows-Editoren (z. B. Notepad) schreiben vor dem ersten Zeichen ein
+        // UTF-8-BOM. trim() entfernt es nicht (U+FEFF ist kein Leerzeichen),
+        // ohne dieses Entfernen würde die Datei als "kein GPX/JSON" gelten.
+        val t = text.trim().removePrefix("\uFEFF").trim()
         return when {
             t.startsWith("<") -> parseGpx(t, fallbackWaypointName)
             t.startsWith("[") || t.startsWith("{") -> parseJson(t, fallbackWaypointName)
@@ -225,6 +228,10 @@ object WaypointCodec {
                     else -> skipElement(parser)
                 }
                 XmlPullParser.END_TAG -> depth--
+                // Abgeschnittene Datei: ohne diesen Zweig würde die Schleife
+                // endlos weiterlaufen (next() liefert END_DOCUMENT beliebig oft)
+                // und der Import haengen. Element verwerfen, Fehler melden.
+                XmlPullParser.END_DOCUMENT -> throw TruncatedDocument()
             }
         }
 
@@ -243,7 +250,11 @@ object WaypointCodec {
         val cacheType = type?.substringAfter("|")?.trim()?.let { t ->
             CACHE_TYPES.firstOrNull { it.equals(t, ignoreCase = true) } ?: t
         }?.ifBlank { null }
-        val finalGroupId = groupCacheId ?: codeFromDesc ?: codeFromName
+        // Gruppenschlüssel: Der GC-Code verbindet Kopf und Zusatzpunkte – der
+        // Kopf trägt ihn im Namen, die Zusatzpunkte in <desc>. Die groundspeak-id
+        // ist nur Ersatz, weil sie in Zusatzpunkten fehlt; würde sie gewinnen,
+        // zerfiele jede echte Pocket Query in Kopf und Zusatzpunkte.
+        val finalGroupId = code ?: codeFromDesc ?: groupCacheId
 
         out.add(
             Waypoint(
@@ -299,6 +310,7 @@ object WaypointCodec {
                     else -> skipElement(parser)
                 }
                 XmlPullParser.END_TAG -> depth--
+                XmlPullParser.END_DOCUMENT -> throw TruncatedDocument()
             }
         }
 
@@ -316,19 +328,27 @@ object WaypointCodec {
         val points = mutableListOf<TrackPoint>()
 
         var depth = 1
-        while (depth > 0) {
-            when (parser.next()) {
-                XmlPullParser.START_TAG -> when {
-                    parser.isGpxElement("name") -> name = readElementText(parser)
-                    parser.isGpxElement(pointTag) -> {
-                        val pt = parseTrackPoint(parser)
-                        if (pt != null) points.add(pt) else skipped.add(SkipReason.TrackPointWithoutCoordinates)
+        var truncated = false
+        try {
+            while (depth > 0) {
+                when (parser.next()) {
+                    XmlPullParser.START_TAG -> when {
+                        parser.isGpxElement("name") -> name = readElementText(parser)
+                        parser.isGpxElement(pointTag) -> {
+                            val pt = parseTrackPoint(parser)
+                            if (pt != null) points.add(pt) else skipped.add(SkipReason.TrackPointWithoutCoordinates)
+                        }
+                        parser.isGpxElement("trkseg") -> { /* Segment absteigen, enthält die <trkpt> */ }
+                        else -> skipElement(parser)
                     }
-                    parser.isGpxElement("trkseg") -> { /* Segment absteigen, enthält die <trkpt> */ }
-                    else -> skipElement(parser)
+                    XmlPullParser.END_TAG -> depth--
+                    // Abgeschnittene Datei: die vollständigen Punkte behalten,
+                    // den Fehler aber melden (kein Endloslauf).
+                    XmlPullParser.END_DOCUMENT -> throw TruncatedDocument()
                 }
-                XmlPullParser.END_TAG -> depth--
             }
+        } catch (e: TruncatedDocument) {
+            truncated = true
         }
 
         val trackName = name?.ifBlank { null } ?: if (kind == "rte") "Route" else "Track"
@@ -337,6 +357,7 @@ object WaypointCodec {
         } else {
             skipped.add(SkipReason.TrackTooShort(trackName))
         }
+        if (truncated) throw TruncatedDocument()
     }
 
     private fun parseTrackPoint(parser: XmlPullParser): TrackPoint? {
@@ -360,6 +381,7 @@ object WaypointCodec {
                     else -> skipElement(parser)
                 }
                 XmlPullParser.END_TAG -> depth--
+                XmlPullParser.END_DOCUMENT -> throw TruncatedDocument()
             }
         }
 
@@ -376,7 +398,9 @@ object WaypointCodec {
     private fun XmlPullParser.isGpxElement(local: String): Boolean {
         val ns = namespace
         return when {
-            ns == null -> name == local || name.endsWith(":$local")
+            // Manche Werkzeuge schreiben GPX ohne xmlns; der Parser meldet dann
+            // einen leeren (nicht null) Namensraum. Solche Dateien trotzdem lesen.
+            ns.isNullOrEmpty() -> name == local || name.endsWith(":$local")
             ns == GPX_NS_1_0 || ns == GPX_NS_1_1 -> name == local
             else -> false
         }
@@ -415,6 +439,8 @@ object WaypointCodec {
                 XmlPullParser.TEXT, XmlPullParser.CDSECT, XmlPullParser.ENTITY_REF -> sb.append(parser.text)
                 XmlPullParser.START_TAG -> depth++
                 XmlPullParser.END_TAG -> depth--
+                // Abgeschnittene Datei: Text zurückgeben, der Aufrufer bricht ab.
+                XmlPullParser.END_DOCUMENT -> throw TruncatedDocument()
             }
         }
         return sb.toString().trim().ifBlank { null }
@@ -426,10 +452,13 @@ object WaypointCodec {
             when (parser.next()) {
                 XmlPullParser.START_TAG -> depth++
                 XmlPullParser.END_TAG -> depth--
-                XmlPullParser.END_DOCUMENT -> return
+                XmlPullParser.END_DOCUMENT -> throw TruncatedDocument()
             }
         }
     }
+
+    /** Signalisiert eine Datei, die mitten in einem Element endet. */
+    private class TruncatedDocument : Exception("Datei endet vorzeitig")
 
     private fun formatGpxTime(millis: Long): String {
         val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US)

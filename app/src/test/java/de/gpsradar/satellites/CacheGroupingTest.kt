@@ -102,7 +102,9 @@ class CacheGroupingTest {
         val result = WaypointCodec.parse(gpx)
         val grouping = groupWaypoints(result.waypoints)
 
-        val multi = grouping.caches.find { it.id == "999002" }
+        // Gruppenschlüssel ist der GC-Code, nicht die groundspeak-id – sonst
+        // würden Kopf und Zusatzpunkte einer Pocket Query getrennt.
+        val multi = grouping.caches.find { it.code == "GC_TEST_02" }
         assertNotNull(multi)
         assertEquals(2, multi!!.waypoints.size)
         // Primärer Wegpunkt = der Cache selbst (Multi-Cache), nicht das Final.
@@ -116,13 +118,14 @@ class CacheGroupingTest {
         val result = WaypointCodec.parse(gpx)
         val grouping = groupWaypoints(result.waypoints)
 
-        val traditional = grouping.caches.find { it.id == "999001" }
+        val traditional = grouping.caches.find { it.code == "GC_TEST_01" }
         assertNotNull(traditional)
         assertEquals("GC_TEST_01", traditional!!.code)
         assertEquals("Kanalufer Werries (Test)", traditional.name)
         assertEquals(1.5, traditional.difficulty ?: 0.0, 0.001)
 
-        val archived = grouping.caches.find { it.id == "999005" }
+        // Archiviert wird über den Namen gesucht: der Cache trägt keinen GC-Code.
+        val archived = grouping.caches.find { it.archived }
         assertNotNull(archived)
         assertTrue(archived!!.archived)
     }

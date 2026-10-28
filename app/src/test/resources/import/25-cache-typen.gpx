@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="Import-Test" xmlns="http://www.topografix.com/GPX/1/1" xmlns:groundspeak="http://www.groundspeak.com/cache/1/0/1">
+  <wpt lat="51.600000" lon="7.800000">
+    <name>GC600 - Traditional Cache</name>
+    <type>Geocache|Traditional Cache</type>
+    <groundspeak:cache id="60000" archived="false">
+      <groundspeak:name>Traditional Cache</groundspeak:name>
+      <groundspeak:difficulty>2</groundspeak:difficulty>
+      <groundspeak:terrain>2</groundspeak:terrain>
+    </groundspeak:cache>
+  </wpt>
+  <wpt lat="51.610000" lon="7.810000">
+    <name>GC601 - Multi-cache</name>
+    <type>Geocache|Multi-cache</type>
+    <groundspeak:cache id="60001" archived="false">
+      <groundspeak:name>Multi-cache</groundspeak:name>
+      <groundspeak:difficulty>2</groundspeak:difficulty>
+      <groundspeak:terrain>2</groundspeak:terrain>
+    </groundspeak:cache>
+  </wpt>
+  <wpt lat="51.620000" lon="7.820000">
+    <name>GC602 - Unknown Cache</name>
+    <type>Geocache|Unknown Cache</type>
+    <groundspeak:cache id="60002" archived="false">
+      <groundspeak:name>Unknown Cache</groundspeak:name>
+      <groundspeak:difficulty>2</groundspeak:difficulty>
+      <groundspeak:terrain>2</groundspeak:terrain>
+    </groundspeak:cache>
+  </wpt>
+  <wpt lat="51.630000" lon="7.830000">
+    <name>GC603 - Letterbox Hybrid</name>
+    <type>Geocache|Letterbox Hybrid</type>
+    <groundspeak:cache id="60003" archived="false">
+      <groundspeak:name>Letterbox Hybrid</groundspeak:name>
+      <groundspeak:difficulty>2</groundspeak:difficulty>
+      <groundspeak:terrain>2</groundspeak:terrain>
+    </groundspeak:cache>
+  </wpt>
+  <wpt lat="51.640000" lon="7.840000">
+    <name>GC604 - Earthcache</name>
+    <type>Geocache|Earthcache</type>
+    <groundspeak:cache id="60004" archived="false">
+      <groundspeak:name>Earthcache</groundspeak:name>
+      <groundspeak:difficulty>2</groundspeak:difficulty>
+      <groundspeak:terrain>2</groundspeak:terrain>
+    </groundspeak:cache>
+  </wpt>
+  <wpt lat="51.650000" lon="7.850000">
+    <name>GC605 - Wherigo Cache</name>
+    <type>Geocache|Wherigo Cache</type>
+    <groundspeak:cache id="60005" archived="false">
+      <groundspeak:name>Wherigo Cache</groundspeak:name>
+      <groundspeak:difficulty>2</groundspeak:difficulty>
+      <groundspeak:terrain>2</groundspeak:terrain>
+    </groundspeak:cache>
+  </wpt>
+  <wpt lat="51.660000" lon="7.860000">
+    <name>GC606 - Virtual Cache</name>
+    <type>Geocache|Virtual Cache</type>
+    <groundspeak:cache id="60006" archived="false">
+      <groundspeak:name>Virtual Cache</groundspeak:name>
+      <groundspeak:difficulty>2</groundspeak:difficulty>
+      <groundspeak:terrain>2</groundspeak:terrain>
+    </groundspeak:cache>
+  </wpt>
+  <wpt lat="51.670000" lon="7.870000">
+    <name>GC607 - Event Cache</name>
+    <type>Geocache|Event Cache</type>
+    <groundspeak:cache id="60007" archived="false">
+      <groundspeak:name>Event Cache</groundspeak:name>
+      <groundspeak:difficulty>2</groundspeak:difficulty>
+      <groundspeak:terrain>2</groundspeak:terrain>
+    </groundspeak:cache>
+  </wpt>
+  <wpt lat="51.75" lon="7.95">
+    <name>GC6X1 - Unbekannter Typ</name>
+    <type>Geocache|Giga-Event Cache</type>
+    <groundspeak:cache id="60099" archived="false">
+      <groundspeak:name>Unbekannter Typ</groundspeak:name>
+    </groundspeak:cache>
+  </wpt>
+</gpx>

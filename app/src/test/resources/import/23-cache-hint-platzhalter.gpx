@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="Import-Test" xmlns="http://www.topografix.com/GPX/1/1" xmlns:groundspeak="http://www.groundspeak.com/cache/1/0/1">
+  <wpt lat="51.6700" lon="7.8700">
+    <name>GC4NONE - Ohne Hinweis</name>
+    <type>Geocache|Traditional Cache</type>
+    <groundspeak:cache id="40001" archived="false">
+      <groundspeak:name>Ohne Hinweis</groundspeak:name>
+      <groundspeak:encoded_hints>none</groundspeak:encoded_hints>
+    </groundspeak:cache>
+  </wpt>
+  <wpt lat="51.6710" lon="7.8710">
+    <name>GC4HINT - Mit Hinweis</name>
+    <type>Geocache|Traditional Cache</type>
+    <groundspeak:cache id="40002" archived="false">
+      <groundspeak:name>Mit Hinweis</groundspeak:name>
+      <groundspeak:encoded_hints>Nyyre Tngr fvaq tyrvpu.</groundspeak:encoded_hints>
+    </groundspeak:cache>
+  </wpt>
+</gpx>

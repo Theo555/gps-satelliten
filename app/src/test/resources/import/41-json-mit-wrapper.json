@@ -1,0 +1,14 @@
+{
+  "waypoints": [
+    {
+      "name": "Wrapper Eins",
+      "lat": 51.69,
+      "lon": 7.89
+    },
+    {
+      "name": "Wrapper Zwei",
+      "lat": 51.7,
+      "lon": 7.9
+    }
+  ]
+}

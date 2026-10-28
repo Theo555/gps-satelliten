@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="Import-Test" xmlns="http://www.topografix.com/GPX/1/1" xmlns:groundspeak="http://www.groundspeak.com/cache/1/0/1">
+  <wpt lat="51.6900" lon="7.8900">
+    <name>GC2TEST - Multi am Fluss</name>
+    <type>Geocache|Multi-cache</type>
+    <groundspeak:cache id="20001" archived="false">
+      <groundspeak:name>Multi am Fluss</groundspeak:name>
+      <groundspeak:difficulty>1.5</groundspeak:difficulty>
+      <groundspeak:terrain>2</groundspeak:terrain>
+      <groundspeak:encoded_hints>none</groundspeak:encoded_hints>
+    </groundspeak:cache>
+  </wpt>
+  <wpt lat="51.6905" lon="7.8905">
+    <name>Parkplatz</name>
+    <desc>GC2TEST</desc>
+    <type>Waypoint|Parking Area</type>
+  </wpt>
+  <wpt lat="51.6910" lon="7.8910">
+    <name>Station 1</name>
+    <desc>GC2TEST</desc>
+    <type>Waypoint|Physical Stage</type>
+  </wpt>
+  <wpt lat="51.6915" lon="7.8915">
+    <name>Final</name>
+    <desc>GC2TEST</desc>
+    <type>Waypoint|Final Location</type>
+  </wpt>
+</gpx>

@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="Import-Test" xmlns="http://www.topografix.com/GPX/1/1" xmlns:groundspeak="http://www.groundspeak.com/cache/1/0/1">
+  <wpt lat="51.690623" lon="7.892314">
+    <name>GC5A1 - Am Kanal</name>
+    <type>Geocache|Traditional Cache</type>
+    <groundspeak:cache id="50001" archived="false">
+      <groundspeak:name>Am Kanal</groundspeak:name>
+      <groundspeak:difficulty>1.5</groundspeak:difficulty>
+      <groundspeak:terrain>1.5</groundspeak:terrain>
+      <groundspeak:encoded_hints>Crfgyyra</groundspeak:encoded_hints>
+    </groundspeak:cache>
+  </wpt>
+  <wpt lat="51.692100" lon="7.893000">
+    <name>GC5A2 - Rätselhaft</name>
+    <type>Geocache|Unknown Cache</type>
+    <groundspeak:cache id="50002" archived="false">
+      <groundspeak:name>Rätselhaft</groundspeak:name>
+      <groundspeak:difficulty>4</groundspeak:difficulty>
+      <groundspeak:terrain>2</groundspeak:terrain>
+      <groundspeak:encoded_hints>none</groundspeak:encoded_hints>
+    </groundspeak:cache>
+  </wpt>
+  <wpt lat="51.692300" lon="7.892800">
+    <name>Final (Rätsel)</name>
+    <desc>GC5A2</desc>
+    <type>Waypoint|Final Location</type>
+  </wpt>
+  <wpt lat="51.693000" lon="7.894000">
+    <name>GC5A3 - Virtueller Blick</name>
+    <type>Geocache|Virtual Cache</type>
+    <groundspeak:cache id="50003" archived="false">
+      <groundspeak:name>Virtueller Blick</groundspeak:name>
+      <groundspeak:difficulty>1</groundspeak:difficulty>
+      <groundspeak:terrain>1</groundspeak:terrain>
+    </groundspeak:cache>
+  </wpt>
+  <wpt lat="51.694000" lon="7.895000">
+    <name>Treffpunkt Parkplatz</name>
+  </wpt>
+</gpx>
