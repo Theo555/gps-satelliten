@@ -175,6 +175,7 @@
 
     <!-- Messung / Rohdaten -->
     <string name="meas_empty">No raw measurements. Waiting for GNSS signals …</string>
+    <string name="meas_stalled_hint">The receiver sends no raw data although satellites are visible. Turn location off and on again to restart it.</string>
     <string name="meas_title">Raw measurements</string>
     <plurals name="meas_paths">
         <item quantity="one">%1$d signal path</item>

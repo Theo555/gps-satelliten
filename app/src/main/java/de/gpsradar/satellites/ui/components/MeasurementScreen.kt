@@ -45,6 +45,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -72,6 +73,7 @@ fun MeasurementScreen(
     capturePhase: CapturePhase,
     bufferStats: BufferStats,
     captureEndsAtMillis: Long,
+    rawStreamStalled: Boolean,
     onExportCsv: (Uri, CsvProfile) -> Boolean,
     onStartCapture: () -> Unit,
     onCancelCapture: () -> Unit,
@@ -123,9 +125,13 @@ fun MeasurementScreen(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = stringResource(R.string.meas_empty),
+                    text = stringResource(
+                        if (rawStreamStalled) R.string.meas_stalled_hint else R.string.meas_empty
+                    ),
                     fontSize = 12.sp,
-                    color = Color(0xFF94A3B8)
+                    color = if (rawStreamStalled) Color(0xFFEAB308) else Color(0xFF94A3B8),
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(horizontal = 16.dp)
                 )
             }
         } else {

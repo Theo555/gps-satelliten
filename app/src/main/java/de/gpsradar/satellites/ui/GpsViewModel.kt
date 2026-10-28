@@ -80,6 +80,7 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
     val rawClock: StateFlow<RawClockSnapshot?> = rawGnssManager.clock
     val rawCapturePhase: StateFlow<CapturePhase> = rawGnssManager.capturePhase
     val rawBufferStats: StateFlow<BufferStats> = rawGnssManager.bufferStats
+    val rawStreamStalled: StateFlow<Boolean> = rawGnssManager.streamStalled
 
     /** Ende der laufenden Aufzeichnung (Gerätezeit); 0 = keine Aufzeichnung. */
     val rawCaptureEndsAtMillis = MutableStateFlow(0L)

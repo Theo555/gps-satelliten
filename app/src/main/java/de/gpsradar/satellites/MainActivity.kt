@@ -151,6 +151,7 @@ fun GpsAppMainScreen(
     val rawCapturePhase by viewModel.rawCapturePhase.collectAsState()
     val rawBufferStats by viewModel.rawBufferStats.collectAsState()
     val rawCaptureEndsAt by viewModel.rawCaptureEndsAtMillis.collectAsState()
+    val rawStreamStalled by viewModel.rawStreamStalled.collectAsState()
     val hintR13Map by viewModel.hintR13ByKey.collectAsState()
 
     var currentTab by remember { mutableStateOf(AppTab.RADAR) }
@@ -446,6 +447,7 @@ fun GpsAppMainScreen(
                             capturePhase = rawCapturePhase,
                             bufferStats = rawBufferStats,
                             captureEndsAtMillis = rawCaptureEndsAt,
+                            rawStreamStalled = rawStreamStalled && gpsState.satellitesInView > 0,
                             onExportCsv = { uri, profile -> viewModel.exportRawCsv(uri, profile) },
                             onStartCapture = { viewModel.startRawCapture() },
                             onCancelCapture = { viewModel.cancelRawCapture() },

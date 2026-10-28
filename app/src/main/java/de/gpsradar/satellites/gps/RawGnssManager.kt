@@ -9,6 +9,7 @@ import android.location.LocationManager
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.util.Log
 import de.gpsradar.satellites.model.BufferStats
 import de.gpsradar.satellites.model.CapturePhase
@@ -29,6 +30,15 @@ private const val TAG = "RawGnssManager"
 private const val MAX_REGISTER_ATTEMPTS = 5
 private const val REGISTER_RETRY_MS = 2000L
 
+// Wachhund: Der Empfänger kann registriert sein und trotzdem schweigen
+// (z. B. nach einem Prozess-Neustart, während Standort/Status weiterlaufen).
+// Dann erst neu registrieren, nach mehreren Fehlversuchen einen Hinweis
+// für die Oberfläche setzen.
+private const val STALL_CHECK_MS = 10_000L
+private const val STALL_THRESHOLD_MS = 30_000L
+private const val MAX_RECOVERY_ATTEMPTS = 4
+private const val RECOVER_CHECK_MS = 15_000L
+
 /**
  * Sammelt GNSS-Roh-Messungen (GnssMeasurements) — ein Eintrag pro Satellit × Frequenzband.
  */
@@ -41,6 +51,15 @@ class RawGnssManager(context: Context) {
     /** true, solange ein Mess-Callback registriert ist. */
     private var registered = false
     private var registerAttempts = 0
+
+    /** Zeitpunkt des letzten Mess-Ereignisses (elapsedRealtime); 0 = noch keins. */
+    private var lastEventAt = 0L
+    private var stallAttempts = 0
+    private val stallWatchdog = Runnable { checkStall() }
+
+    private val _streamStalled = MutableStateFlow(false)
+    /** true, wenn registriert, aber seit >30 s keine Rohdaten ankommen. */
+    val streamStalled: StateFlow<Boolean> = _streamStalled.asStateFlow()
 
     private val registerRetry = Runnable { registerIfPossible() }
 
@@ -95,6 +114,15 @@ class RawGnssManager(context: Context) {
         // wenn die GNSS-Engine gerade steht, liefert er false – das Gerät kann
         // Rohdaten trotzdem. Deshalb nicht daran die Anzeige festmachen.
         _supportsRawMeasurements.value = capabilitySupported(lm) ?: registered
+
+        // Wachhund: Registrierung klappt, aber der Empfänger kann trotzdem
+        // schweigen. Erst neu registrieren, nach mehreren Fehlversuchen den
+        // Hinweis in der Oberfläche setzen.
+        lastEventAt = 0L
+        stallAttempts = 0
+        _streamStalled.value = false
+        handler.removeCallbacks(stallWatchdog)
+        handler.postDelayed(stallWatchdog, STALL_CHECK_MS)
     }
 
     /** Rohdaten-Fähigkeit laut Plattform (ab API 31); null, wenn nicht ermittelbar.
@@ -137,7 +165,11 @@ class RawGnssManager(context: Context) {
 
     fun stop() {
         handler.removeCallbacks(registerRetry)
+        handler.removeCallbacks(stallWatchdog)
         registerAttempts = 0
+        lastEventAt = 0L
+        stallAttempts = 0
+        _streamStalled.value = false
         if (registered) {
             try {
                 locationManager?.unregisterGnssMeasurementsCallback(callback)
@@ -190,7 +222,49 @@ class RawGnssManager(context: Context) {
         _bufferStats.value = BufferStats(buffer.epochCount, buffer.rowCount)
     }
 
+    /** Wachhund-Prüfung: registriert, aber keine Daten? Erst neu registrieren,
+     *  nach mehreren Fehlversuchen den Hinweis-Zustand setzen. Sobald wieder
+     *  Ereignisse ankommen, setzt handleEvent alles zurück. */
+    private fun checkStall() {
+        if (!registered) return
+        val now = SystemClock.elapsedRealtime()
+        val silent = lastEventAt == 0L || now - lastEventAt > STALL_THRESHOLD_MS
+        if (!silent) {
+            _streamStalled.value = false
+            handler.postDelayed(stallWatchdog, STALL_CHECK_MS)
+            return
+        }
+        if (stallAttempts < MAX_RECOVERY_ATTEMPTS) {
+            stallAttempts++
+            val since = if (lastEventAt == 0L) "Start" else "${(now - lastEventAt) / 1000}s"
+            Log.w(TAG, "Keine Rohdaten seit $since – Recover-Versuch $stallAttempts (neu registrieren)")
+            tryRecover()
+            handler.postDelayed(stallWatchdog, RECOVER_CHECK_MS)
+        } else {
+            _streamStalled.value = true
+            Log.w(TAG, "Rohdaten bleiben aus – Hinweis in der Oberfläche anzeigen")
+            handler.postDelayed(stallWatchdog, STALL_CHECK_MS * 6)
+        }
+    }
+
+    /** Abmelden und neu registrieren, ohne die Fähigkeit zurückzustufen. */
+    private fun tryRecover() {
+        val lm = locationManager ?: return
+        if (registered) {
+            try {
+                lm.unregisterGnssMeasurementsCallback(callback)
+            } catch (_: Exception) {
+                // ignore
+            }
+            registered = false
+        }
+        registerAttempts = 0
+        registerIfPossible()
+    }
+
     private fun handleEvent(event: GnssMeasurementsEvent) {
+        lastEventAt = SystemClock.elapsedRealtime()
+        _streamStalled.value = false
         val clock = event.clock
         val snapshot = clock.toSnapshot()
         _clock.value = snapshot

@@ -175,6 +175,7 @@
 
     <!-- Messung / Rohdaten -->
     <string name="meas_empty">Keine Roh-Messungen. Warte auf GNSS-Signale …</string>
+    <string name="meas_stalled_hint">Der Empfänger liefert keine Rohdaten, obwohl Satelliten sichtbar sind. Standort einmal aus- und wieder einschalten hilft.</string>
     <string name="meas_title">Roh-Messungen</string>
     <plurals name="meas_paths">
         <item quantity="one">%1$d Signalpfad</item>
