@@ -64,4 +64,31 @@ data class Track(
         }
         return sum
     }
+
+    /**
+     * Kurs der Linie in Verfolgungsrichtung ab [fromIndex]: Peilung von diesem
+     * Punkt zu dem Punkt, der mindestens [lookAheadMeters] weiter entlang der
+     * Linie liegt. Der Anker liegt damit auf der Linie selbst (nicht an der
+     * GPS-Position) und glättet das Punktrauschen der Aufzeichnung. Am Ende
+     * fällt er auf die letzten beiden Punkte zurück.
+     */
+    fun courseDegrees(fromIndex: Int, lookAheadMeters: Double): Double? {
+        val pts = orderedPoints
+        if (pts.size < 2) return null
+        val start = fromIndex.coerceIn(0, pts.lastIndex - 1)
+        var acc = 0.0
+        var i = start
+        while (i < pts.lastIndex) {
+            acc += Navigation.distanceMeters(
+                pts[i].latitude, pts[i].longitude,
+                pts[i + 1].latitude, pts[i + 1].longitude
+            )
+            i++
+            if (acc >= lookAheadMeters) break
+        }
+        return Navigation.initialBearingDegrees(
+            pts[start].latitude, pts[start].longitude,
+            pts[i].latitude, pts[i].longitude
+        )
+    }
 }

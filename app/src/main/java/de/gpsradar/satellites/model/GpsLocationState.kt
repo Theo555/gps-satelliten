@@ -24,6 +24,8 @@ data class GpsLocationState(
     val timeMillis: Long? = null,
     val satellites: List<SatelliteInfo> = emptyList(),
     val compassHeading: Float = 0f, // 0..360 from device orientation sensor
+    val headingReferenceDegrees: Float = 0f, // Pfeil-Referenz: GPS-Kurs bei Bewegung, sonst Kompasskurs
+    val compassSuspect: Boolean = false, // Kompassgenauigkeit oder Feldbetrag unplausibel
     val isHeadingUp: Boolean = false, // false = North-Up, true = Heading-Up
     val ttffSeconds: Int? = null, // Time To First Fix in seconds
     val lastUpdateTime: Long = System.currentTimeMillis()

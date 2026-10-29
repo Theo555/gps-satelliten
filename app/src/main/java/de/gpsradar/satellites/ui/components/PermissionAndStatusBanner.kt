@@ -269,10 +269,17 @@ private fun TelemetryQuickStrip(state: GpsLocationState) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
-                    text = state.accuracyMeters?.let { String.format(Locale.US, "±%.1fm", it) } ?: "—",
+                    text = state.accuracyMeters?.takeIf { it > 0f }?.let {
+                        String.format(Locale.US, "±%.1fm", it)
+                    } ?: "—",
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
+                    // Ohne Fix ist der Wert nur der zuletzt bekannte → grau (F10).
+                    color = if (state.fixType == FixType.NO_FIX) {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    } else {
+                        MaterialTheme.colorScheme.onSurface
+                    }
                 )
             }
         }

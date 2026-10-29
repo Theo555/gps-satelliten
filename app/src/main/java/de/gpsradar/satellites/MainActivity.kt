@@ -51,6 +51,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -64,6 +65,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
+import de.gpsradar.satellites.model.CapturePhase
 import de.gpsradar.satellites.model.Navigation
 import de.gpsradar.satellites.ui.GpsViewModel
 import de.gpsradar.satellites.ui.components.AboutScreen
@@ -154,13 +156,17 @@ fun GpsAppMainScreen(
     val rawStreamStalled by viewModel.rawStreamStalled.collectAsState()
     val hintR13Map by viewModel.hintR13ByKey.collectAsState()
 
-    var currentTab by remember { mutableStateOf(AppTab.RADAR) }
-    var showAbout by remember { mutableStateOf(false) }
+    // rememberSaveable: sonst springt die App nach jeder Activity-Neuerstellung
+    // (z. B. Rückkehr aus dem Hintergrund) zurück auf "Radar".
+    var currentTab by rememberSaveable { mutableStateOf(AppTab.RADAR) }
+    var showAbout by rememberSaveable { mutableStateOf(false) }
 
     // Bildschirm wach halten, solange ein Ziel/Track aktiv ist, aufgezeichnet
     // wird oder die Messungs-Ansicht offen ist — dort liest man laufend mit.
+    // Wichtig auch für die CSV-Aufzeichnung: im Hintergrund liefert der
+    // Empfänger keine Rohdaten mehr (am S20 FE gemessen, siehe C8/C12).
     val keepScreenOn = activeWaypointId != null || activeTrackId != null || isRecording ||
-        currentTab == AppTab.MESSUNG
+        currentTab == AppTab.MESSUNG || rawCapturePhase == CapturePhase.CAPTURING
     val view = LocalView.current
     SideEffect { view.keepScreenOn = keepScreenOn }
 

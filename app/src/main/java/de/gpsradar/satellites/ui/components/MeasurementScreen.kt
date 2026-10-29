@@ -376,6 +376,12 @@ private fun ExportDialog(
                 Spacer(modifier = Modifier.height(12.dp))
                 when (phase) {
                     CapturePhase.CAPTURING -> {
+                        Text(
+                            text = stringResource(R.string.meas_capture_foreground_hint),
+                            fontSize = 10.sp,
+                            color = Color(0xFFF59E0B)
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
                         OutlinedButton(onClick = onCancelCapture, modifier = Modifier.fillMaxWidth()) {
                             Text(stringResource(R.string.btn_cancel_record))
                         }

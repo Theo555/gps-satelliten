@@ -16,6 +16,7 @@ import de.gpsradar.satellites.model.CapturePhase
 import de.gpsradar.satellites.model.Constellation
 import de.gpsradar.satellites.model.EpochBuffer
 import de.gpsradar.satellites.model.MultipathState
+import de.gpsradar.satellites.model.Pseudorange
 import de.gpsradar.satellites.model.RawClockSnapshot
 import de.gpsradar.satellites.model.RawEpoch
 import de.gpsradar.satellites.model.RawMeasurement
@@ -24,7 +25,6 @@ import de.gpsradar.satellites.model.gnssBandShort
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlin.math.floor
 
 private const val TAG = "RawGnssManager"
 private const val MAX_REGISTER_ATTEMPTS = 5
@@ -271,11 +271,15 @@ class RawGnssManager(context: Context) {
 
         // GnssClock.HAS_NO_FULL_BIAS = Long.MIN_VALUE ("unbekannt"); HAS_NO_BIAS = NaN.
         val clockUsable = clock.fullBiasNanos != Long.MIN_VALUE && !clock.biasNanos.isNaN()
-        val tRxNanos = clock.timeNanos - clock.fullBiasNanos - clock.biasNanos
-        val weekOffsetNanos = floor(-clock.fullBiasNanos.toDouble() / WEEK_NANOS) * WEEK_NANOS
+        // ACHTUNG Genauigkeit: timeNanos und fullBiasNanos liegen bei ~1,5e18 ns.
+        // Ein Double loest dort nur 256 ns auf (= 77 m). Deshalb werden die grossen
+        // Terme in Long verrechnet; nur die Differenz (~1e8 ns) geht nach Double.
+        val tRxNanos = clock.timeNanos - clock.fullBiasNanos
+        val biasNanos = clock.biasNanos
+        val weekOffsetNanos = Pseudorange.weekOffsetNanos(clock.fullBiasNanos)
 
         val list = event.measurements.mapNotNull { measurement ->
-            measurement.toRawMeasurement(tRxNanos, weekOffsetNanos, clockUsable)
+            measurement.toRawMeasurement(tRxNanos, weekOffsetNanos, biasNanos, clockUsable)
         }
 
         // Pro (SVID, Band) nur den letzten Wert behalten.
@@ -291,7 +295,12 @@ class RawGnssManager(context: Context) {
         publishStats()
     }
 
-    private fun GnssMeasurement.toRawMeasurement(tRxNanos: Double, weekOffsetNanos: Double, clockUsable: Boolean): RawMeasurement? {
+    private fun GnssMeasurement.toRawMeasurement(
+        tRxNanos: Long,
+        weekOffsetNanos: Long,
+        biasNanos: Double,
+        clockUsable: Boolean
+    ): RawMeasurement? {
         val freq = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && hasCarrierFrequencyHz()) {
             carrierFrequencyHz
         } else {
@@ -306,9 +315,9 @@ class RawGnssManager(context: Context) {
 
         val tTxNanos = receivedSvTimeNanos + weekOffsetNanos
         // GnssMeasurement.HAS_NO_RECEIVED_SV_TIME_NANOS = Long.MIN_VALUE ("unbekannt").
-        val pseudorange = if (clockUsable && receivedSvTimeNanos != Long.MIN_VALUE) {
-            val meters = (tRxNanos - tTxNanos) * 1e-9 * SPEED_OF_LIGHT
-            if (meters in PSEUDORANGE_MIN_M..PSEUDORANGE_MAX_M) meters else null
+        val pseudorange = if (clockUsable) {
+            // Rechnung in Long, siehe Pseudorange.meters().
+            Pseudorange.meters(tRxNanos, receivedSvTimeNanos, weekOffsetNanos, biasNanos)
         } else {
             null
         }
@@ -401,12 +410,5 @@ class RawGnssManager(context: Context) {
         freqHz in 1.226e9f..1.229e9f -> Constellation.GPS        // L2 1227.60 MHz
         freqHz in 1.206e9f..1.208e9f -> Constellation.GALILEO    // E5b 1207.14 MHz
         else -> Constellation.UNKNOWN
-    }
-
-    private companion object {
-        const val WEEK_NANOS = 604_800_000_000_000.0
-        const val SPEED_OF_LIGHT = 299_792_458.0
-        const val PSEUDORANGE_MIN_M = 5_000_000.0
-        const val PSEUDORANGE_MAX_M = 30_000_000.0
     }
 }

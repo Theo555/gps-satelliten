@@ -528,13 +528,68 @@ object WaypointCodec {
         if (primary != null) {
             val code = cache.code?.takeIf { it.isNotBlank() }
             val headName = if (code != null) "$code - ${primary.name}" else primary.name
-            appendWpt(sb, primary.latitude, primary.longitude, headName, primary.name, primary.cacheType)
+            appendCacheHead(sb, primary, headName)
         }
         cache.waypoints.filter { it !== primary }.forEach { child ->
             appendWpt(sb, child.latitude, child.longitude, child.name, cache.code?.takeIf { it.isNotBlank() }, child.cacheType)
         }
         sb.append("</gpx>\n")
         return sb.toString()
+    }
+
+    /**
+     * Kopf eines Caches samt `groundspeak:cache`.
+     *
+     * Ohne diesen Block gingen beim Export → Import die D/T-Wertung, der Hint,
+     * die Archiv-Markierung und der Konstellations-Typ verloren – der Import
+     * liest sie genau hier (siehe `parseGroundspeakCache`).
+     */
+    private fun appendCacheHead(sb: StringBuilder, head: Waypoint, headName: String) {
+        sb.append("  <wpt lat=\"")
+            .append(String.format(Locale.US, "%.6f", head.latitude))
+            .append("\" lon=\"")
+            .append(String.format(Locale.US, "%.6f", head.longitude))
+            .append("\">\n")
+        sb.append("    <name>").append(escapeXml(headName)).append("</name>\n")
+        sb.append("    <desc>").append(escapeXml(head.name)).append("</desc>\n")
+        val type = head.cacheType?.takeIf { it.isNotBlank() }
+        if (type != null) {
+            sb.append("    <type>Geocache|").append(escapeXml(type)).append("</type>\n")
+        }
+
+        val hint = head.hint?.takeIf { it.isNotBlank() }
+        if (type != null || hint != null || head.difficulty != null ||
+            head.terrain != null || head.archived
+        ) {
+            sb.append("    <groundspeak:cache archived=\"")
+                .append(if (head.archived) "true" else "false")
+                .append("\" xmlns:groundspeak=\"http://www.groundspeak.com/cache/1/0/1\">\n")
+            sb.append("      <groundspeak:name>")
+                .append(escapeXml(head.name))
+                .append("</groundspeak:name>\n")
+            if (type != null) {
+                sb.append("      <groundspeak:type>")
+                    .append(escapeXml(type))
+                    .append("</groundspeak:type>\n")
+            }
+            head.difficulty?.let {
+                sb.append("      <groundspeak:difficulty>")
+                    .append(String.format(Locale.US, "%.1f", it))
+                    .append("</groundspeak:difficulty>\n")
+            }
+            head.terrain?.let {
+                sb.append("      <groundspeak:terrain>")
+                    .append(String.format(Locale.US, "%.1f", it))
+                    .append("</groundspeak:terrain>\n")
+            }
+            if (hint != null) {
+                sb.append("      <groundspeak:encoded_hints>")
+                    .append(escapeXml(hint))
+                    .append("</groundspeak:encoded_hints>\n")
+            }
+            sb.append("    </groundspeak:cache>\n")
+        }
+        sb.append("  </wpt>\n")
     }
 
     private fun toFreeWaypointGpx(wp: Waypoint): String {

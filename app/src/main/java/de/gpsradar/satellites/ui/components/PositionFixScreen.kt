@@ -64,6 +64,9 @@ import java.text.DateFormat
 import java.util.Date
 import java.util.Locale
 
+/** Farbe für Werte, die ohne Fix nur noch "zuletzt bekannt" sind (F10). */
+private val StaleValueColor = Color(0xFF64748B)
+
 @Composable
 fun PositionFixScreen(
     state: GpsLocationState,
@@ -270,6 +273,9 @@ private fun CoordinatesCard(
 
             Spacer(modifier = Modifier.height(10.dp))
 
+            // Ohne Fix sind die Koordinaten die zuletzt bekannten → grau (F10).
+            val stale = state.fixType == FixType.NO_FIX
+
             // Decimal format
             Text(
                 text = stringResource(R.string.coord_decimal),
@@ -280,7 +286,7 @@ private fun CoordinatesCard(
                 text = state.formattedCoordinatesDecimal,
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.SemiBold,
-                color = Color.White
+                color = if (stale) StaleValueColor else Color.White
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -294,7 +300,7 @@ private fun CoordinatesCard(
             Text(
                 text = state.formattedCoordinatesDms,
                 style = MaterialTheme.typography.bodyMedium,
-                color = Color(0xFFCBD5E1)
+                color = if (stale) StaleValueColor else Color(0xFFCBD5E1)
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -308,7 +314,7 @@ private fun CoordinatesCard(
             Text(
                 text = state.formattedCoordinatesDdm,
                 style = MaterialTheme.typography.bodyMedium,
-                color = Color(0xFFCBD5E1)
+                color = if (stale) StaleValueColor else Color(0xFFCBD5E1)
             )
         }
     }
@@ -316,6 +322,8 @@ private fun CoordinatesCard(
 
 @Composable
 private fun DynamicsGrid(state: GpsLocationState) {
+    // Ohne Fix sind alle Werte nur noch "zuletzt bekannt" → grau statt weiß (F10).
+    val stale = state.fixType == FixType.NO_FIX
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -327,15 +335,18 @@ private fun DynamicsGrid(state: GpsLocationState) {
             value = state.altitudeMeters?.let { String.format(Locale.US, "%.1f m", it) } ?: "—",
             subtitle = state.altitudeMeters?.let { String.format(Locale.US, "%.0f ft", it * 3.28084) } ?: "—",
             icon = Icons.Default.Height,
-            tint = Color(0xFF38BDF8)
+            tint = Color(0xFF38BDF8),
+            stale = stale
         )
 
         // Accuracy
         DynamicTile(
             modifier = Modifier.weight(1f),
             title = stringResource(R.string.accuracy),
-            value = state.accuracyMeters?.let { String.format(Locale.US, "±%.1f m", it) } ?: "—",
-            subtitle = if (state.accuracyMeters != null) {
+            value = state.accuracyMeters?.takeIf { it > 0f }?.let {
+                String.format(Locale.US, "±%.1fm", it)
+            } ?: "—",
+            subtitle = if (state.accuracyMeters != null && state.accuracyMeters > 0f) {
                 if (state.accuracyMeters < 3f) {
                     stringResource(R.string.quality_excellent)
                 } else if (state.accuracyMeters < 8f) {
@@ -345,7 +356,8 @@ private fun DynamicsGrid(state: GpsLocationState) {
                 }
             } else "—",
             icon = Icons.Default.Public,
-            tint = SignalGreen
+            tint = SignalGreen,
+            stale = stale
         )
     }
 
@@ -362,7 +374,8 @@ private fun DynamicsGrid(state: GpsLocationState) {
             value = state.speedKmh?.let { String.format(Locale.US, "%.1f km/h", it) } ?: "0.0 km/h",
             subtitle = state.speedKmh?.let { String.format(Locale.US, "%.1f kn", it / 1.852f) } ?: "0.0 kn",
             icon = Icons.Default.Speed,
-            tint = SignalYellow
+            tint = SignalYellow,
+            stale = stale
         )
 
         // Bearing / Compass
@@ -374,7 +387,8 @@ private fun DynamicsGrid(state: GpsLocationState) {
             value = String.format(Locale.US, "%.0f°", heading),
             subtitle = getCompassDirection(res, heading),
             icon = Icons.Default.Explore,
-            tint = Color(0xFFE040FB)
+            tint = Color(0xFFE040FB),
+            stale = stale
         )
     }
 }
@@ -386,7 +400,8 @@ private fun DynamicTile(
     subtitle: String,
     icon: ImageVector,
     tint: Color,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    stale: Boolean = false
 ) {
     Card(
         colors = CardDefaults.cardColors(containerColor = CardNavy),
@@ -416,12 +431,12 @@ private fun DynamicTile(
                 text = value,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
-                color = Color.White
+                color = if (stale) StaleValueColor else Color.White
             )
             Text(
                 text = subtitle,
                 fontSize = 11.sp,
-                color = Color(0xFFCBD5E1)
+                color = if (stale) StaleValueColor else Color(0xFFCBD5E1)
             )
         }
     }

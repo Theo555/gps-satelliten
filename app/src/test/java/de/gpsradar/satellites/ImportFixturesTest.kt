@@ -388,4 +388,27 @@ class ImportFixturesTest {
         assertEquals(4, wieder.caches[0].waypoints.size)
         assertNotNull(wieder.caches[0].code)
     }
+
+    /**
+     * Ohne groundspeak-Block gingen beim Rundlauf D/T, Hint und die
+     * Archiv-Markierung verloren – der Import liest sie nur dort.
+     */
+    @Test
+    fun exportUndReimportBehaeltWertungUndHint() {
+        val ursprung = parse("22-cache-archiviert.gpx").caches[0]
+        val vorher = ursprung.waypoints.first { it.cacheType != null }
+        assertNotNull(vorher.difficulty)
+
+        val datei = WaypointCodec.toGpxFiles(
+            waypoints = ursprung.waypoints,
+            tracks = emptyList()
+        ).first { it.fileName.startsWith("cache_") }
+        val wieder = WaypointCodec.parse(datei.content, "Ziel").caches[0]
+        val nachher = wieder.waypoints.first { it.cacheType != null }
+
+        assertEquals(vorher.difficulty, nachher.difficulty)
+        assertEquals(vorher.terrain, nachher.terrain)
+        assertEquals(vorher.hint, nachher.hint)
+        assertEquals(vorher.archived, nachher.archived)
+    }
 }

@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import de.gpsradar.satellites.model.SkipReason
 import de.gpsradar.satellites.model.WaypointCodec
+import de.gpsradar.satellites.ui.reportLines
 import de.gpsradar.satellites.ui.toMessage
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -59,7 +60,12 @@ $waypointXml
   <wpt lat="999" lon="7.8"><name>Kaputt</name></wpt>"""
         )
         val result = WaypointCodec.parse(gpx)
+        // Der Toast bleibt kurz; der Grund steht im Dialog (reportLines, I8).
         assertEquals("2 waypoints imported, 1 skipped", result.toMessage(context))
+        assertEquals(
+            listOf("2 waypoints imported", "Waypoint skipped – no valid coordinates"),
+            result.reportLines(context)
+        )
     }
 
     @Test

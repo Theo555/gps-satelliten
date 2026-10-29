@@ -23,7 +23,9 @@ import de.gpsradar.satellites.model.Constellation
 import de.gpsradar.satellites.model.FixType
 import de.gpsradar.satellites.model.GnssNavMessage
 import de.gpsradar.satellites.model.GpsLocationState
+import de.gpsradar.satellites.model.Navigation
 import de.gpsradar.satellites.model.SatelliteInfo
+import kotlin.math.sqrt
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -40,6 +42,12 @@ import java.util.Random
 private const val TAG = "GpsDataManager"
 private const val NAV_REGISTER_ATTEMPTS = 5
 private const val NAV_REGISTER_RETRY_MS = 2000L
+
+// Kompass-Überwachung: plausibler Feldbetrag in µT (Erdfeld in DE ~48 µT).
+private const val FIELD_MIN_UT = 30f
+private const val FIELD_MAX_UT = 70f
+private const val FIELD_SAMPLES_MIN = 8
+private const val FIELD_SAMPLES_MAX = 16
 
 class GpsDataManager(private val context: Context) : SensorEventListener {
 
@@ -76,6 +84,14 @@ class GpsDataManager(private val context: Context) : SensorEventListener {
     private var hasMagnetometer = false
     private var smoothedHeading = 0f
 
+    // Pfeil-Referenz: GPS-Kurs bei Bewegung, Kompass im Stand (mit Hysterese).
+    private var courseModeActive = false
+    private var lastBearingDegrees: Float? = null
+
+    // Kompass-Überwachung (Sensorgenauigkeit + Feldbetrag).
+    private var compassAccuracyLow = false
+    private val recentFieldMagnitudes = ArrayDeque<Float>()
+
     // Simulated satellite drift
     private var demoSatellites: List<SimulatedSatellite> = emptyList()
     private val random = Random()
@@ -83,10 +99,11 @@ class GpsDataManager(private val context: Context) : SensorEventListener {
 
     init {
         rotationVectorSensor = sensorManager?.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
-        if (rotationVectorSensor == null) {
-            accelerometerSensor = sensorManager?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
-            magneticSensor = sensorManager?.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD)
-        }
+        // Magnetometer (und als Ersatzpfad der Beschleunigungssensor) unabhängig
+        // vom Rotationsvektor auflösen: das Magnetometer dient auch der
+        // Feldbetrag-Überwachung.
+        accelerometerSensor = sensorManager?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+        magneticSensor = sensorManager?.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD)
         initDemoSatellites()
     }
 
@@ -174,6 +191,15 @@ class GpsDataManager(private val context: Context) : SensorEventListener {
     private val locationListener = object : LocationListener {
         override fun onLocationChanged(location: Location) {
             if (isSimulated) return
+            // Pfeil-Referenz: bei ausreichender Bewegung übernimmt der GPS-Kurs,
+            // im Stand der Kompass (Hysterese gegen Flackern an der Schwelle).
+            val speedMps = if (location.hasSpeed()) location.speed else 0f
+            if (courseModeActive && speedMps < Navigation.COURSE_SPEED_EXIT_MS) {
+                courseModeActive = false
+            } else if (!courseModeActive && speedMps >= Navigation.COURSE_SPEED_ENTER_MS) {
+                courseModeActive = true
+            }
+            if (location.hasBearing()) lastBearingDegrees = location.bearing
             _gpsState.update { current ->
                 val fix = if (current.satellitesInFix >= 4 || location.hasAltitude()) FixType.FIX_3D else FixType.FIX_2D
                 current.copy(
@@ -185,6 +211,7 @@ class GpsDataManager(private val context: Context) : SensorEventListener {
                     accuracyMeters = if (location.hasAccuracy()) location.accuracy else null,
                     timeMillis = location.time,
                     fixType = fix,
+                    headingReferenceDegrees = headingReferenceDegrees(),
                     lastUpdateTime = System.currentTimeMillis()
                 )
             }
@@ -554,6 +581,8 @@ class GpsDataManager(private val context: Context) : SensorEventListener {
     private fun startCompassSensors() {
         if (rotationVectorSensor != null) {
             sensorManager?.registerListener(this, rotationVectorSensor, SensorManager.SENSOR_DELAY_UI)
+            // Magnetometer zusätzlich registrieren – nur für die Feldbetrag-Überwachung.
+            sensorManager?.registerListener(this, magneticSensor, SensorManager.SENSOR_DELAY_UI)
         } else {
             sensorManager?.registerListener(this, accelerometerSensor, SensorManager.SENSOR_DELAY_UI)
             sensorManager?.registerListener(this, magneticSensor, SensorManager.SENSOR_DELAY_UI)
@@ -580,6 +609,14 @@ class GpsDataManager(private val context: Context) : SensorEventListener {
         } else if (event.sensor.type == Sensor.TYPE_MAGNETIC_FIELD) {
             System.arraycopy(event.values, 0, magnetometerReading, 0, 3)
             hasMagnetometer = true
+            val magnitude = sqrt(
+                event.values[0] * event.values[0] +
+                    event.values[1] * event.values[1] +
+                    event.values[2] * event.values[2]
+            )
+            recentFieldMagnitudes.addLast(magnitude)
+            while (recentFieldMagnitudes.size > FIELD_SAMPLES_MAX) recentFieldMagnitudes.removeFirst()
+            updateCompassHealth()
             computeHeadingFromAccAndMag()
         }
     }
@@ -610,10 +647,37 @@ class GpsDataManager(private val context: Context) : SensorEventListener {
         while (diff > 180f) diff -= 360f
         smoothedHeading = (smoothedHeading + diff * 0.2f + 360f) % 360f
 
-        _gpsState.update { it.copy(compassHeading = smoothedHeading) }
+        _gpsState.update {
+            it.copy(
+                compassHeading = smoothedHeading,
+                headingReferenceDegrees = headingReferenceDegrees()
+            )
+        }
+    }
+
+    /** Referenzrichtung für Pfeile: GPS-Kurs bei Bewegung, sonst Kompasskurs. */
+    private fun headingReferenceDegrees(): Float {
+        return if (courseModeActive && lastBearingDegrees != null) lastBearingDegrees!! else smoothedHeading
+    }
+
+    /** Wertet Sensorgenauigkeit und Feldbetrag aus und markiert verdächtige Kompassdaten. */
+    private fun updateCompassHealth() {
+        val avg = recentFieldMagnitudes
+            .takeIf { it.size >= FIELD_SAMPLES_MIN }
+            ?.average()
+            ?.toFloat()
+        val fieldSuspect = avg != null && (avg < FIELD_MIN_UT || avg > FIELD_MAX_UT)
+        val suspect = compassAccuracyLow || fieldSuspect
+        if (suspect != _gpsState.value.compassSuspect) {
+            _gpsState.update { it.copy(compassSuspect = suspect) }
+        }
     }
 
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {
-        // No-op
+        if (sensor == null) return
+        if (sensor.type == Sensor.TYPE_ROTATION_VECTOR || sensor.type == Sensor.TYPE_MAGNETIC_FIELD) {
+            compassAccuracyLow = accuracy < SensorManager.SENSOR_STATUS_ACCURACY_MEDIUM
+            updateCompassHealth()
+        }
     }
 }

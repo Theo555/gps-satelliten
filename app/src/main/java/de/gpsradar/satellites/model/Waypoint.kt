@@ -33,6 +33,12 @@ data class Waypoint(
 
 object Navigation {
 
+    /** Ab dieser Geschwindigkeit (m/s) übernimmt der GPS-Kurs die Pfeilreferenz. */
+    const val COURSE_SPEED_ENTER_MS = 0.9f
+
+    /** Darunter fällt die Pfeilreferenz auf den Kompass zurück (Hysterese gegen Flackern). */
+    const val COURSE_SPEED_EXIT_MS = 0.5f
+
     /** Großkreis-Entfernung in Metern (Haversine-Formel). */
     fun distanceMeters(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
         val earthRadius = 6371000.0
@@ -53,6 +59,28 @@ object Navigation {
         val y = sin(dLambda) * cos(phi2)
         val x = cos(phi1) * sin(phi2) - sin(phi1) * cos(phi2) * cos(dLambda)
         return (Math.toDegrees(atan2(y, x)) + 360.0) % 360.0
+    }
+
+    /**
+     * Referenzrichtung für Richtungspfeile: der GPS-Kurs bei ausreichender
+     * Bewegung, sonst der Kompasskurs. [wasUsingGpsCourse] liefert die
+     * Hysterese: zurück auf den Kompass geht es erst unter
+     * [COURSE_SPEED_EXIT_MS], übernommen wird der GPS-Kurs ab
+     * [COURSE_SPEED_ENTER_MS]. Ohne gültigen GPS-Kurs bleibt der Kompass.
+     */
+    fun arrowReferenceDegrees(
+        speedMps: Float?,
+        bearingDegrees: Float?,
+        compassHeading: Float,
+        wasUsingGpsCourse: Boolean
+    ): Float {
+        val speed = speedMps ?: 0f
+        val moving = if (wasUsingGpsCourse) {
+            speed >= COURSE_SPEED_EXIT_MS
+        } else {
+            speed >= COURSE_SPEED_ENTER_MS
+        }
+        return if (moving && bearingDegrees != null) bearingDegrees else compassHeading
     }
 
     /** Projiziert einen Punkt aus Peilung + Entfernung. Liefert (Breite, Länge). */

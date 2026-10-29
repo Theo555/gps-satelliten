@@ -85,8 +85,12 @@ import de.gpsradar.satellites.model.WaypointCodec
 import de.gpsradar.satellites.model.cacheTypeEmoji
 import de.gpsradar.satellites.ui.theme.CardNavy
 import de.gpsradar.satellites.ui.theme.SignalGreen
+import de.gpsradar.satellites.ui.reportLines
 import de.gpsradar.satellites.ui.toMessage
 import java.util.Locale
+
+/** Vorausschau entlang der Track-Linie für den Folgen-Pfeil (glättet Punktrauschen). */
+private const val TRACK_COURSE_LOOKAHEAD_M = 15.0
 
 @Composable
 fun NavigationScreen(
@@ -198,10 +202,18 @@ private fun WaypointsCard(
 ) {
     val context = LocalContext.current
 
+    // Nur gesetzt, wenn beim Import Einträge übersprungen wurden – dann reicht
+    // ein Toast nicht, weil Android ihn auf zwei Zeilen begrenzt.
+    var importReport by remember { mutableStateOf<ImportResult?>(null) }
+
     val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         uri?.let { u ->
             val result = onImportWaypoints(u)
-            Toast.makeText(context, result.toMessage(context), Toast.LENGTH_LONG).show()
+            if (result.skipped.isEmpty()) {
+                Toast.makeText(context, result.toMessage(context), Toast.LENGTH_LONG).show()
+            } else {
+                importReport = result
+            }
         }
     }
 
@@ -490,6 +502,45 @@ private fun WaypointsCard(
             dismissButton = {
                 TextButton(onClick = { pendingDeleteWaypointId = null }) {
                     Text(stringResource(R.string.btn_cancel))
+                }
+            }
+        )
+    }
+
+    // Import mit übersprungenen Einträgen: Zusammenfassung plus Begründung.
+    importReport?.let { report ->
+        val lines = report.reportLines(context)
+        AlertDialog(
+            onDismissRequest = { importReport = null },
+            title = { Text(stringResource(R.string.import_dialog_title)) },
+            text = {
+                Column {
+                    Text(
+                        text = lines.first(),
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color.White
+                    )
+                    if (lines.size > 1) {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text(
+                            text = stringResource(R.string.import_dialog_skipped),
+                            fontSize = 12.sp,
+                            color = Color(0xFF94A3B8)
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        lines.drop(1).forEach { reason ->
+                            Text(
+                                text = "• $reason",
+                                fontSize = 13.sp,
+                                color = Color(0xFFCBD5E1)
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { importReport = null }) {
+                    Text(stringResource(R.string.btn_close))
                 }
             }
         )
@@ -804,8 +855,11 @@ private fun ActiveTrackSummary(
     val idx = trackProgress.coerceIn(0, track.orderedPoints.lastIndex)
     val target = track.orderedPoints[idx]
     val distance = Navigation.distanceMeters(lat, lon, target.latitude, target.longitude)
-    val bearing = Navigation.initialBearingDegrees(lat, lon, target.latitude, target.longitude)
-    val arrowRotation = (bearing - state.compassHeading).toFloat()
+    // Pfeil entlang der Track-Linie (15 m Vorausschau), nicht auf den einzelnen
+    // Punkt 25-30 m voraus: schneidet sonst Kurven (gemessen: bis 56° daneben).
+    val course = track.courseDegrees(idx, TRACK_COURSE_LOOKAHEAD_M)
+        ?: Navigation.initialBearingDegrees(lat, lon, target.latitude, target.longitude)
+    val arrowRotation = (course - state.headingReferenceDegrees).toFloat()
     val remaining = track.remainingMeters(idx)
     val finished = idx == track.orderedPoints.lastIndex && distance < 30.0
 
@@ -858,8 +912,8 @@ private fun ActiveTrackSummary(
                 Text(
                     text = stringResource(
                         R.string.nav_direction_fmt,
-                        String.format(Locale.US, "%.0f°", bearing),
-                        getCompassDirection(LocalContext.current.resources, bearing.toFloat())
+                        String.format(Locale.US, "%.0f°", course),
+                        getCompassDirection(LocalContext.current.resources, course.toFloat())
                     ),
                     fontSize = 11.sp,
                     color = Color(0xFFCBD5E1)
@@ -1005,7 +1059,7 @@ private fun ActiveTargetSummary(
 
     val distance = Navigation.distanceMeters(lat, lon, waypoint.latitude, waypoint.longitude)
     val bearing = Navigation.initialBearingDegrees(lat, lon, waypoint.latitude, waypoint.longitude)
-    val arrowRotation = (bearing - state.compassHeading).toFloat()
+    val arrowRotation = (bearing - state.headingReferenceDegrees).toFloat()
 
     Surface(
         color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),

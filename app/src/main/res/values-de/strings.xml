@@ -40,6 +40,7 @@
     <string name="switch_to_demo">Simulation aktivieren</string>
     <string name="orientation_north_up">Nord oben (0°)</string>
     <string name="orientation_heading_up">Kompass oben (%1$d°)</string>
+    <string name="compass_unreliable">Kompass unzuverlässig</string>
 
     <!-- Banner, Statuszeile, Radar -->
     <string name="btn_activate">Aktivieren</string>
@@ -199,6 +200,7 @@
     <string name="filter_all_short">Alle</string>
     <string name="meas_export_hint">Export = letzte 60 s</string>
     <string name="meas_recording">Aufzeichnung läuft · noch %1$s</string>
+    <string name="meas_capture_foreground_hint">App während der Aufzeichnung offen lassen – im Hintergrund liefert der Empfänger keine Rohdaten.</string>
     <string name="meas_recording_done">Aufzeichnung fertig</string>
     <string name="meas_tap_export">antippen zum Export</string>
     <string name="meas_stats">Epochen: %1$d · Zeilen: %2$d</string>
@@ -340,6 +342,9 @@
     <string name="import_summary_none_valid">Keine gültigen Zielpunkte oder Tracks gefunden (%1$d übersprungen)</string>
     <string name="import_summary_imported">%1$s importiert</string>
     <string name="import_summary_with_skipped">%1$s, %2$d übersprungen</string>
+    <string name="import_dialog_title">Import abgeschlossen</string>
+    <string name="import_dialog_skipped">Diese Einträge wurden nicht übernommen:</string>
+    <string name="import_reason_repeat">%1$s (%2$d×)</string>
     <string name="import_join_and">" und "</string>
     <plurals name="import_part_caches">
         <item quantity="one">%1$d Cache</item>

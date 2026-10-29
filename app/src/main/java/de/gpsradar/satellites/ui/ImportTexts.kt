@@ -37,19 +37,10 @@ fun SkipReason.describe(context: Context): String = when (this) {
     SkipReason.FileUnreadable -> context.getString(R.string.import_err_file_unreadable)
 }
 
-/** Nutzerlesbare Zusammenfassung eines Imports (Toast). */
-fun ImportResult.toMessage(context: Context): String {
+/** Fasst die übernommenen Einträge zusammen, z. B. „1 Cache und 7 Zielpunkte". */
+private fun ImportResult.importedParts(context: Context): String {
     val res = context.resources
-
-    if (caches.isEmpty() && freeWaypoints.isEmpty() && tracks.isEmpty()) {
-        return when {
-            skipped.isEmpty() -> context.getString(R.string.import_summary_empty)
-            skipped.size == 1 -> skipped[0].describe(context)
-            else -> context.getString(R.string.import_summary_none_valid, skipped.size)
-        }
-    }
-
-    val parts = buildList {
+    return buildList {
         if (caches.isNotEmpty()) {
             add(res.getQuantityString(R.plurals.import_part_caches, caches.size, caches.size))
         }
@@ -59,15 +50,62 @@ fun ImportResult.toMessage(context: Context): String {
         if (tracks.isNotEmpty()) {
             add(res.getQuantityString(R.plurals.import_part_tracks, tracks.size, tracks.size))
         }
+    }.joinToString(context.getString(R.string.import_join_and))
+}
+
+/**
+ * Nutzerlesbare Zusammenfassung eines Imports (Toast).
+ *
+ * Kurz halten: ein Toast zeigt nur zwei Zeilen. Die Begründung für
+ * übersprungene Einträge steht deshalb in [reportLines] und wird im Dialog
+ * gezeigt.
+ */
+fun ImportResult.toMessage(context: Context): String {
+    if (caches.isEmpty() && freeWaypoints.isEmpty() && tracks.isEmpty()) {
+        return when {
+            skipped.isEmpty() -> context.getString(R.string.import_summary_empty)
+            skipped.size == 1 -> skipped[0].describe(context)
+            else -> context.getString(R.string.import_summary_none_valid, skipped.size)
+        }
     }
 
     val base = context.getString(
         R.string.import_summary_imported,
-        parts.joinToString(context.getString(R.string.import_join_and))
+        importedParts(context)
     )
     return if (skipped.isEmpty()) {
         base
     } else {
         context.getString(R.string.import_summary_with_skipped, base, skipped.size)
     }
+}
+
+/**
+ * Zeilen für den Import-Dialog: zuerst die Zusammenfassung, dann je
+ * übersprungenem Grund eine Zeile mit Anzahl. Mehrere gleiche Gründe werden
+ * gebündelt, damit die Liste auch bei großen Dateien kurz bleibt.
+ *
+ * Nur sinnvoll, wenn [ImportResult.skipped] nicht leer ist.
+ */
+fun ImportResult.reportLines(context: Context): List<String> {
+    val summary = if (caches.isEmpty() && freeWaypoints.isEmpty() && tracks.isEmpty()) {
+        context.getString(R.string.import_summary_empty)
+    } else {
+        context.getString(R.string.import_summary_imported, importedParts(context))
+    }
+
+    val lines = mutableListOf(summary)
+    skipped.map { it.describe(context) }
+        .groupingBy { it }
+        .eachCount()
+        .entries
+        .sortedByDescending { it.value }
+        .forEach { (reason, count) ->
+            lines += if (count == 1) {
+                reason
+            } else {
+                context.getString(R.string.import_reason_repeat, reason, count)
+            }
+        }
+    return lines
 }

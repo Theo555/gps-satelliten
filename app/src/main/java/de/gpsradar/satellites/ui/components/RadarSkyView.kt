@@ -154,6 +154,16 @@ fun RadarSkyView(
             }
         }
 
+        // Kleiner Hinweis, wenn der Kompass unzuverlässig ist (Sensorgenauigkeit
+        // oder Feldbetrag außerhalb des Erwartungsbereichs).
+        if (state.compassSuspect) {
+            Text(
+                text = stringResource(R.string.compass_unreliable),
+                fontSize = 11.sp,
+                color = Color(0xFFF59E0B)
+            )
+        }
+
         // Radar Canvas Box
         BoxWithConstraints(
             modifier = Modifier
