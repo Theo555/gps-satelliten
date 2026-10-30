@@ -470,7 +470,7 @@ private fun NavToolbar(
         )
         ToolbarButton(
             icon = Icons.Default.Explore,
-            label = stringResource(R.string.btn_projection),
+            label = stringResource(R.string.nav_tool_projection),
             onClick = onProjection,
             modifier = Modifier.weight(1f).testTag("projection_btn")
         )

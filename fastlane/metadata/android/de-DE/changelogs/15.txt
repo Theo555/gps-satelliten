@@ -1,0 +1,16 @@
+1.3.10
+* Nav-Tab aufgeräumt: Ziel bzw. Track steht immer oben, darunter eine Leiste
+  mit den drei häufigen Aktionen und vier aufklappbare Bereiche (Caches,
+  weitere Zielpunkte, Tracks, Dateien) - es ist immer nur einer offen
+* Aufzeichnung: "Beenden" bietet jetzt Speichern, Verwerfen oder Weiter.
+  Zugeklappt bleiben Punktzahl und Stopp-Knopf sichtbar
+* Tracks liegen als einzelne Dateien - Speichern wird auch bei vielen oder
+  langen Tracks nicht langsamer, ein Defekt betrifft nur einen Track
+  (bestehende Tracks werden beim ersten Start übernommen)
+* Peilung: der Pfeil folgt beim Gehen dem GPS-Kurs, der Kompass gilt im
+  Stand; der Track-Pfeil bleibt auf der Linie. Bei unzuverlässigem Kompass
+  erscheint ein Hinweis
+* Rohdaten: Pseudorange in exakter Ganzzahlrechnung (vorher bis 75 m
+  Abweichung), Zahlen durchgehend mit Punkt als Dezimalzeichen
+* Ohne GPS-Fix bleiben die letzten Werte stehen, werden aber ausgegraut
+* Import meldet übersprungene Einträge in einem Dialog statt in einem Toast

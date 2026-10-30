@@ -201,6 +201,7 @@
     <string name="nav_section_open">Aufklappen</string>
     <string name="nav_section_close">Zuklappen</string>
     <string name="nav_section_files">Dateien</string>
+    <string name="nav_tool_projection">Projektion</string>
     <plurals name="nav_recording_points">
         <item quantity="one">%1$d Punkt</item>
         <item quantity="other">%1$d Punkte</item>

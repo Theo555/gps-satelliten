@@ -201,6 +201,7 @@
     <string name="nav_section_open">Expand</string>
     <string name="nav_section_close">Collapse</string>
     <string name="nav_section_files">Files</string>
+    <string name="nav_tool_projection">Projection</string>
     <plurals name="nav_recording_points">
         <item quantity="one">%1$d point</item>
         <item quantity="other">%1$d points</item>

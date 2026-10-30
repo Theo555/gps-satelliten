@@ -1,0 +1,16 @@
+1.3.10
+* Navigation tab reorganized: the active target or track stays on top, below
+  it a bar with the three common actions and four collapsible sections
+  (caches, other waypoints, tracks, files) - only one is open at a time
+* Recording: "Stop" now offers save, discard or keep recording. When
+  collapsed, the point count and a stop button stay visible
+* Tracks are stored as individual files - saving stays fast with many or
+  long tracks, and a defect affects only one track (existing tracks are
+  migrated on first start)
+* Bearing: while moving, the arrow follows the GPS course and the compass is
+  used when standing; the track arrow stays on the line. A note appears when
+  the compass is unreliable
+* Raw data: pseudorange now uses exact integer arithmetic (previously up to
+  75 m off), numbers consistently use a dot as decimal separator
+* Without a GPS fix the last values stay visible but are greyed out
+* Import reports skipped entries in a dialog instead of a toast

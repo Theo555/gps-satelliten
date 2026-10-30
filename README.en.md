@@ -45,6 +45,13 @@ No desire to build it yourself? Just download the ready-made APK and install it 
 - **DOP values** (HDOP/VDOP/PDOP/GDOP) – computed directly from the satellite geometry
 - TTFF (time to first fix)
 
+### 🗂️ Nav tab
+
+- **Active target always on top** – the waypoint (or track) you are following, with distance, bearing and “Open in map”
+- **Toolbar** – *Save position*, *Enter coordinates* and *Projection* in one tap
+- **Four sections** – caches, other waypoints, tracks, files. Only one is open at a time, and the last one you opened is remembered
+- **Recording stays visible** – while recording, the collapsed tracks header shows the point count and a stop button
+
 ### 🧭 Geocaching
 
 - **Waypoints** with name, GC code, hint (stored lossless; display switchable between plain text ⇄ ROT13), difficulty/terrain (D/T) and cache type
@@ -133,7 +140,7 @@ The release APK is then located at `app/build/outputs/apk/release/app-release.ap
 ## Using it as a geocaching companion
 
 1. Download a pocket query from geocaching.com as **GPX**.
-2. Import it in the app under **Nav → Import (GPX/JSON)**.
+2. Import it in the app under **Nav → Files → Import (GPX/JSON)**.
 3. Tap a cache in the list to make it the **active target**.
 4. Follow the **bearing arrow** (distance + bearing).
 5. Show the hint via **"Show hint"** and pick the representation with the **plain text ⇄ ROT13** toggle. Mark the cache as **"found"**.
@@ -141,7 +148,7 @@ The release APK is then located at `app/build/outputs/apk/release/app-release.ap
 
 ## Creating your own tracks
 
-Your own hiking/cycling routes are easy to create with **[BRouter](https://brouter.de/brouter-web)**: draw the route → export as **GPX** → import it in the app under **Nav → Import (GPX/JSON)** and follow the route. Faster and without an account also works with **[GraphHopper Maps](https://graphhopper.com/maps/)**.
+Your own hiking/cycling routes are easy to create with **[BRouter](https://brouter.de/brouter-web)**: draw the route → export as **GPX** → import it in the app under **Nav → Files → Import (GPX/JSON)** and follow the route. Faster and without an account also works with **[GraphHopper Maps](https://graphhopper.com/maps/)**.
 
 ## Viewing and reusing tracks
 

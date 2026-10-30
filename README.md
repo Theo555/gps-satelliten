@@ -45,6 +45,13 @@ Keine Lust, selbst zu kompilieren? Lade einfach die fertige APK herunter und ins
 - **DOP-Werte** (HDOP/VDOP/PDOP/GDOP) – direkt aus der Satellitengeometrie berechnet
 - TTFF (Time To First Fix)
 
+### 🗂️ Nav-Tab
+
+- **Aktives Ziel immer oben** – der Zielpunkt (oder Track), dem du folgst, mit Entfernung, Peilung und „In Karte öffnen"
+- **Symbolleiste** – *Position speichern*, *Koordinaten eingeben* und *Projektion* mit einem Tipp
+- **Vier Abteilungen** – Caches, weitere Zielpunkte, Tracks, Dateien. Es ist immer nur eine offen, und die zuletzt geöffnete bleibt gemerkt
+- **Aufzeichnung im Blick** – läuft eine Aufzeichnung, zeigt der zugeklappte Tracks-Kopf Punktzahl und einen Stopp-Knopf
+
 ### 🧭 Geocaching
 
 - **Zielpunkte** mit Name, GC-Code, Hint (lossless gespeichert; Anzeige umschaltbar Klartext ⇄ ROT13), Schwierigkeit/Gelände (D/T) und Cache-Typ
@@ -133,7 +140,7 @@ Die Release-APK liegt danach unter `app/build/outputs/apk/release/app-release.ap
 ## Nutzung als Geocaching-Begleiter
 
 1. Pocket-Query von geocaching.com als **GPX** herunterladen.
-2. In der App unter **Nav → Importieren (GPX/JSON)** importieren.
+2. In der App unter **Nav → Dateien → Importieren (GPX/JSON)** importieren.
 3. Cache in der Liste antippen, um ihn zum **aktiven Ziel** zu machen.
 4. Dem **Richtungspfeil** folgen (Entfernung + Peilung).
 5. Hint über **„Hint anzeigen"** einblenden und mit dem Umschalter **Klartext ⇄ ROT13** die passende Darstellung wählen. Cache als **„gefunden"** markieren.
@@ -141,7 +148,7 @@ Die Release-APK liegt danach unter `app/build/outputs/apk/release/app-release.ap
 
 ## Eigene Tracks erstellen
 
-Eigene Wander-/Radrouten lassen sich bequem mit **[BRouter](https://brouter.de/brouter-web)** erstellen: Route zeichnen → als **GPX** exportieren → in der App unter **Nav → Importieren (GPX/JSON)** importieren und der Route folgen. Schneller und ohne Konto geht es auch mit **[GraphHopper Maps](https://graphhopper.com/maps/)**.
+Eigene Wander-/Radrouten lassen sich bequem mit **[BRouter](https://brouter.de/brouter-web)** erstellen: Route zeichnen → als **GPX** exportieren → in der App unter **Nav → Dateien → Importieren (GPX/JSON)** importieren und der Route folgen. Schneller und ohne Konto geht es auch mit **[GraphHopper Maps](https://graphhopper.com/maps/)**.
 
 ## Tracks ansehen und weiterverwenden
 
