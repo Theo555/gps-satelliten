@@ -2,7 +2,7 @@
 
 **Deutsch** · [English](README.en.md)
 
-Native Android-App (Kotlin + Jetpack Compose) zur **Live-Anzeige von GNSS-Satelliten** – mit Himmels-Radar, Signalanalyse, Positionsanzeige und vollwertigen **Geocaching-Funktionen**. Läuft komplett offline, ohne Werbung und ohne Datenweitergabe – zuverlässig vom älteren Smartphone bis zum aktuellen Flaggschiff.
+Native Android-App (Kotlin + Jetpack Compose) zur **Live-Anzeige von GNSS-Satelliten** – mit Himmels-Radar, Signalanalyse, Positionsanzeige und einem **Geocaching-Begleiter für unterwegs**. Läuft komplett offline, ohne Werbung und ohne Datenweitergabe – zuverlässig vom älteren Smartphone bis zum aktuellen Flaggschiff.
 
 ## Prinzipien (prüfbar, nicht nur behauptet)
 
@@ -54,12 +54,19 @@ Keine Lust, selbst zu kompilieren? Lade einfach die fertige APK herunter und ins
 
 ### 🧭 Geocaching
 
-- **Zielpunkte** mit Name, GC-Code, Hint (lossless gespeichert; Anzeige umschaltbar Klartext ⇄ ROT13), Schwierigkeit/Gelände (D/T) und Cache-Typ
+- **Zielpunkte** mit Name, GC-Code, Hint, Schwierigkeit/Gelände (D/T) und Cache-Typ – direkt in der Liste sichtbar (`GC600 · D2.0/T2.0 · 11.94 km`)
+- **Cache-Gruppen** – eine Pocket Query bleibt zusammen: Cache und Zusatzpunkte (Parkplatz, Stationen) erscheinen als eine Zeile mit Anzahl der Wegpunkte
 - **Pfeil-Navigation** zum aktiven Ziel (Entfernung + Peilung, relativ zur Blickrichtung)
+- **„Gefunden“ markieren** mit einem Tipp – danach wird automatisch der nächste nicht gefundene Zielpunkt aktiv
 - **Projektion** – neuen Zielpunkt aus Peilung + Entfernung berechnen (für Multis/Mysteries)
 - **Hint-Anzeige** – zunächst verborgen (Spoiler-Schutz); nach Antippen im Klartext, per Umschalter auch ROT13-entschlüsselt
 - **Import/Export** – GPX (Geocaching-Standard) und JSON über den Android-Datei-Picker. Robuster XML-Import aus verschiedenen Quellen (Pocket Query, GSAK, c:geo) mit GC-Code, Typ, D/T und Hint; fehlerhafte Einträge werden übersprungen und gemeldet („X importiert, Y übersprungen“)
-- **„In Karte öffnen"** – Zielpunkt per `geo:`-Intent an eine externe Karten-App übergeben
+- **„In Karte öffnen“** – Zielpunkt per `geo:`-Intent an eine externe Karten-App übergeben
+
+**Bewusst nicht enthalten**
+
+- **Keine Karte in der App.** Nicht aus Prinzip – Kartenkacheln kosten Speicher und Lizenz – sondern weil eine Karten-App das besser kann und ohnehin meist installiert ist: Die Koordinaten gehen per `geo:`-Intent dorthin (z. B. an OsmAnd, das auch offline arbeitet).
+- **Kein Listingtext, keine Logs, keine Spoilerbilder.** Die gibt es nur über einen Abruf bei geocaching.com mit Konto – das widerspricht dem Offline-Ansatz. Der Hint, der beim Suchen wirklich zählt, kommt aus der GPX-Datei mit und ist offline verfügbar.
 
 ### 🗺️ Tracks & Aufzeichnung
 
@@ -145,6 +152,15 @@ Die Release-APK liegt danach unter `app/build/outputs/apk/release/app-release.ap
 4. Dem **Richtungspfeil** folgen (Entfernung + Peilung).
 5. Hint über **„Hint anzeigen"** einblenden und mit dem Umschalter **Klartext ⇄ ROT13** die passende Darstellung wählen. Cache als **„gefunden"** markieren.
 6. Für Multis/Mysteries: **Projektion** nutzen oder neue Zielpunkte **manuell** anlegen (Koordinaten in Dezimal/DMS/DDM).
+
+### Woher die GPX-Dateien kommen
+
+Die App lädt selbst nichts nach – der Import ist immer ein Dateischritt, damit sie offline bleibt. Gängige Quellen:
+
+- **Pocket Query** bei geocaching.com – die klassische Quelle für ganze Gebiete (Premium-Konto nötig)
+- **Opencaching.de** – unabhängige, kostenlose Plattform mit GPX-Export
+- **c:geo** (Android) – eigene Listen als GPX ausgeben, auch ohne Netz
+- **GSAK** (Windows) – Pocket Queries verwalten und als GPX ausgeben
 
 ## Eigene Tracks erstellen
 

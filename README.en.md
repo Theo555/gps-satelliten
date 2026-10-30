@@ -2,7 +2,7 @@
 
 [Deutsch](README.md) · **English**
 
-Native Android app (Kotlin + Jetpack Compose) for **live GNSS satellite display** – with sky radar, signal analysis, position readout and full **geocaching features**. Runs completely offline, without ads and without passing any data on – reliable from an older phone up to the current flagship.
+Native Android app (Kotlin + Jetpack Compose) for **live GNSS satellite display** – with sky radar, signal analysis, position readout and a **geocaching companion for the trail**. Runs completely offline, without ads and without passing any data on – reliable from an older phone up to the current flagship.
 
 ## Principles (verifiable, not just claimed)
 
@@ -54,12 +54,19 @@ No desire to build it yourself? Just download the ready-made APK and install it 
 
 ### 🧭 Geocaching
 
-- **Waypoints** with name, GC code, hint (stored lossless; display switchable between plain text ⇄ ROT13), difficulty/terrain (D/T) and cache type
+- **Waypoints** with name, GC code, hint, difficulty/terrain (D/T) and cache type – visible right in the list (`GC600 · D2.0/T2.0 · 11.94 km`)
+- **Cache groups** – a pocket query stays together: the cache and its additional waypoints (parking, stages) appear as one row with a count
 - **Arrow navigation** to the active target (distance + bearing, relative to the viewing direction)
+- **Mark as found** with one tap – the next unfound target then becomes active automatically
 - **Projection** – compute a new waypoint from bearing + distance (for multis/mysteries)
 - **Hint display** – hidden at first (spoiler protection); plain text after tapping, ROT13-decoded via the toggle
 - **Import/export** – GPX (geocaching standard) and JSON through the Android file picker. Robust XML import from various sources (Pocket Query, GSAK, c:geo) with GC code, type, D/T and hint; broken entries are skipped and reported ("X imported, Y skipped")
 - **"Open in map"** – hand a waypoint to an external map app via a `geo:` intent
+
+**Deliberately not included**
+
+- **No map inside the app.** Not on principle – map tiles cost storage and licensing – but because a map app does it better and is usually installed anyway: coordinates go there via a `geo:` intent (e.g. to OsmAnd, which also works offline).
+- **No listing text, no logs, no spoiler images.** Those require fetching from geocaching.com with an account, which contradicts the offline approach. The hint – the part you actually need while searching – comes with the GPX file and is available offline.
 
 ### 🗺️ Tracks & recording
 
@@ -145,6 +152,15 @@ The release APK is then located at `app/build/outputs/apk/release/app-release.ap
 4. Follow the **bearing arrow** (distance + bearing).
 5. Show the hint via **"Show hint"** and pick the representation with the **plain text ⇄ ROT13** toggle. Mark the cache as **"found"**.
 6. For multis/mysteries: use **projection** or add new waypoints **manually** (coordinates in decimal/DMS/DDM).
+
+### Where the GPX files come from
+
+The app never downloads anything itself – import is always a file step, which is what keeps it offline. Common sources:
+
+- **Pocket query** on geocaching.com – the classic source for large areas (premium account required)
+- **Opencaching.de** – independent, free platform with GPX export
+- **c:geo** (Android) – export your own lists as GPX, works without a network
+- **GSAK** (Windows) – manage pocket queries and export them as GPX
 
 ## Creating your own tracks
 
