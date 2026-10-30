@@ -155,12 +155,22 @@ Die Release-APK liegt danach unter `app/build/outputs/apk/release/app-release.ap
 
 ### Woher die GPX-Dateien kommen
 
-Die App lädt selbst nichts nach – der Import ist immer ein Dateischritt, damit sie offline bleibt. Gängige Quellen:
+Die App lädt selbst nichts nach – der Import ist immer ein Dateischritt, damit sie offline bleibt.
 
-- **Pocket Query** bei geocaching.com – die klassische Quelle für ganze Gebiete (Premium-Konto nötig)
-- **Opencaching.de** – unabhängige, kostenlose Plattform mit GPX-Export
-- **c:geo** (Android) – eigene Listen als GPX ausgeben, auch ohne Netz
+**Ohne Anmeldung**
+- **Opencaching.de** – freie Plattform: auf der Cache-Seite „Download als …“ → *gpx*, oder eine ganze Suche (bis 500 Caches) als ZIP. Bei hoher Serverlast sperrt die Seite einzelne Funktionen für nicht angemeldete Besucher – ein kostenloses Konto hilft dann.
+
+**Mit kostenlosem Konto (kein Premium nötig)**
+- **geocaching.com** – auf der Cache-Seite „Download GPX“: Titel, Attribute, öffentliche Zusatzpunkte wie Parkplatz-Koordinaten, Hint und die letzten 20 Logs. Genau diese Angaben liest die App samt Beschreibung und Cache-Gruppen.
+
+**Ganze Gebiete (Premium)**
+- **Pocket Query** bei geocaching.com – bis zu 1000 Caches in einer Datei
+
+**Werkzeuge, die GPX schreiben**
+- **c:geo** (Android) – eigene Listen als GPX exportieren, auch ohne Netz
 - **GSAK** (Windows) – Pocket Queries verwalten und als GPX ausgeben
+
+Bitte die offiziellen Download-Knöpfe benutzen: automatisiertes Abgreifen (Skripte, „Seiten-Scraper“) verstößt gegen die Nutzungsbedingungen der Plattformen, und die Cache-Daten stehen unter Lizenz (Opencaching.de unter Creative Commons).
 
 ## Eigene Tracks erstellen
 
