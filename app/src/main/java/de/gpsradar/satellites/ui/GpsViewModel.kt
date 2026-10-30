@@ -37,6 +37,7 @@ import de.gpsradar.satellites.model.SatelliteInfo
 import de.gpsradar.satellites.model.SkipReason
 import de.gpsradar.satellites.model.Track
 import de.gpsradar.satellites.model.TrackPoint
+import de.gpsradar.satellites.model.TrackRecorder
 import de.gpsradar.satellites.model.TrackStore
 import de.gpsradar.satellites.model.Waypoint
 import de.gpsradar.satellites.model.WaypointCodec
@@ -58,7 +59,6 @@ enum class SatelliteSort(@StringRes val labelRes: Int) {
     SVID_ASC(R.string.sort_svid)
 }
 
-private const val MIN_RECORD_DISTANCE_M = 5.0
 private const val TRACK_ADVANCE_THRESHOLD_M = 25.0
 private const val TRACK_SNAP_THRESHOLD_M = 100.0
 private const val ARRIVAL_THRESHOLD_M = 5.0
@@ -141,14 +141,15 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
         .map { list -> groupWaypoints(list).freeWaypoints }
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
-    private val _isRecording = MutableStateFlow(false)
-    val isRecording: StateFlow<Boolean> = _isRecording
-    private val _recordingPoints = MutableStateFlow<List<TrackPoint>>(emptyList())
-    val recordingPoints: StateFlow<List<TrackPoint>> = _recordingPoints
-    private var recordingJob: Job? = null
+    /**
+     * Die Aufzeichnung selbst liegt in [TrackRecorder]; das ViewModel reicht nur
+     * durch und speichert am Ende den fertigen Track.
+     */
+    private val trackRecorder = TrackRecorder(viewModelScope)
+    val isRecording: StateFlow<Boolean> = trackRecorder.isRecording
+    val isRecordingPaused: StateFlow<Boolean> = trackRecorder.isPaused
+    val recordingPoints: StateFlow<List<TrackPoint>> = trackRecorder.points
     private var trackFollowJob: Job? = null
-    private val _isRecordingPaused = MutableStateFlow(false)
-    val isRecordingPaused: StateFlow<Boolean> = _isRecordingPaused
     private var arrivalJob: Job? = null
     private var arrivalAlerted = false
 
@@ -372,44 +373,20 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun startRecording() {
-        if (_isRecording.value) return
-        _recordingPoints.value = emptyList()
-        _isRecording.value = true
-        _isRecordingPaused.value = false
-        runRecordingCollector()
+        trackRecorder.start(rawGpsState)
     }
 
     fun pauseRecording() {
-        if (!_isRecording.value) return
-        recordingJob?.cancel()
-        recordingJob = null
-        _isRecordingPaused.value = true
+        trackRecorder.pause()
     }
 
     fun resumeRecording() {
-        if (!_isRecording.value || !_isRecordingPaused.value) return
-        _isRecordingPaused.value = false
-        runRecordingCollector()
+        trackRecorder.resume()
     }
 
-    private fun runRecordingCollector() {
-        recordingJob = viewModelScope.launch {
-            rawGpsState.collect { state ->
-                val lat = state.latitude ?: return@collect
-                val lon = state.longitude ?: return@collect
-                val last = _recordingPoints.value.lastOrNull()
-                val farEnough = last == null ||
-                    Navigation.distanceMeters(last.latitude, last.longitude, lat, lon) >= MIN_RECORD_DISTANCE_M
-                if (farEnough) {
-                    _recordingPoints.value = _recordingPoints.value + TrackPoint(
-                        latitude = lat,
-                        longitude = lon,
-                        elevationMeters = state.altitudeMeters,
-                        timeMillis = state.timeMillis
-                    )
-                }
-            }
-        }
+    /** Bricht die laufende Aufzeichnung ab, ohne einen Track anzulegen. */
+    fun discardRecording() {
+        trackRecorder.discard()
     }
 
     fun defaultRecordingName(): String =
@@ -419,12 +396,7 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
         )
 
     fun stopRecording(name: String): String {
-        recordingJob?.cancel()
-        recordingJob = null
-        _isRecording.value = false
-        _isRecordingPaused.value = false
-        val points = _recordingPoints.value
-        _recordingPoints.value = emptyList()
+        val points = trackRecorder.stop()
         if (points.size < 2) {
             return str(R.string.msg_track_too_short)
         }
