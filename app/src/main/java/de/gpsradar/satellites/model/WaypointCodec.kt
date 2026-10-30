@@ -204,6 +204,8 @@ object WaypointCodec {
     private const val GPX_NS_1_0 = "http://www.topografix.com/GPX/1/0"
     private const val GPX_NS_1_1 = "http://www.topografix.com/GPX/1/1"
     private const val GROUNDSPEAK_NS_PREFIX = "http://www.groundspeak.com/cache/"
+    /** GSAK-Namensraum, in dem `<gsak:Parent>` steht (Fassungen 1/4 bis 1/6). */
+    private const val GSAK_NS_PREFIX = "http://www.gsak.net/"
 
     /** Ersatzname für Zielpunkte ohne eigenen Namen, wenn der Aufrufer keinen übergibt. */
     const val DEFAULT_WAYPOINT_NAME = "Waypoint"
@@ -211,8 +213,85 @@ object WaypointCodec {
     private val GC_CODE_PREFIX = Regex("^(GC[0-9A-Z_]+)", RegexOption.IGNORE_CASE)
     private val GC_CODE_FULL = Regex("^GC[0-9A-Z]{2,}$", RegexOption.IGNORE_CASE)
 
+    /** Code-Praefixe der Portale: geocaching.com (GC), opencaching.de (OC/OU/OE/OP). */
+    private val CODE_PREFIXES = listOf("GC", "OC", "OU", "OE", "OP")
+
+    /** Fuehrender Code in `<desc>`, z. B. "GC3A5N1 Final" → "Final". */
+    private val LEADING_CODE =
+        Regex("^\\s*(?:GC|OC|OU|OE|OP)[0-9A-Z_]{2,}(?![0-9A-Z_])", RegexOption.IGNORE_CASE)
+
+    /**
+     * Ein gelesener Wegpunkt samt der Angaben, die erst nach dem Einlesen aller
+     * Wegpunkte ausgewertet werden koennen.
+     */
+    private data class ParsedWaypoint(
+        val waypoint: Waypoint,
+        /** Code des Kopfes aus `<gsak:Parent>` (bei Zusatzpunkten gesetzt). */
+        val parentCode: String?,
+        /** Erster Token des `<name>`, z. B. "3A5N1" aus `3A5N1 "Titel"`. */
+        val nameToken: String?
+    )
+
+    /**
+     * Loest den Gruppenschluessel auf. Reihenfolge:
+     *  1. `<gsak:Parent>` (GSAK, opencaching.de, c:geo) – verknuepft Zusatzpunkte,
+     *     deren `<desc>` nur den Typ enthaelt ("Parkplatz", "Station 1").
+     *  2. eigener Code aus dem Namen.
+     *  3. eigener Name ist der Elterncode eines anderen Wegpunkts (Opencaching
+     *     schreibt den Code nur in `<name>`, nicht in `<desc>`).
+     *  4. Code aus `<desc>` bzw. groundspeak-id (bisheriges Verhalten).
+     */
+    private fun ParsedWaypoint.resolveGroup(knownParents: Set<String>): Waypoint {
+        // Reihenfolge: eigene Elternangabe, eigener Name als Elterncode,
+        // zuletzt was der Parser schon eingetragen hat (Code aus <desc> oder
+        // groundspeak-id).
+        val key = parentCode ?: matchParent(knownParents) ?: waypoint.groupCacheId
+        return if (key == waypoint.groupCacheId) waypoint else waypoint.copy(groupCacheId = key)
+    }
+
+    /** Sucht den Elterncode, zu dem der eigene Name passt. */
+    private fun ParsedWaypoint.matchParent(knownParents: Set<String>): String? {
+        val token = nameToken ?: return null
+        if (knownParents.isEmpty()) return null
+        val candidates = if (token.length > 2 && CODE_PREFIXES.any { token.startsWith(it) }) {
+            listOf(token)
+        } else {
+            // GSAK laesst das "GC" weg: aus "3A5N1" wird "GC3A5N1".
+            listOf(token, "GC$token")
+        }
+        return candidates.firstOrNull { it in knownParents }
+    }
+
+    /** Code des Kopfes aus `<gsak:Parent>`; fehlendes Praefix wird zu "GC". */
+    private fun parentCode(raw: String?): String? {
+        val token = raw?.trim()
+            ?.substringBefore(' ')
+            ?.trim('"', '\'', ',', ';')
+            ?.uppercase()
+            ?.ifBlank { null }
+            ?: return null
+        return if (token.length > 2 && CODE_PREFIXES.any { token.startsWith(it) }) token else "GC$token"
+    }
+
+    /** Erster Token eines Namens als Vergleichswert fuer [matchParent]. */
+    private fun nameTokenOf(name: String): String? = name.trim()
+        .substringBefore(' ')
+        .trim('"', '\'', ',', ';')
+        .uppercase()
+        .ifBlank { null }
+
+    /**
+     * Entfernt einen fuehrenden Code aus einer Beschreibung. geocaching.com
+     * schreibt in `<desc>` von Zusatzpunkten "GCxxxx <Typ>", das ist Format
+     * und kein Inhalt.
+     */
+    private fun stripCodePrefix(text: String): String? = text.trim()
+        .replaceFirst(LEADING_CODE, "")
+        .trim(' ', ',', ';', ':', '-', '\u2013', '\u2014', '\u00b7')
+        .ifBlank { null }
+
     private fun parseGpx(text: String, fallbackWaypointName: String): ImportResult {
-        val waypoints = mutableListOf<Waypoint>()
+        val parsed = mutableListOf<ParsedWaypoint>()
         val tracks = mutableListOf<Track>()
         val skipped = mutableListOf<SkipReason>()
 
@@ -230,7 +309,7 @@ object WaypointCodec {
             while (event != XmlPullParser.END_DOCUMENT) {
                 if (event == XmlPullParser.START_TAG) {
                     when {
-                        parser.isGpxElement("wpt") -> parseWaypoint(parser, waypoints, skipped, fallbackWaypointName)
+                        parser.isGpxElement("wpt") -> parseWaypoint(parser, parsed, skipped, fallbackWaypointName)
                         parser.isGpxElement("trk") -> parseTrackLike(parser, "trk", "trkpt", tracks, skipped)
                         parser.isGpxElement("rte") -> parseTrackLike(parser, "rte", "rtept", tracks, skipped)
                         parser.isGpxElement("gpx") -> { /* Wurzelelement – absteigen, nicht überspringen */ }
@@ -244,13 +323,17 @@ object WaypointCodec {
             skipped.add(SkipReason.InvalidXml(e.message))
         }
 
+        // Erst wenn alle Wegpunkte gelesen sind, sind die Elterncodes aus
+        // <gsak:Parent> bekannt – Kopf und Zusatzpunkte werden danach verknuepft.
+        val knownParents = parsed.mapNotNull { it.parentCode }.toSet()
+        val waypoints = parsed.map { it.resolveGroup(knownParents) }
         val grouping = groupWaypoints(waypoints)
         return ImportResult(grouping.caches, grouping.freeWaypoints, tracks, skipped)
     }
 
     private fun parseWaypoint(
         parser: XmlPullParser,
-        out: MutableList<Waypoint>,
+        out: MutableList<ParsedWaypoint>,
         skipped: MutableList<SkipReason>,
         fallbackWaypointName: String
     ) {
@@ -265,10 +348,12 @@ object WaypointCodec {
 
         var rawName: String? = null
         var desc: String? = null
+        var cmt: String? = null
         var type: String? = null
         var hint: String? = null
         var gsName: String? = null
         var groupCacheId: String? = null
+        var parentRaw: String? = null
         var archived = false
         var difficulty: Double? = null
         var terrain: Double? = null
@@ -279,6 +364,7 @@ object WaypointCodec {
                 XmlPullParser.START_TAG -> when {
                     parser.isGpxElement("name") -> rawName = readElementText(parser)
                     parser.isGpxElement("desc") -> desc = readElementText(parser)
+                    parser.isGpxElement("cmt") -> cmt = readElementText(parser)
                     parser.isGpxElement("type") -> type = readElementText(parser)
                     parser.isGroundspeakElement("cache") -> {
                         val c = parseGroundspeakCache(parser)
@@ -291,6 +377,10 @@ object WaypointCodec {
                     }
                     parser.isGroundspeakElement("name") -> if (gsName == null) gsName = readElementText(parser)
                     parser.isGroundspeakElement("encoded_hints") -> if (hint == null) hint = readElementText(parser)
+                    // GSAK, opencaching.de und c:geo verknuepfen Zusatzpunkte
+                    // nur hier – im <desc> steht dann bloß der Typ.
+                    parser.isGsakElement("wptExtension") -> depth++
+                    parser.isGsakElement("Parent") -> if (parentRaw == null) parentRaw = readElementText(parser)
                     else -> skipElement(parser)
                 }
                 XmlPullParser.END_TAG -> depth--
@@ -322,25 +412,29 @@ object WaypointCodec {
         // zerfiele jede echte Pocket Query in Kopf und Zusatzpunkte.
         val finalGroupId = code ?: codeFromDesc ?: groupCacheId
 
-        // <desc> traegt bei Zusatzpunkten einer Pocket Query den Hinweis des
-        // Owners ("Parkplatz bei N51 ..."). Steht dort nur der GC-Code, ist
-        // das keine Beschreibung, sondern die Gruppenzuordnung.
-        val descriptionText = desc?.trim()?.takeIf { it.isNotEmpty() && !GC_CODE_FULL.matches(it) }
+        // <desc> traegt bei Zusatzpunkten einer Pocket Query den Typ
+        // ("GCxxxx Final"); die Notiz des Owners steht in <cmt>.
+        val descriptionText = cmt?.trim()?.takeIf { it.isNotEmpty() }
+            ?: desc?.let { stripCodePrefix(it) }
 
         out.add(
-            Waypoint(
-                id = System.currentTimeMillis() + out.size,
-                name = name,
-                latitude = lat,
-                longitude = lon,
-                code = code,
-                description = descriptionText,
-                hint = normalizeHint(hint),
-                difficulty = difficulty,
-                terrain = terrain,
-                cacheType = cacheType,
-                groupCacheId = finalGroupId,
-                archived = archived
+            ParsedWaypoint(
+                waypoint = Waypoint(
+                    id = System.currentTimeMillis() + out.size,
+                    name = name,
+                    latitude = lat,
+                    longitude = lon,
+                    code = code,
+                    description = descriptionText,
+                    hint = normalizeHint(hint),
+                    difficulty = difficulty,
+                    terrain = terrain,
+                    cacheType = cacheType,
+                    groupCacheId = finalGroupId,
+                    archived = archived
+                ),
+                parentCode = parentCode(parentRaw),
+                nameToken = nameTokenOf(fallbackName)
             )
         )
     }
@@ -410,7 +504,9 @@ object WaypointCodec {
                             val pt = parseTrackPoint(parser)
                             if (pt != null) points.add(pt) else skipped.add(SkipReason.TrackPointWithoutCoordinates)
                         }
-                        parser.isGpxElement("trkseg") -> { /* Segment absteigen, enthält die <trkpt> */ }
+                        // Ein Track darf mehrere Segmente haben (GPX-Norm) –
+                        // ohne das depth++ endete der Track nach dem ersten.
+                        parser.isGpxElement("trkseg") -> depth++
                         else -> skipElement(parser)
                     }
                     XmlPullParser.END_TAG -> depth--
@@ -483,6 +579,15 @@ object WaypointCodec {
         return when {
             ns != null && ns.startsWith(GROUNDSPEAK_NS_PREFIX) -> name == local
             ns == null -> name == local || name.endsWith(":$local")
+            else -> false
+        }
+    }
+
+    private fun XmlPullParser.isGsakElement(local: String): Boolean {
+        val ns = namespace
+        return when {
+            ns != null && ns.startsWith(GSAK_NS_PREFIX) -> name == local
+            ns.isNullOrEmpty() -> name == local || name.endsWith(":$local")
             else -> false
         }
     }

@@ -250,6 +250,62 @@ class ImportFixturesTest {
         assertTrue(typen.contains("Giga-Event Cache"))
     }
 
+    // ---------- B2. Echte Dateiformate (geocaching.com, GSAK, opencaching.de) ----------
+
+    @Test
+    fun pocketQueryUeberGsakParentGruppiert() {
+        val r = parse("26-gc-pocketquery-mit-cmt.gpx")
+        assertEquals(0, r.skipped.size)
+        // Nur der Kopf traegt einen GC-Code im Namen, die Zusatzpunkte heissen
+        // PK8PQ01/FN8PQ01/Q18PQ01 und verweisen per <gsak:Parent> auf ihn.
+        assertEquals(1, r.caches.size)
+        assertEquals(0, r.freeWaypoints.size)
+        val c = r.caches[0]
+        assertEquals("GC8PQ01", c.code)
+        assertEquals("Testmulti am Bach", c.name)
+        assertEquals("Multi-cache", c.cacheType)
+        assertEquals(4, c.waypoints.size)
+        assertEquals(
+            listOf("Testmulti am Bach", "PK8PQ01", "FN8PQ01", "Q18PQ01"),
+            c.waypoints.map { it.name }
+        )
+    }
+
+    @Test
+    fun cmtWirdZurBeschreibung() {
+        val r = parse("26-gc-pocketquery-mit-cmt.gpx")
+        val parkplatz = r.caches[0].waypoints.first { it.name == "PK8PQ01" }
+        assertEquals("bezahlter Parkplatz, werktags bis 18 Uhr", parkplatz.description)
+    }
+
+    @Test
+    fun codeImDescWirdAusDerBeschreibungEntfernt() {
+        val r = parse("26-gc-pocketquery-mit-cmt.gpx")
+        val stage = r.caches[0].waypoints.first { it.name == "Q18PQ01" }
+        assertEquals("Zufahrt nur über die Waldstraße", stage.description)
+    }
+
+    @Test
+    fun opencachingZusatzpunkteWerdenGruppiert() {
+        val r = parse("27-opencaching-zusatzpunkte.gpx")
+        assertEquals(1, r.caches.size)
+        assertEquals(0, r.freeWaypoints.size)
+        val c = r.caches[0]
+        assertEquals("Testvirtual am Römerhügel Ludwigsburg", c.name)
+        assertEquals(4, c.waypoints.size)
+        // Dort steht die Notiz des Owners in <cmt>, im <desc> nur der Typ.
+        assertEquals("Parkmöglichkeit", c.waypoints.first { it.name == "OC8TEST-1" }.description)
+        assertEquals("Tafel", c.waypoints.first { it.name == "OC8TEST-3" }.description)
+    }
+
+    @Test
+    fun trackMitMehrerenSegmenten() {
+        val r = parse("28-track-zwei-segmente.gpx")
+        assertEquals(1, r.tracks.size)
+        assertEquals("Zweisegmente", r.tracks[0].name)
+        assertEquals(5, r.tracks[0].points.size)
+    }
+
     // ---------- C. Grenzfälle ----------
 
     @Test

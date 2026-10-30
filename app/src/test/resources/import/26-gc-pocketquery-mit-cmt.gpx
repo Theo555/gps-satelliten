@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<gpx version="1.0" creator="Groundspeak, Inc." xmlns="http://www.topografix.com/GPX/1/0" xmlns:groundspeak="http://www.groundspeak.com/cache/1/0/1" xmlns:gsak="http://www.gsak.net/xmlv1/6">
+  <name>Import-Test</name>
+  <desc>Nachbau einer Pocket Query von geocaching.com</desc>
+  <wpt lat="49.025917" lon="19.562617">
+    <name>GC8PQ01</name>
+    <desc>Testmulti am Bach by TestOwner (2,5/2)</desc>
+    <sym>Geocache</sym>
+    <type>Geocache|Multi-cache</type>
+    <groundspeak:cache id="2662810" available="True" archived="False">
+      <groundspeak:name>Testmulti am Bach</groundspeak:name>
+      <groundspeak:placed_by>TestOwner</groundspeak:placed_by>
+      <groundspeak:type>Multi-cache</groundspeak:type>
+      <groundspeak:container>Small</groundspeak:container>
+      <groundspeak:difficulty>2.5</groundspeak:difficulty>
+      <groundspeak:terrain>2</groundspeak:terrain>
+      <groundspeak:country>Deutschland</groundspeak:country>
+      <groundspeak:encoded_hints>Nzrgre va qre Znhre</groundspeak:encoded_hints>
+    </groundspeak:cache>
+  </wpt>
+  <wpt lat="49.0255" lon="19.562017">
+    <name>PK8PQ01</name>
+    <cmt>bezahlter Parkplatz, werktags bis 18 Uhr</cmt>
+    <desc>GC8PQ01 Parking</desc>
+    <sym>Parking Area</sym>
+    <type>Waypoint|Parking Area</type>
+    <gsak:wptExtension>
+      <gsak:Parent>8PQ01 Testmulti am Bach</gsak:Parent>
+      <gsak:Code>PK8PQ01</gsak:Code>
+    </gsak:wptExtension>
+  </wpt>
+  <wpt lat="49.0262" lon="19.5612">
+    <name>FN8PQ01</name>
+    <cmt>Hinter dem großen Findling</cmt>
+    <desc>GC8PQ01 Final</desc>
+    <sym>Final Location</sym>
+    <type>Waypoint|Final Location</type>
+    <gsak:wptExtension>
+      <gsak:Parent>8PQ01 Testmulti am Bach</gsak:Parent>
+    </gsak:wptExtension>
+  </wpt>
+  <wpt lat="49.0258" lon="19.5630">
+    <name>Q18PQ01</name>
+    <desc>GC8PQ01, Zufahrt nur über die Waldstraße</desc>
+    <sym>Virtual Stage</sym>
+    <type>Waypoint|Virtual Stage</type>
+    <gsak:wptExtension>
+      <gsak:Parent>8PQ01 Testmulti am Bach</gsak:Parent>
+    </gsak:wptExtension>
+  </wpt>
+</gpx>

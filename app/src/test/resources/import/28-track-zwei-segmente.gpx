@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="Import-Test" xmlns="http://www.topografix.com/GPX/1/1">
+  <trk>
+    <name>Zweisegmente</name>
+    <trkseg>
+      <trkpt lat="51.6900" lon="7.8900"/>
+      <trkpt lat="51.6905" lon="7.8905"/>
+    </trkseg>
+    <trkseg>
+      <trkpt lat="51.6910" lon="7.8910"/>
+      <trkpt lat="51.6915" lon="7.8915"/>
+      <trkpt lat="51.6920" lon="7.8920"/>
+    </trkseg>
+  </trk>
+</gpx>

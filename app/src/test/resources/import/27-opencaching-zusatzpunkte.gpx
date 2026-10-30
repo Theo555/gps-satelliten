@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<gpx version="1.0" creator="Opencaching.de - http://www.opencaching.de" xmlns="http://www.topografix.com/GPX/1/0" xmlns:groundspeak="http://www.groundspeak.com/cache/1/0/1" xmlns:gsak="http://www.gsak.net/xmlv1/4">
+  <name>Cache listing generated from Opencaching.de</name>
+  <desc>Nachbau eines opencaching.de-Exports</desc>
+  <wpt lat="48.88417" lon="9.17660">
+    <name>OC8TEST</name>
+    <desc>Testvirtual am Römerhügel Ludwigsburg</desc>
+    <sym>Geocache</sym>
+    <type>Geocache|Virtual Cache</type>
+    <groundspeak:cache id="159890" available="True" archived="False">
+      <groundspeak:name>Testvirtual am Römerhügel Ludwigsburg</groundspeak:name>
+      <groundspeak:placed_by>TestOwner</groundspeak:placed_by>
+      <groundspeak:type>Virtual Cache</groundspeak:type>
+      <groundspeak:container>Virtual</groundspeak:container>
+      <groundspeak:difficulty>1.5</groundspeak:difficulty>
+      <groundspeak:terrain>1.5</groundspeak:terrain>
+      <groundspeak:country>Germany</groundspeak:country>
+      <groundspeak:encoded_hints>Rechte Distille</groundspeak:encoded_hints>
+    </groundspeak:cache>
+  </wpt>
+  <wpt lat="48.88542" lon="9.17040">
+    <name>OC8TEST-1</name>
+    <cmt>Parkmöglichkeit</cmt>
+    <desc>Parkplatz</desc>
+    <sym>Parking Area</sym>
+    <type>Waypoint|Parking Area</type>
+    <gsak:wptExtension>
+      <gsak:Parent>OC8TEST</gsak:Parent>
+    </gsak:wptExtension>
+  </wpt>
+  <wpt lat="48.88372" lon="9.18117">
+    <name>OC8TEST-2</name>
+    <cmt>Parkmöglichkeit abends und am Wochenende</cmt>
+    <desc>Parkplatz</desc>
+    <sym>Parking Area</sym>
+    <type>Waypoint|Parking Area</type>
+    <gsak:wptExtension>
+      <gsak:Parent>OC8TEST</gsak:Parent>
+    </gsak:wptExtension>
+  </wpt>
+  <wpt lat="48.88450" lon="9.17657">
+    <name>OC8TEST-3</name>
+    <cmt>Tafel</cmt>
+    <desc>Station oder Referenzpunkt</desc>
+    <sym>Flag, Green</sym>
+    <type>Waypoint|Flag, Green</type>
+    <gsak:wptExtension>
+      <gsak:Parent>OC8TEST</gsak:Parent>
+    </gsak:wptExtension>
+  </wpt>
+</gpx>
