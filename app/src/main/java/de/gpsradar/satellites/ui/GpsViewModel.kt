@@ -13,6 +13,7 @@ import androidx.lifecycle.viewModelScope
 import de.gpsradar.satellites.R
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -36,6 +37,7 @@ import de.gpsradar.satellites.model.SatelliteInfo
 import de.gpsradar.satellites.model.SkipReason
 import de.gpsradar.satellites.model.Track
 import de.gpsradar.satellites.model.TrackPoint
+import de.gpsradar.satellites.model.TrackStore
 import de.gpsradar.satellites.model.Waypoint
 import de.gpsradar.satellites.model.WaypointCodec
 import de.gpsradar.satellites.model.groupWaypoints
@@ -105,7 +107,18 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
         prefs.getLong("active_waypoint_id", -1L).takeIf { it >= 0L }
     )
 
-    val tracks = MutableStateFlow<List<Track>>(loadTracks())
+    /**
+     * Tracks liegen als Einzeldateien in `files/tracks/`, der Index steht in
+     * den Einstellungen. Die alte Sammel-Ablage (Schlüssel `tracks`) wird beim
+     * ersten Start übernommen und danach entfernt.
+     */
+    private val trackStore = TrackStore(
+        dir = File(application.filesDir, "tracks"),
+        readIndex = { prefs.getString("track_index", null) },
+        writeIndex = { json -> prefs.edit().putString("track_index", json).apply() }
+    )
+
+    val tracks = MutableStateFlow(loadInitialTracks())
     val activeTrackId = MutableStateFlow<Long?>(null)
     val activeTrackProgress = MutableStateFlow<Int>(0)
 
@@ -347,7 +360,7 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
         tracks.value = tracks.value.toMutableList().also {
             it[idx] = track.copy(reversed = !track.reversed)
         }
-        persistTracks()
+        trackStore.update(tracks.value[idx])
         // Wird der Track gerade verfolgt, nahtlos am nächstgelegenen Punkt in
         // der neuen Richtung weiterfolgen (kein erneutes Antippen nötig).
         if (activeTrackId.value == id) {
@@ -420,8 +433,7 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
             name = name.ifBlank { defaultRecordingName() },
             points = points
         )
-        tracks.value = tracks.value + track
-        persistTracks()
+        tracks.value = tracks.value + trackStore.add(track)
         return str(R.string.msg_track_saved, points.size)
     }
 
@@ -432,7 +444,7 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
             cancelTrackFollowing()
             activeTrackProgress.value = 0
         }
-        persistTracks()
+        trackStore.delete(id)
     }
 
     fun updateWaypoint(updated: Waypoint) {
@@ -501,8 +513,9 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
             persistWaypoints()
         }
         if (result.tracks.isNotEmpty()) {
-            tracks.value = tracks.value + result.tracks
-            persistTracks()
+            // add() vergibt bei doppelten Kennungen eine neue, damit keine
+            // bestehende Track-Datei überschrieben wird.
+            tracks.value = tracks.value + result.tracks.map { trackStore.add(it) }
         }
         return result
     }
@@ -659,58 +672,17 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    private fun persistTracks() {
-        val arr = JSONArray()
-        tracks.value.forEach { trk ->
-            arr.put(
-                JSONObject().apply {
-                    put("id", trk.id)
-                    put("name", trk.name)
-                    val pts = JSONArray()
-                    trk.points.forEach { p ->
-                        pts.put(
-                            JSONObject().apply {
-                                put("lat", p.latitude)
-                                put("lon", p.longitude)
-                                p.elevationMeters?.let { put("ele", it) }
-                                p.timeMillis?.let { put("time", it) }
-                            }
-                        )
-                    }
-                    put("points", pts)
-                    put("reversed", trk.reversed)
-                }
-            )
+    /**
+     * Lädt die Tracks beim Start und übernimmt dabei einmalig die alte
+     * Sammel-Ablage (alle Tracks als ein JSON-String unter `tracks`) in
+     * Einzeldateien. Die alte Ablage wird erst gelöscht, nachdem alle Dateien
+     * geschrieben sind – schlägt das fehl, bleibt sie als Sicherung liegen.
+     */
+    private fun loadInitialTracks(): List<Track> {
+        trackStore.migrateLegacy(prefs.getString("tracks", null)) {
+            prefs.edit().remove("tracks").apply()
         }
-        prefs.edit().putString("tracks", arr.toString()).apply()
-    }
-
-    private fun loadTracks(): List<Track> {
-        val raw = prefs.getString("tracks", null) ?: return emptyList()
-        return try {
-            val arr = JSONArray(raw)
-            (0 until arr.length()).map { i ->
-                val o = arr.getJSONObject(i)
-                val ptsArr = o.getJSONArray("points")
-                val points = (0 until ptsArr.length()).map { j ->
-                    val p = ptsArr.getJSONObject(j)
-                    TrackPoint(
-                        latitude = p.getDouble("lat"),
-                        longitude = p.getDouble("lon"),
-                        elevationMeters = if (p.has("ele")) p.getDouble("ele") else null,
-                        timeMillis = if (p.has("time")) p.getLong("time") else null
-                    )
-                }
-                Track(
-                    id = o.getLong("id"),
-                    name = o.getString("name"),
-                    points = points,
-                    reversed = o.optBoolean("reversed", false)
-                )
-            }
-        } catch (e: Exception) {
-            emptyList()
-        }
+        return trackStore.loadAll()
     }
 
     override fun onCleared() {
