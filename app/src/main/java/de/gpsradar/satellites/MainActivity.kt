@@ -443,6 +443,7 @@ fun GpsAppMainScreen(
                             onDefaultRecordingName = { viewModel.defaultRecordingName() },
                             onPauseRecording = { viewModel.pauseRecording() },
                             onResumeRecording = { viewModel.resumeRecording() },
+                            onDiscardRecording = { viewModel.discardRecording() },
                             onReverseTrack = { id -> viewModel.reverseTrack(id) }
                         )
                     }

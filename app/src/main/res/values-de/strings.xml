@@ -195,6 +195,7 @@
     <string name="btn_cancel_record">Aufzeichnung abbrechen</string>
     <string name="btn_export">Exportieren</string>
     <string name="btn_discard">Verwerfen</string>
+    <string name="btn_continue_recording">Weiter aufzeichnen</string>
     <string name="btn_record_5min">5 Min. aufzeichnen</string>
     <string name="toast_record_done">Aufzeichnung beendet – Export bereit</string>
     <string name="filter_all_short">Alle</string>

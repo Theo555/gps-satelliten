@@ -124,6 +124,7 @@ fun NavigationScreen(
     onDefaultRecordingName: () -> String,
     onPauseRecording: () -> Unit,
     onResumeRecording: () -> Unit,
+    onDiscardRecording: () -> Unit,
     onReverseTrack: (Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -171,6 +172,7 @@ fun NavigationScreen(
             onDefaultRecordingName = onDefaultRecordingName,
             onPauseRecording = onPauseRecording,
             onResumeRecording = onResumeRecording,
+            onDiscardRecording = onDiscardRecording,
             onReverseTrack = onReverseTrack,
             onDeleteTrack = onDeleteTrack,
             onSetActiveTrack = onSetActiveTrack
@@ -561,6 +563,7 @@ private fun TracksCard(
     onDefaultRecordingName: () -> String,
     onPauseRecording: () -> Unit,
     onResumeRecording: () -> Unit,
+    onDiscardRecording: () -> Unit,
     onReverseTrack: (Long) -> Unit,
     onDeleteTrack: (Long) -> Unit,
     onSetActiveTrack: (Long?) -> Unit
@@ -741,8 +744,20 @@ private fun TracksCard(
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showStopDialog = false }) {
-                    Text(stringResource(R.string.btn_cancel))
+                // Fruher hiess dieser Knopf "Abbrechen", behielt die Aufzeichnung
+                // aber bei. Jetzt klare Beschriftung plus echtes Verwerfen.
+                Row {
+                    TextButton(
+                        onClick = {
+                            onDiscardRecording()
+                            showStopDialog = false
+                        }
+                    ) {
+                        Text(stringResource(R.string.btn_discard))
+                    }
+                    TextButton(onClick = { showStopDialog = false }) {
+                        Text(stringResource(R.string.btn_continue_recording))
+                    }
                 }
             }
         )
