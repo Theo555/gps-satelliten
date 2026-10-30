@@ -1242,6 +1242,7 @@ private fun ActiveTargetSummary(
     val lat = state.latitude
     val lon = state.longitude
     var showHint by remember(waypoint.id) { mutableStateOf(false) }
+    var showDescription by remember(waypoint.id) { mutableStateOf(false) }
     val hintKey = waypoint.code?.takeIf { it.isNotBlank() } ?: waypoint.name
 
     if (lat == null || lon == null) {
@@ -1347,6 +1348,34 @@ private fun ActiveTargetSummary(
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.clickable { showHint = true }
+                        )
+                    }
+                }
+
+                val description = waypoint.description?.takeIf { it.isNotBlank() }
+                if (description != null) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    if (showDescription) {
+                        Text(
+                            text = description,
+                            fontSize = 12.sp,
+                            color = Color(0xFFCBD5E1)
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = stringResource(R.string.nav_hide_description),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.clickable { showDescription = false }
+                        )
+                    } else {
+                        Text(
+                            text = stringResource(R.string.nav_show_description),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.clickable { showDescription = true }
                         )
                     }
                 }

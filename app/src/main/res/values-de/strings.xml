@@ -197,6 +197,8 @@
     <string name="btn_discard">Verwerfen</string>
     <string name="btn_continue_recording">Weiter aufzeichnen</string>
     <string name="nav_active_target_title">Aktives Ziel</string>
+    <string name="nav_show_description">Beschreibung anzeigen</string>
+    <string name="nav_hide_description">Beschreibung ausblenden</string>
     <string name="nav_no_active_target">Kein Ziel aktiv. Wähle unten eines aus der Liste.</string>
     <string name="nav_section_open">Aufklappen</string>
     <string name="nav_section_close">Zuklappen</string>

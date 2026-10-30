@@ -256,6 +256,11 @@ object WaypointCodec {
         // zerfiele jede echte Pocket Query in Kopf und Zusatzpunkte.
         val finalGroupId = code ?: codeFromDesc ?: groupCacheId
 
+        // <desc> traegt bei Zusatzpunkten einer Pocket Query den Hinweis des
+        // Owners ("Parkplatz bei N51 ..."). Steht dort nur der GC-Code, ist
+        // das keine Beschreibung, sondern die Gruppenzuordnung.
+        val descriptionText = desc?.trim()?.takeIf { it.isNotEmpty() && !GC_CODE_FULL.matches(it) }
+
         out.add(
             Waypoint(
                 id = System.currentTimeMillis() + out.size,
@@ -263,6 +268,7 @@ object WaypointCodec {
                 latitude = lat,
                 longitude = lon,
                 code = code,
+                description = descriptionText,
                 hint = normalizeHint(hint),
                 difficulty = difficulty,
                 terrain = terrain,
