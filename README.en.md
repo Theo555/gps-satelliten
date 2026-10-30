@@ -158,17 +158,17 @@ The release APK is then located at `app/build/outputs/apk/release/app-release.ap
 The app never downloads anything itself – import is always a file step, which is what keeps it offline.
 
 **Without signing up**
-- **Opencaching.de** – free platform: “Download as …” → *gpx* on the cache page, or a whole search result (up to 500 caches) as a ZIP. When the server is under heavy load, some functions are blocked for guests – a free account helps then.
+- **[Opencaching.de](https://www.opencaching.de)** – free geocaching platform. “Download as …” → *gpx* on the cache page, or a whole search result (up to 500 caches) as a ZIP – [instructions in the wiki](https://wiki.opencaching.de/index.php/Wie_erhalte_ich_eine_GPX-Datei%3F). When the server is under heavy load, some functions are blocked for guests – a free account helps then.
 
 **With a free account (no premium needed)**
-- **geocaching.com** – “Download GPX” on the cache page: title, attributes, public additional waypoints such as parking coordinates, hint and the 20 most recent logs. That is exactly what the app reads, including description and cache groups.
+- **[geocaching.com](https://www.geocaching.com)** – “Download GPX” on the cache page: title, attributes, public additional waypoints such as parking coordinates, hint and the 20 most recent logs. That is exactly what the app reads, including description and cache groups.
 
 **Whole areas (premium)**
 - **Pocket query** on geocaching.com – up to 1000 caches in one file
 
 **Tools that write GPX**
-- **c:geo** (Android) – export your own lists as GPX, works without a network
-- **GSAK** (Windows) – manage pocket queries and export them as GPX
+- **[c:geo](https://www.cgeo.org/)** (Android) – export your own lists as GPX, works without a network
+- **[GSAK](https://gsak.net/)** (Windows) – manage pocket queries and export them as GPX
 
 Please use the official download buttons: automated scraping (scripts, “page scrapers”) violates the platforms’ terms of service, and the cache data is licensed (Opencaching.de under Creative Commons).
 

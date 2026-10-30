@@ -158,17 +158,17 @@ Die Release-APK liegt danach unter `app/build/outputs/apk/release/app-release.ap
 Die App lädt selbst nichts nach – der Import ist immer ein Dateischritt, damit sie offline bleibt.
 
 **Ohne Anmeldung**
-- **Opencaching.de** – freie Plattform: auf der Cache-Seite „Download als …“ → *gpx*, oder eine ganze Suche (bis 500 Caches) als ZIP. Bei hoher Serverlast sperrt die Seite einzelne Funktionen für nicht angemeldete Besucher – ein kostenloses Konto hilft dann.
+- **[Opencaching.de](https://www.opencaching.de)** – freie Geocaching-Plattform. Auf der Cache-Seite „Download als …“ → *gpx*, oder eine ganze Suche (bis 500 Caches) als ZIP – [Anleitung im Wiki](https://wiki.opencaching.de/index.php/Wie_erhalte_ich_eine_GPX-Datei%3F). Bei hoher Serverlast sperrt die Seite einzelne Funktionen für nicht angemeldete Besucher – ein kostenloses Konto hilft dann.
 
 **Mit kostenlosem Konto (kein Premium nötig)**
-- **geocaching.com** – auf der Cache-Seite „Download GPX“: Titel, Attribute, öffentliche Zusatzpunkte wie Parkplatz-Koordinaten, Hint und die letzten 20 Logs. Genau diese Angaben liest die App samt Beschreibung und Cache-Gruppen.
+- **[geocaching.com](https://www.geocaching.com)** – „Download GPX“ auf der Cache-Seite: Titel, Attribute, öffentliche Zusatzpunkte wie Parkplatz-Koordinaten, Hint und die letzten 20 Logs. Genau diese Angaben liest die App samt Beschreibung und Cache-Gruppen.
 
 **Ganze Gebiete (Premium)**
 - **Pocket Query** bei geocaching.com – bis zu 1000 Caches in einer Datei
 
 **Werkzeuge, die GPX schreiben**
-- **c:geo** (Android) – eigene Listen als GPX exportieren, auch ohne Netz
-- **GSAK** (Windows) – Pocket Queries verwalten und als GPX ausgeben
+- **[c:geo](https://www.cgeo.org/)** (Android) – eigene Listen als GPX exportieren, auch ohne Netz
+- **[GSAK](https://gsak.net/)** (Windows) – Pocket Queries verwalten und als GPX ausgeben
 
 Bitte die offiziellen Download-Knöpfe benutzen: automatisiertes Abgreifen (Skripte, „Seiten-Scraper“) verstößt gegen die Nutzungsbedingungen der Plattformen, und die Cache-Daten stehen unter Lizenz (Opencaching.de unter Creative Commons).
 
