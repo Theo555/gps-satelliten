@@ -13,9 +13,11 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -453,7 +455,7 @@ private fun NavToolbar(
     onProjection: () -> Unit
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         ToolbarButton(
@@ -477,7 +479,13 @@ private fun NavToolbar(
     }
 }
 
-/** Symbol mit Beschriftung darunter: gut zu treffen, aber flach genug für die Leiste. */
+/**
+ * Symbol mit Beschriftung darunter.
+ *
+ * Alle drei Kacheln sind gleich hoch: die Zeile bekommt die Höhe der höchsten
+ * Kachel, und jede füllt sie aus ([Modifier.fillMaxHeight]). Ohne das wäre die
+ * Kachel mit einzeiliger Beschriftung niedriger als die mit zweizeiliger.
+ */
 @Composable
 private fun ToolbarButton(
     icon: ImageVector,
@@ -489,7 +497,7 @@ private fun ToolbarButton(
         color = CardNavy,
         shape = RoundedCornerShape(12.dp),
         border = BorderStroke(1.dp, Color(0xFF243447)),
-        modifier = modifier.clickable(role = Role.Button, onClick = onClick)
+        modifier = modifier.fillMaxHeight().clickable(role = Role.Button, onClick = onClick)
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
