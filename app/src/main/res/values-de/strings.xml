@@ -196,6 +196,15 @@
     <string name="btn_export">Exportieren</string>
     <string name="btn_discard">Verwerfen</string>
     <string name="btn_continue_recording">Weiter aufzeichnen</string>
+    <string name="nav_active_target_title">Aktives Ziel</string>
+    <string name="nav_no_active_target">Kein Ziel aktiv. Wähle unten eines aus der Liste.</string>
+    <string name="nav_section_open">Aufklappen</string>
+    <string name="nav_section_close">Zuklappen</string>
+    <string name="nav_section_files">Dateien</string>
+    <plurals name="nav_recording_points">
+        <item quantity="one">%1$d Punkt</item>
+        <item quantity="other">%1$d Punkte</item>
+    </plurals>
     <string name="btn_record_5min">5 Min. aufzeichnen</string>
     <string name="toast_record_done">Aufzeichnung beendet – Export bereit</string>
     <string name="filter_all_short">Alle</string>

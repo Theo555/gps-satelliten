@@ -196,6 +196,15 @@
     <string name="btn_export">Export</string>
     <string name="btn_discard">Discard</string>
     <string name="btn_continue_recording">Keep recording</string>
+    <string name="nav_active_target_title">Active target</string>
+    <string name="nav_no_active_target">No target active. Pick one from the lists below.</string>
+    <string name="nav_section_open">Expand</string>
+    <string name="nav_section_close">Collapse</string>
+    <string name="nav_section_files">Files</string>
+    <plurals name="nav_recording_points">
+        <item quantity="one">%1$d point</item>
+        <item quantity="other">%1$d points</item>
+    </plurals>
     <string name="btn_record_5min">Record 5 min</string>
     <string name="toast_record_done">Recording finished – ready to export</string>
     <string name="filter_all_short">All</string>

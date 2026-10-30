@@ -122,6 +122,17 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
     val activeTrackId = MutableStateFlow<Long?>(null)
     val activeTrackProgress = MutableStateFlow<Int>(0)
 
+    /**
+     * Welche Abteilung im Nav-Tab offen ist (`null` = alle zu). Wird gemerkt,
+     * damit beim nächsten Öffnen derselbe Bereich wieder aufgeklappt ist.
+     */
+    val navSection = MutableStateFlow(prefs.getString("nav_section", null))
+
+    fun setNavSection(section: String?) {
+        navSection.value = section
+        prefs.edit().putString("nav_section", section).apply()
+    }
+
     // ---- Hint-Anzeige (Format je Hint, nur in-memory) ----
     val hintR13ByKey = MutableStateFlow<Map<String, Boolean>>(emptyMap())
 

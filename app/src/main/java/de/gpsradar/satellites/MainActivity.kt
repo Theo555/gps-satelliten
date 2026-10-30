@@ -142,6 +142,7 @@ fun GpsAppMainScreen(
     val tracks by viewModel.tracks.collectAsState()
     val activeTrackId by viewModel.activeTrackId.collectAsState()
     val activeTrackProgress by viewModel.activeTrackProgress.collectAsState()
+    val navSection by viewModel.navSection.collectAsState()
     val isRecording by viewModel.isRecording.collectAsState()
     val isRecordingPaused by viewModel.isRecordingPaused.collectAsState()
     val recordingPoints by viewModel.recordingPoints.collectAsState()
@@ -430,6 +431,8 @@ fun GpsAppMainScreen(
                             onSetActiveWaypoint = { id -> viewModel.setActiveWaypoint(id) },
                             onDeleteTrack = { id -> viewModel.deleteTrack(id) },
                             onSetActiveTrack = { id -> viewModel.setActiveTrack(id) },
+                            expandedSection = navSection,
+                            onExpandedSectionChange = { id -> viewModel.setNavSection(id) },
                             onImportWaypoints = { uri -> viewModel.importWaypoints(uri) },
                             onExportGpx = { uri -> viewModel.exportGpx(uri) },
                             onExportJson = { uri -> viewModel.exportJson(uri) },
