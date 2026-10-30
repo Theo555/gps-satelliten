@@ -235,7 +235,7 @@
     <string name="btn_enter_coordinates">Koordinaten eingeben</string>
     <string name="btn_projection">Projektion (Peilung + Entfernung)</string>
     <string name="nav_file_transfer">Datei-Übertragung</string>
-    <string name="btn_import">Importieren (GPX / JSON)</string>
+    <string name="btn_import">Importieren (GPX / JSON / ZIP)</string>
     <string name="btn_export_gpx">Export GPX</string>
     <string name="btn_export_json">Export JSON</string>
     <string name="btn_delete">Löschen</string>

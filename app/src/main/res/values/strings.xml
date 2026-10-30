@@ -234,7 +234,7 @@
     <string name="btn_enter_coordinates">Enter coordinates</string>
     <string name="btn_projection">Projection (bearing + distance)</string>
     <string name="nav_file_transfer">File transfer</string>
-    <string name="btn_import">Import (GPX / JSON)</string>
+    <string name="btn_import">Import (GPX / JSON / ZIP)</string>
     <string name="btn_export_gpx">Export GPX</string>
     <string name="btn_export_json">Export JSON</string>
     <string name="btn_delete">Delete</string>
