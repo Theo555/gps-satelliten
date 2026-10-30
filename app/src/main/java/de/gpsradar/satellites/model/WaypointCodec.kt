@@ -8,6 +8,8 @@ import java.util.Locale
 import java.util.TimeZone
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.ByteArrayInputStream
+import java.util.zip.ZipInputStream
 import org.xmlpull.v1.XmlPullParser
 
 /** Grund, warum ein Eintrag beim Import übersprungen wurde.
@@ -37,6 +39,9 @@ sealed interface SkipReason {
 
     /** Die Datei konnte gar nicht erst gelesen werden. */
     data object FileUnreadable : SkipReason
+
+    /** ZIP-Archiv erkannt, ließ sich aber nicht entpacken. */
+    data object ArchiveUnreadable : SkipReason
 }
 
 data class ImportResult(
@@ -71,6 +76,67 @@ object WaypointCodec {
             t.startsWith("[") || t.startsWith("{") -> parseJson(t, fallbackWaypointName)
             else -> ImportResult(emptyList(), emptyList(), emptyList(), emptyList())
         }
+    }
+
+    /**
+     * Liest eine Datei, egal ob GPX/JSON oder ein ZIP-Archiv mit mehreren
+     * solchen Dateien (so liefert Opencaching Suchergebnisse aus).
+     */
+    fun parseBytes(bytes: ByteArray, fallbackWaypointName: String = DEFAULT_WAYPOINT_NAME): ImportResult =
+        if (isZip(bytes)) parseZip(bytes, fallbackWaypointName)
+        else parse(bytes.toString(Charsets.UTF_8), fallbackWaypointName)
+
+    /** ZIP-Archive beginnen mit "PK\u0003\u0004". */
+    fun isZip(bytes: ByteArray): Boolean =
+        bytes.size >= 4 &&
+            bytes[0] == 0x50.toByte() && bytes[1] == 0x4B.toByte() &&
+            bytes[2] == 0x03.toByte() && bytes[3] == 0x04.toByte()
+
+    private fun parseZip(bytes: ByteArray, fallbackWaypointName: String): ImportResult {
+        val results = mutableListOf<ImportResult>()
+        try {
+            ByteArrayInputStream(bytes).use { input ->
+                ZipInputStream(input).use { zip ->
+                    while (true) {
+                        val entry = zip.nextEntry ?: break
+                        val name = entry.name.lowercase()
+                        if (entry.isDirectory) continue
+                        // Nur echte Inhalte lesen: .gpx/.json, keine Bilder,
+                        // keine __MACOSX-Reste, keine Ordner.
+                        if (!name.endsWith(".gpx") && !name.endsWith(".json")) continue
+                        // readBytes() liest bis zum Ende des Eintrags; danach
+                        // steht der Strom auf dem nächsten Eintrag.
+                        val text = zip.readBytes().toString(Charsets.UTF_8)
+                        results += parse(text, fallbackWaypointName)
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            return ImportResult(emptyList(), emptyList(), emptyList(), listOf(SkipReason.ArchiveUnreadable))
+        }
+        return merge(results)
+    }
+
+    /**
+     * Führt die Ergebnisse mehrerer Dateien zusammen.
+     *
+     * Kennungen entstehen in [parse] aus `System.currentTimeMillis() + Zähler`
+     * und können sich zwischen zwei Dateien überschneiden – deshalb werden sie
+     * hier neu durchnummeriert, sonst teilen sich zwei Zielpunkte eine ID.
+     */
+    private fun merge(results: List<ImportResult>): ImportResult {
+        val base = System.currentTimeMillis()
+        val waypoints = results.flatMap { it.waypoints }
+            .mapIndexed { i, wp -> wp.copy(id = base + i) }
+        val tracks = results.flatMap { it.tracks }
+            .mapIndexed { i, trk -> trk.copy(id = base + 1_000_000L + i) }
+        val grouping = groupWaypoints(waypoints)
+        return ImportResult(
+            grouping.caches,
+            grouping.freeWaypoints,
+            tracks,
+            results.flatMap { it.skipped }
+        )
     }
 
     /** ROT13-Verschlüsselung/-Entschlüsselung (selbst-invers). */

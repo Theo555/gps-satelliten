@@ -197,6 +197,7 @@
     <string name="btn_discard">Discard</string>
     <string name="btn_continue_recording">Keep recording</string>
     <string name="nav_active_target_title">Active target</string>
+    <string name="import_err_archive_unreadable">ZIP archive could not be opened</string>
     <string name="nav_show_description">Show description</string>
     <string name="nav_hide_description">Hide description</string>
     <string name="nav_no_active_target">No target active. Pick one from the lists below.</string>

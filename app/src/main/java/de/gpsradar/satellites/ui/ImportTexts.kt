@@ -35,6 +35,8 @@ fun SkipReason.describe(context: Context): String = when (this) {
         context.getString(R.string.import_skip_json_waypoint_no_coords, name)
 
     SkipReason.FileUnreadable -> context.getString(R.string.import_err_file_unreadable)
+
+    SkipReason.ArchiveUnreadable -> context.getString(R.string.import_err_archive_unreadable)
 }
 
 /** Fasst die übernommenen Einträge zusammen, z. B. „1 Cache und 7 Zielpunkte". */

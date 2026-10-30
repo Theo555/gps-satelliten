@@ -479,17 +479,19 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun importWaypoints(uri: Uri): ImportResult {
-        val text = try {
-            getApplication<Application>().contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
+        val bytes = try {
+            getApplication<Application>().contentResolver.openInputStream(uri)?.use { it.readBytes() }
         } catch (e: Exception) {
             null
         }
 
-        if (text == null) {
+        if (bytes == null) {
             return ImportResult(emptyList(), emptyList(), emptyList(), listOf(SkipReason.FileUnreadable))
         }
 
-        val result = WaypointCodec.parse(text, str(R.string.waypoint_default_name))
+        // Liest GPX/JSON direkt und entpackt ZIP-Archive (z. B. Suchergebnisse
+        // von Opencaching), in denen mehrere Dateien stecken.
+        val result = WaypointCodec.parseBytes(bytes, str(R.string.waypoint_default_name))
 
         if (result.waypoints.isNotEmpty()) {
             waypoints.value = waypoints.value + result.waypoints
