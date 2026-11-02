@@ -107,6 +107,9 @@ class GpsDataManager(private val context: Context) : SensorEventListener {
     private var compassAccuracyLow = false
     private val recentFieldMagnitudes = ArrayDeque<Float>()
 
+    // Ortsmissweisung: Sensor misst magnetisch, gerechnet wird auf wahres Norden.
+    private val declination = Declination()
+
     // Drehtest: Magnet gegen Kreisel. Läuft nur auf Anforderung der Oberfläche.
     private val _spinState = MutableStateFlow(CompassSpinState())
     val spinState: StateFlow<CompassSpinState> = _spinState.asStateFlow()
@@ -883,8 +886,12 @@ class GpsDataManager(private val context: Context) : SensorEventListener {
     }
 
     private fun updateSmoothedHeading(newHeading: Float) {
+        // Der Sensor liefert zum magnetischen Norden, der GPS-Kurs gilt für
+        // wahres Norden. Die Deklination wird deshalb hier einmal addiert –
+        // danach rechnet die ganze App in einem Bezugssystem.
+        val corrected = (newHeading + declinationDegrees() + 360f) % 360f
         // Low pass filter with circular degree wrap-around
-        var diff = newHeading - smoothedHeading
+        var diff = corrected - smoothedHeading
         while (diff < -180f) diff += 360f
         while (diff > 180f) diff -= 360f
         smoothedHeading = (smoothedHeading + diff * 0.2f + 360f) % 360f
@@ -895,6 +902,17 @@ class GpsDataManager(private val context: Context) : SensorEventListener {
                 headingReferenceDegrees = headingReferenceDegrees()
             )
         }
+    }
+
+    /** Ortsmissweisung an der zuletzt bekannten Position (0 ohne Fix). */
+    private fun declinationDegrees(): Float {
+        val state = _gpsState.value
+        return declination.degreesAt(
+            state.latitude,
+            state.longitude,
+            state.altitudeMeters,
+            System.currentTimeMillis()
+        )
     }
 
     /** Referenzrichtung für Pfeile: GPS-Kurs bei Bewegung, sonst Kompasskurs. */
