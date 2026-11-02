@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -159,25 +160,33 @@ fun RadarSkyView(
         }
 
         // Kleiner Hinweis, wenn der Kompass unzuverlässig ist – mit dem Grund
-        // und dem gemessenen Feldbetrag, damit der Nutzer etwas damit anfangen kann.
-        if (state.compassSuspect) {
-            val fieldMicroTesla = state.compassFieldMicroTesla
-            val hint = when {
-                state.compassIssue == CompassIssue.FIELD_TOO_STRONG && fieldMicroTesla != null ->
-                    stringResource(R.string.compass_issue_field_strong, fieldMicroTesla)
-                state.compassIssue == CompassIssue.FIELD_TOO_WEAK && fieldMicroTesla != null ->
-                    stringResource(R.string.compass_issue_field_weak, fieldMicroTesla)
-                else -> stringResource(R.string.compass_unreliable)
+        // und dem gemessenen Feldbetrag. Die Höhe ist dauerhaft reserviert:
+        // Sonst springt das Radar beim Ein- und Ausblenden um eine Zeile.
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 16.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            if (state.compassSuspect) {
+                val fieldMicroTesla = state.compassFieldMicroTesla
+                val hint = when {
+                    state.compassIssue == CompassIssue.FIELD_TOO_STRONG && fieldMicroTesla != null ->
+                        stringResource(R.string.compass_issue_field_strong, fieldMicroTesla)
+                    state.compassIssue == CompassIssue.FIELD_TOO_WEAK && fieldMicroTesla != null ->
+                        stringResource(R.string.compass_issue_field_weak, fieldMicroTesla)
+                    else -> stringResource(R.string.compass_unreliable)
+                }
+                Text(
+                    text = hint,
+                    fontSize = 11.sp,
+                    color = Color(0xFFF59E0B),
+                    modifier = Modifier
+                        .clickable { onOpenCompassCheck() }
+                        .padding(vertical = 2.dp)
+                        .testTag("compass_check_hint")
+                )
             }
-            Text(
-                text = hint,
-                fontSize = 11.sp,
-                color = Color(0xFFF59E0B),
-                modifier = Modifier
-                    .clickable { onOpenCompassCheck() }
-                    .padding(vertical = 2.dp)
-                    .testTag("compass_check_hint")
-            )
         }
 
         // Radar Canvas Box
