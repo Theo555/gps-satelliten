@@ -1,0 +1,10 @@
+1.3.11
+* Neu: Kompass-Prüfung im Radar-Tab. Ein Drehtest gegen den Kreisel zeigt,
+  ob die Kompasswerte an dieser Stelle glaubwürdig sind - mit Fortschritt,
+  Ergebnis und Hinweisen (Hülle, Magnetverschluss, 8er-Bewegung). Es wird
+  nichts korrigiert
+* Störende Umgebung wird als solche gemeldet (Metall, Leitungen, Geräte in
+  der Nähe) statt als Gerätefehler
+* Der Kompass-Hinweis nennt jetzt Grund und Messwert, z. B. "Feld 81 µT
+  (zu stark)"
+* Behoben: auf manchen Geräten stand der Kompass-Hinweis dauerhaft an

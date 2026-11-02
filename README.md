@@ -10,6 +10,7 @@ Native Android-App (Kotlin + Jetpack Compose) zur **Live-Anzeige von GNSS-Satell
 - **Rein GNSS, kein Hybrid.** Bewusst ohne WLAN-, Funkzellen- oder Fused-Location-Ortung und ohne Google Play Services – nur Satelliten-Ortung, damit die App tatsächlich komplett offline bleibt.
 - **Im Flugmodus getestet.** Läuft sauber und flink auf älteren Geräten ohne jede Verbindung.
 - **~2 MB APK.** Kein Karten-SDK, keine Analytics-Bibliothek. Karten öffnen über `geo:`-Intents in einer externen App. *(Android zeigt nach der Installation ~11 MB an: Es legt zusätzlich eine maschinell übersetzte Kopie des Codes ab. Das macht es mit jeder App und lässt sich nicht abschalten.)*
+- **Der Kompass lässt sich im Gerät selbst prüfen.** Ein Drehtest gegen den Kreisel zeigt, ob die Kompasswerte an dieser Stelle glaubwürdig sind – ohne externe Referenz, ohne Netz.
 
 ## Download (fertige APK) ⬇️
 
@@ -26,6 +27,7 @@ Keine Lust, selbst zu kompilieren? Lade einfach die fertige APK herunter und ins
 
 - Echtzeit-Erfassung empfangener Satelliten (**GPS, GLONASS, Galileo, BeiDou, QZSS, SBAS**)
 - **Himmels-Radar** – Polarplot mit Elevation/Azimut, „Nord oben" oder „Kompass oben", animierter Radar-Sweep
+- **Kompass-Prüfung** – Drehtest gegen den Kreisel: zeigt, ob die Kompasswerte an dieser Stelle glaubwürdig sind, und erkennt eine störende Umgebung, statt einen Gerätefehler zu vermuten
 - **Signalstärke** – C/N₀-Balkendiagramm mit Qualitätsfarben und Zusammenfassung
 - **Satellitenliste** – sortier-/filterbar, mit Ephemeriden-/Almanach-Status und Trägerfrequenz
 
@@ -104,6 +106,7 @@ Alle Bilder sind Vorschaubilder – **anklicken** öffnet das jeweilige Bild in 
   <tr>
     <td align="center"><a href="screenshots/messung.jpg"><img src="screenshots/messung.jpg" width="150" alt="Messung (Rohdaten)" /></a><br /><sub>Messung · Rohdaten je Signalpfad</sub></td>
     <td align="center"><a href="screenshots/messung-export.jpg"><img src="screenshots/messung-export.jpg" width="150" alt="CSV-Export-Dialog" /></a><br /><sub>Export · CSV mit zwei Profilen</sub></td>
+    <td align="center"><a href="screenshots/kompass-pruefung.jpg"><img src="screenshots/kompass-pruefung.jpg" width="150" alt="Kompass-Prüfung" /></a><br /><sub>Kompass · Drehtest gegen den Kreisel</sub></td>
     <td></td>
     <td></td>
   </tr>
@@ -119,6 +122,8 @@ Alle Bilder sind Vorschaubilder – **anklicken** öffnet das jeweilige Bild in 
 | GNSS | `GnssStatusCompat`, `GnssMeasurements`, `GnssNavigationMessage`, `LocationManager`, Kompass-Sensoren |
 | minSdk / targetSdk | 24 (Android 7.0) / 36 |
 | Build | AGP 9.x, Gradle 9.3 (Wrapper), R8 + Ressourcen-Shrinking |
+
+Der Kompass ist der einzige Sensor, der von außen gestört wird: Metall, Leitungen und Geräte in der Nähe verzerren die **Richtung**, ohne dass der Feldbetrag auffällt. Die App korrigiert das nicht, sondern macht es sichtbar – über einen Hinweis im Himmels-Radar und über *Kompass prüfen*. Draußen gemessen liegt die Abweichung bei 1–5°, in ungünstigen Räumen (Bad, Schlafzimmer) kann der Kompass unbrauchbar sein. Das ist Physik, kein Defekt.
 
 ## Voraussetzungen
 

@@ -1,0 +1,10 @@
+1.3.11
+* New: compass check in the radar tab. A rotation test against the gyroscope
+  shows whether the compass readings are credible at this place - with
+  progress, result and hints (case, magnetic clasp, figure-eight motion).
+  Nothing is corrected
+* A disturbing environment is reported as such (metal, wiring, nearby
+  devices) instead of being blamed on the device
+* The compass note now names the reason and the measured value, e.g.
+  "field 81 µT (too strong)"
+* Fixed: on some devices the compass note was permanently on

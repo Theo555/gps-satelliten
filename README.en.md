@@ -10,6 +10,7 @@ Native Android app (Kotlin + Jetpack Compose) for **live GNSS satellite display*
 - **Pure GNSS, no hybrid.** Deliberately without Wi-Fi, cell-tower or fused-location positioning and without Google Play services – satellite positioning only, so the app really stays completely offline.
 - **Tested in airplane mode.** Runs reliably and briskly on older devices without any connection.
 - **~2 MB APK.** No map SDK, no analytics library. Maps open through `geo:` intents in an external app. *(Android shows ~11 MB after installation: it stores an additional machine-translated copy of the code. Every app gets that and it cannot be switched off.)*
+- **The compass can be checked on the device itself.** A rotation test against the gyroscope shows whether the compass readings are credible at this place – no external reference, no network.
 
 ## Download (ready-made APK) ⬇️
 
@@ -26,6 +27,7 @@ No desire to build it yourself? Just download the ready-made APK and install it 
 
 - Real-time capture of received satellites (**GPS, GLONASS, Galileo, BeiDou, QZSS, SBAS**)
 - **Sky radar** – polar plot with elevation/azimuth, "North up" or "Compass up", animated radar sweep
+- **Compass check** – rotation test against the gyroscope: shows whether the compass readings are credible at this place, and recognises a disturbing environment instead of assuming a device fault
 - **Signal strength** – C/N₀ bar chart with quality colours and a summary
 - **Satellite list** – sortable/filterable, with ephemeris/almanac status and carrier frequency
 
@@ -104,6 +106,7 @@ All images are thumbnails – **click one** to open it at full size.
   <tr>
     <td align="center"><a href="screenshots/en/messung.jpg"><img src="screenshots/en/messung.jpg" width="150" alt="Measurements (raw data)" /></a><br /><sub>Measurement · raw data per signal path</sub></td>
     <td align="center"><a href="screenshots/en/messung-export.jpg"><img src="screenshots/en/messung-export.jpg" width="150" alt="CSV export dialog" /></a><br /><sub>Export · CSV with two profiles</sub></td>
+    <td align="center"><a href="screenshots/en/kompass-pruefung.jpg"><img src="screenshots/en/kompass-pruefung.jpg" width="150" alt="Compass check" /></a><br /><sub>Compass · rotation test against the gyroscope</sub></td>
     <td></td>
     <td></td>
   </tr>
@@ -119,6 +122,8 @@ All images are thumbnails – **click one** to open it at full size.
 | GNSS | `GnssStatusCompat`, `GnssMeasurements`, `GnssNavigationMessage`, `LocationManager`, compass sensors |
 | minSdk / targetSdk | 24 (Android 7.0) / 36 |
 | Build | AGP 9.x, Gradle 9.3 (wrapper), R8 + resource shrinking |
+
+The compass is the only sensor that is disturbed from outside: metal, wiring and nearby devices distort the **direction** without the field strength standing out. The app does not correct this but makes it visible – through a note in the sky radar and through *Check compass*. Measured outdoors the deviation is 1–5°; in unfavourable rooms (bathroom, bedroom) the compass can be unusable. That is physics, not a defect.
 
 ## Requirements
 
