@@ -46,6 +46,7 @@ fun CompassCheckDialog(
     state: GpsLocationState,
     spin: CompassSpinState,
     walk: CompassWalkState,
+    showWalkTest: Boolean,
     onStart: () -> Unit,
     onStop: () -> Unit,
     onStartWalk: () -> Unit,
@@ -120,7 +121,10 @@ fun CompassCheckDialog(
                     HelpBlock()
                 }
 
-                WalkSection(walk = walk, onStart = onStartWalk, onStop = onStopWalk)
+                // Nur im Debug-Build: siehe MainActivity, woher das Kennzeichen kommt.
+                if (showWalkTest) {
+                    WalkSection(walk = walk, onStart = onStartWalk, onStop = onStopWalk)
+                }
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),

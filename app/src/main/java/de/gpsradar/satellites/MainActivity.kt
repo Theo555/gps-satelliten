@@ -3,6 +3,7 @@ package de.gpsradar.satellites
 import android.Manifest
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.util.Log
 import android.net.Uri
@@ -138,6 +139,14 @@ fun GpsAppMainScreen(
     val gpsState by viewModel.rawGpsState.collectAsState()
     val compassSpin by viewModel.compassSpinState.collectAsState()
     val compassWalk by viewModel.compassWalkState.collectAsState()
+
+    // Der Geh-Test ist ein Messgerät für die Entwicklung: Sein Ergebnis steckt
+    // in einer CSV-Datei im privaten Verzeichnis, an die im Release niemand
+    // herankommt. Für Nutzer wäre die nackte Gradzahl irreführend, weil die
+    // Handhaltung darin steckt. Deshalb nur im Debug-Build sichtbar.
+    val showWalkTest = remember {
+        (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+    }
     var showCompassCheck by rememberSaveable { mutableStateOf(false) }
     val displayedSatellites by viewModel.displayedSatellites.collectAsState()
     val selectedFilter by viewModel.selectedFilter.collectAsState()
@@ -369,6 +378,7 @@ fun GpsAppMainScreen(
                     state = gpsState,
                     spin = compassSpin,
                     walk = compassWalk,
+                    showWalkTest = showWalkTest,
                     onStart = { viewModel.startCompassSpin() },
                     onStop = { viewModel.stopCompassSpin() },
                     onStartWalk = { viewModel.startCompassWalk() },
