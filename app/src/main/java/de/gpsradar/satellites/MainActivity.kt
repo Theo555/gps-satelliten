@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.util.Log
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -64,6 +65,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import de.gpsradar.satellites.model.CapturePhase
 import de.gpsradar.satellites.model.Navigation
@@ -198,16 +202,7 @@ fun GpsAppMainScreen(
 
     // Check permission on entry and lifecycle
     LaunchedEffect(Unit) {
-        val hasFine = ContextCompat.checkSelfPermission(
-            context,
-            Manifest.permission.ACCESS_FINE_LOCATION
-        ) == PackageManager.PERMISSION_GRANTED
-        val hasCoarse = ContextCompat.checkSelfPermission(
-            context,
-            Manifest.permission.ACCESS_COARSE_LOCATION
-        ) == PackageManager.PERMISSION_GRANTED
-
-        if (hasFine || hasCoarse) {
+        if (hasLocationPermission(context)) {
             viewModel.startTracking(true)
         } else {
             permissionLauncher.launch(
@@ -219,8 +214,25 @@ fun GpsAppMainScreen(
         }
     }
 
-    DisposableEffect(Unit) {
+    // Ortung und Sensoren gehoeren zur sichtbaren App: beim Verlassen abmelden
+    // (Akku) und beim Zurueckkehren erneut anmelden. Vorher lief die Anmeldung
+    // nur einmal beim Aufbau der Oberflaeche – kam die App aus dem Hintergrund
+    // zurueck oder wurde der Prozess neu gestartet, blieben Kompass und
+    // Sensoren stumm und der Drehtest liess sich nicht mehr starten.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            Log.i("GpsLifecycle", "Ereignis: $event")
+            when (event) {
+                Lifecycle.Event.ON_START ->
+                    if (hasLocationPermission(context)) viewModel.startTracking(true)
+                Lifecycle.Event.ON_STOP -> viewModel.stopTracking()
+                else -> Unit
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
             viewModel.stopTracking()
         }
     }
@@ -502,3 +514,14 @@ private fun openUrl(context: Context, url: String) {
         Toast.makeText(context, context.getString(R.string.msg_link_no_app), Toast.LENGTH_SHORT).show()
     }
 }
+
+/** Fein oder grob – ohne eine der beiden Berechtigungen läuft keine Ortung. */
+private fun hasLocationPermission(context: Context): Boolean =
+    ContextCompat.checkSelfPermission(
+        context,
+        Manifest.permission.ACCESS_FINE_LOCATION
+    ) == PackageManager.PERMISSION_GRANTED ||
+        ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.ACCESS_COARSE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
