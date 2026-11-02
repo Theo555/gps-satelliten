@@ -69,6 +69,17 @@
     <string name="compass_check_help_distance">Abstand zu Metall, Lautsprechern und Fensterbänken halten.</string>
     <string name="compass_check_limit">Diese Prüfung erkennt Verzerrungen und Sprünge. Einen gleichmäßigen Fehler aller Richtungen kann sie nicht sehen.</string>
 
+    <!-- Geh-Test: Vergleich der Anzeige mit dem GPS-Kurs -->
+    <string name="compass_walk_title">Geh-Test</string>
+    <string name="compass_walk_instruction">Auf freier Strecke 90 Sekunden gerade gehen, Handy flach nach vorn. Verglichen wird die Anzeige mit dem GPS-Kurs – ablesen musst du nichts.</string>
+    <string name="compass_walk_running">Aufzeichnung · %1$d s · %2$d Proben</string>
+    <string name="compass_walk_start">Geh-Test starten</string>
+    <string name="compass_walk_stop">Aufzeichnung beenden</string>
+    <string name="compass_walk_result_course">Anzeige gegen GPS-Kurs: %1$s° aus %2$d Messpunkten</string>
+    <string name="compass_walk_result_magnetic">Anzeige gegen Magnetkompass: %1$s°</string>
+    <string name="compass_walk_saved">Abgelegt als %1$s</string>
+    <string name="compass_walk_empty">Keine Auswertung – es kam kein GPS-Kurs an. War der Himmel frei genug?</string>
+
     <!-- Banner, Statuszeile, Radar -->
     <string name="btn_activate">Aktivieren</string>
     <string name="demo_banner_title">SIMULATION – keine echten GNSS-Daten</string>

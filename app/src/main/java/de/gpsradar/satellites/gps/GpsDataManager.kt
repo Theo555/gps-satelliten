@@ -12,6 +12,7 @@ import android.os.Looper
 import androidx.core.location.GnssStatusCompat
 import androidx.core.location.LocationManagerCompat
 import de.gpsradar.satellites.model.CompassSpinState
+import de.gpsradar.satellites.model.CompassWalkState
 import de.gpsradar.satellites.model.Constellation
 import de.gpsradar.satellites.model.FixType
 import de.gpsradar.satellites.model.GnssNavMessage
@@ -58,9 +59,11 @@ class GpsDataManager(private val context: Context) {
     private val compass = CompassSensorHub(
         context = context,
         state = _gpsState,
-        referenceDirection = { headingReferenceDegrees() }
+        referenceDirection = { headingReferenceDegrees() },
+        courseDegrees = { currentCourseDegrees() }
     )
     val spinState: StateFlow<CompassSpinState> = compass.spinState
+    val compassWalkState: StateFlow<CompassWalkState> = compass.walkState
 
     private val navMessages = GnssNavigationMessageReader(
         context = context,
@@ -311,6 +314,17 @@ class GpsDataManager(private val context: Context) {
     fun stopCompassSpin() {
         compass.stopSpin()
     }
+
+    fun startCompassWalk() {
+        compass.startWalk()
+    }
+
+    fun stopCompassWalk() {
+        compass.stopWalk()
+    }
+
+    /** GPS-Kurs, solange er die Pfeilrichtung vorgibt – sonst null. */
+    private fun currentCourseDegrees(): Float? = if (courseModeActive) lastBearingDegrees else null
 
     /** Referenzrichtung für Pfeile: GPS-Kurs bei Bewegung, sonst Kompasskurs. */
     private fun headingReferenceDegrees(): Float {

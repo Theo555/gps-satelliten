@@ -24,6 +24,7 @@ import de.gpsradar.satellites.model.Cache
 import de.gpsradar.satellites.model.BufferStats
 import de.gpsradar.satellites.model.CapturePhase
 import de.gpsradar.satellites.model.CompassSpinState
+import de.gpsradar.satellites.model.CompassWalkState
 import de.gpsradar.satellites.model.CsvMeta
 import de.gpsradar.satellites.model.CsvProfile
 import de.gpsradar.satellites.model.Constellation
@@ -78,6 +79,7 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
 
     val rawGpsState: StateFlow<GpsLocationState> = gpsDataManager.gpsState
     val compassSpinState: StateFlow<CompassSpinState> = gpsDataManager.spinState
+    val compassWalkState: StateFlow<CompassWalkState> = gpsDataManager.compassWalkState
     val supportsNavigationMessages: StateFlow<Boolean> = gpsDataManager.supportsNavigationMessages
     val supportsRawMeasurements: StateFlow<Boolean> = rawGnssManager.supportsRawMeasurements
     val rawMeasurements: StateFlow<List<RawMeasurement>> = rawGnssManager.measurements
@@ -220,6 +222,15 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
 
     fun stopCompassSpin() {
         gpsDataManager.stopCompassSpin()
+    }
+
+    /** Startet die Aufzeichnung für den Geh-Test (Vergleich mit dem GPS-Kurs). */
+    fun startCompassWalk() {
+        gpsDataManager.startCompassWalk()
+    }
+
+    fun stopCompassWalk() {
+        gpsDataManager.stopCompassWalk()
     }
 
     fun toggleDemoMode() {

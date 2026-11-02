@@ -26,8 +26,10 @@ import androidx.compose.ui.window.Dialog
 import de.gpsradar.satellites.R
 import de.gpsradar.satellites.model.CompassIssue
 import de.gpsradar.satellites.model.CompassSpinState
+import de.gpsradar.satellites.model.CompassWalkState
 import de.gpsradar.satellites.model.GpsLocationState
 import de.gpsradar.satellites.model.SpinVerdict
+import java.util.Locale
 import kotlin.math.roundToInt
 
 private val AmberWarning = Color(0xFFF59E0B)
@@ -43,12 +45,16 @@ private val AmberWarning = Color(0xFFF59E0B)
 fun CompassCheckDialog(
     state: GpsLocationState,
     spin: CompassSpinState,
+    walk: CompassWalkState,
     onStart: () -> Unit,
     onStop: () -> Unit,
+    onStartWalk: () -> Unit,
+    onStopWalk: () -> Unit,
     onDismiss: () -> Unit
 ) {
     Dialog(onDismissRequest = {
         onStop()
+        onStopWalk()
         onDismiss()
     }) {
         // Solange geprüft wird, darf der Bildschirm nicht ausgehen: Im
@@ -114,6 +120,8 @@ fun CompassCheckDialog(
                     HelpBlock()
                 }
 
+                WalkSection(walk = walk, onStart = onStartWalk, onStop = onStopWalk)
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End
@@ -142,6 +150,7 @@ fun CompassCheckDialog(
                     TextButton(
                         onClick = {
                             onStop()
+                            onStopWalk()
                             onDismiss()
                         },
                         modifier = Modifier.testTag("compass_check_close")
@@ -163,6 +172,96 @@ fun CompassCheckDialog(
 /** Ratschläge helfen nur, wenn das Gerät oder die Hülle verdächtig ist. */
 private fun needsAdvice(verdict: SpinVerdict): Boolean =
     verdict == SpinVerdict.DOUBTFUL || verdict == SpinVerdict.CONTRADICTORY
+
+/**
+ * Geh-Test: zeichnet auf, was die Anzeige sagt und welchen Kurs das GPS misst.
+ *
+ * Der Drehtest prüft den Sensor gegen den Kreisel – der Geh-Test prüft die
+ * Anzeige gegen eine unabhängige Wahrheit (den GPS-Kurs). Nur so lässt sich
+ * ein gleichmäßiger Fehler finden, den der Drehtest grundsätzlich nicht sieht.
+ */
+@Composable
+private fun WalkSection(
+    walk: CompassWalkState,
+    onStart: () -> Unit,
+    onStop: () -> Unit
+) {
+    Text(
+        text = stringResource(R.string.compass_walk_title),
+        fontWeight = FontWeight.Bold,
+        fontSize = 14.sp
+    )
+    Text(
+        text = stringResource(R.string.compass_walk_instruction),
+        fontSize = 12.sp
+    )
+    when {
+        walk.running -> Text(
+            text = stringResource(R.string.compass_walk_running, walk.secondsLeft, walk.samples),
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Medium,
+            color = MaterialTheme.colorScheme.primary
+        )
+        walk.finished -> WalkResult(walk)
+    }
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.End
+    ) {
+        if (walk.running) {
+            TextButton(onClick = onStop, modifier = Modifier.testTag("compass_walk_stop")) {
+                Text(stringResource(R.string.compass_walk_stop))
+            }
+        } else {
+            TextButton(onClick = onStart, modifier = Modifier.testTag("compass_walk_start")) {
+                Text(stringResource(R.string.compass_walk_start))
+            }
+        }
+    }
+}
+
+/** Ergebnis des Geh-Tests: zuerst der Vergleich mit dem GPS-Kurs. */
+@Composable
+private fun WalkResult(walk: CompassWalkState) {
+    val course = walk.shownVsCourseDegrees
+    val magnetic = walk.shownVsMagneticDegrees
+    if (course == null && magnetic == null) {
+        Text(
+            text = stringResource(R.string.compass_walk_empty),
+            fontSize = 12.sp,
+            color = AmberWarning
+        )
+        return
+    }
+    if (course != null) {
+        Text(
+            text = stringResource(
+                R.string.compass_walk_result_course,
+                signedDegrees(course),
+                walk.courseSamples
+            ),
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Medium
+        )
+    }
+    if (magnetic != null) {
+        Text(
+            text = stringResource(R.string.compass_walk_result_magnetic, signedDegrees(magnetic)),
+            fontSize = 13.sp
+        )
+    }
+    walk.fileName?.let { name ->
+        Text(
+            text = stringResource(R.string.compass_walk_saved, name),
+            fontSize = 10.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+/** Vorzeichen immer mit anzeigen – „+3,8“ und „-2,1“ sollen unterscheidbar sein. */
+private fun signedDegrees(value: Float): String =
+    String.format(Locale.getDefault(), "%+.1f", value)
 
 /** Gemessener Feldbetrag mit Einordnung. */
 @Composable

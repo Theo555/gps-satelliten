@@ -69,6 +69,17 @@
     <string name="compass_check_help_distance">Keep distance from metal, speakers and window sills.</string>
     <string name="compass_check_limit">This test finds distortion and jumps. A uniform error in all directions cannot be detected.</string>
 
+    <!-- Geh-Test: Vergleich der Anzeige mit dem GPS-Kurs -->
+    <string name="compass_walk_title">Walking test</string>
+    <string name="compass_walk_instruction">Walk straight for 90 seconds on open ground, phone flat and pointing ahead. The recording compares the display with the GPS course – nothing to read off.</string>
+    <string name="compass_walk_running">Recording · %1$d s · %2$d samples</string>
+    <string name="compass_walk_start">Start walking test</string>
+    <string name="compass_walk_stop">Stop recording</string>
+    <string name="compass_walk_result_course">Display against GPS course: %1$s° from %2$d samples</string>
+    <string name="compass_walk_result_magnetic">Display against magnetic compass: %1$s°</string>
+    <string name="compass_walk_saved">Saved as %1$s</string>
+    <string name="compass_walk_empty">No result – no GPS course was received. Was the sky clear enough?</string>
+
     <!-- Banner, Statuszeile, Radar -->
     <string name="btn_activate">Turn on</string>
     <string name="demo_banner_title">SIMULATION – no real GNSS data</string>

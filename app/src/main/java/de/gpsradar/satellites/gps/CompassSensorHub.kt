@@ -5,15 +5,22 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import de.gpsradar.satellites.model.CompassHealth
 import de.gpsradar.satellites.model.CompassSpin
 import de.gpsradar.satellites.model.CompassSpinState
+import de.gpsradar.satellites.model.CompassWalk
+import de.gpsradar.satellites.model.CompassWalkState
 import de.gpsradar.satellites.model.GpsLocationState
 import de.gpsradar.satellites.model.SpinVerdict
+import de.gpsradar.satellites.model.WalkSample
 import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.sqrt
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -38,6 +45,11 @@ private const val SPIN_TIMEOUT_MS = 45_000L
 private const val COMPASS_RUNS_FILE = "compass_runs.jsonl"
 private const val MAX_COMPASS_RUNS = 20
 
+// Geh-Test: Vergleich der Anzeige mit Magnetkompass und GPS-Kurs.
+private const val WALK_DURATION_MS = 90_000L
+private const val WALK_SAMPLE_INTERVAL_NS = 200_000_000L
+private const val WALK_FILE_PREFIX = "compass_walk_"
+
 /**
  * Kompass-Teil des Ortungsdienstes: Peilung aus den Sensoren, Überwachung der
  * Sensorqualität, Drehtest gegen den Kreisel und Ortsmissweisung.
@@ -51,7 +63,8 @@ private const val MAX_COMPASS_RUNS = 20
 class CompassSensorHub(
     context: Context,
     private val state: MutableStateFlow<GpsLocationState>,
-    private val referenceDirection: () -> Float
+    private val referenceDirection: () -> Float,
+    private val courseDegrees: () -> Float?
 ) : SensorEventListener {
 
     private val appContext = context.applicationContext
@@ -88,6 +101,27 @@ class CompassSensorHub(
     private var spinHasGravity = false
     private val spinTimeout = Runnable { finishCompassSpin() }
 
+    // Geh-Test: eigene Aufzeichnung, damit sich Anzeige, Magnetkompass und
+    // GPS-Kurs im selben Zeitraster vergleichen lassen.
+    private val _walkState = MutableStateFlow(CompassWalkState())
+    val walkState: StateFlow<CompassWalkState> = _walkState.asStateFlow()
+    private var walkRunning = false
+    private var walkSamples = ArrayList<WalkSample>()
+    private var walkEndsAtMillis = 0L
+    private var walkLastSampleNs = 0L
+    private val walkTicker = object : Runnable {
+        override fun run() {
+            if (!walkRunning) return
+            val left = ((walkEndsAtMillis - System.currentTimeMillis()) / 1000L).toInt()
+            _walkState.update { it.copy(secondsLeft = left.coerceAtLeast(0), samples = walkSamples.size) }
+            if (left <= 0) {
+                finishWalk()
+            } else {
+                mainHandler.postDelayed(this, 1000L)
+            }
+        }
+    }
+
     init {
         rotationVectorSensor = sensorManager?.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
         // Magnetometer (und als Ersatzpfad der Beschleunigungssensor) unabhängig
@@ -119,6 +153,8 @@ class CompassSensorHub(
             mainHandler.removeCallbacks(spinTimeout)
             _spinState.update { it.copy(running = false) }
         }
+        // Eine laufende Aufzeichnung dagegen wird gerettet, nicht verworfen.
+        if (walkRunning) finishWalk()
     }
 
     /**
@@ -305,8 +341,147 @@ class CompassSensorHub(
             )
             publishSpinProgress()
         }
-        updateSmoothedHeading(azimuth)
+        val corrected = updateSmoothedHeading(azimuth)
+        if (walkRunning) recordWalkSample(azimuth, corrected, timeNanos)
     }
+
+    /**
+     * Startet die Aufzeichnung für den Geh-Test.
+     *
+     * Ab hier wird fünfmal je Sekunde festgehalten, was die App anzeigt, was
+     * ein reiner Magnetkompass sagt und welchen Kurs das GPS misst. Die
+     * Aufzeichnung endet von selbst nach [WALK_DURATION_MS], damit sie nicht
+     * vergessen werden kann.
+     */
+    fun startWalk() {
+        if (walkRunning) return
+        // Für die Magnetkompass-Spalte braucht es die Schwerkraftrichtung. Der
+        // Beschleunigungssensor läuft sonst nicht mit (der Rotationsvektor
+        // reicht für die Peilung) – deshalb nur für die Dauer des Tests.
+        accelerometerSensor?.let {
+            sensorManager?.registerListener(this, it, SensorManager.SENSOR_DELAY_UI)
+        }
+        walkSamples = ArrayList()
+        walkLastSampleNs = 0L
+        walkRunning = true
+        walkEndsAtMillis = System.currentTimeMillis() + WALK_DURATION_MS
+        _walkState.update {
+            CompassWalkState(
+                running = true,
+                secondsLeft = (WALK_DURATION_MS / 1000L).toInt(),
+                samples = 0,
+                finished = false
+            )
+        }
+        mainHandler.postDelayed(walkTicker, 1000L)
+    }
+
+    /** Beendet die Aufzeichnung vorzeitig und legt sie ab. */
+    fun stopWalk() {
+        if (walkRunning) finishWalk()
+    }
+
+    private fun finishWalk() {
+        if (!walkRunning) return
+        walkRunning = false
+        mainHandler.removeCallbacks(walkTicker)
+        // Nur abmelden, wenn ihn nicht gerade der Drehtest braucht.
+        if (!spinRunning) {
+            accelerometerSensor?.let { sensorManager?.unregisterListener(this, it) }
+        }
+        val samples = walkSamples
+        val fileName = writeWalkFile(samples)
+        _walkState.update {
+            it.copy(
+                running = false,
+                finished = true,
+                secondsLeft = 0,
+                samples = samples.size,
+                shownVsMagneticDegrees = CompassWalk.shownVsMagnetic(samples),
+                shownVsCourseDegrees = CompassWalk.shownVsCourse(samples),
+                courseSamples = CompassWalk.courseSampleCount(samples),
+                fileName = fileName
+            )
+        }
+    }
+
+    private fun recordWalkSample(raw: Float, shown: Float, timeNanos: Long) {
+        if (timeNanos - walkLastSampleNs < WALK_SAMPLE_INTERVAL_NS) return
+        walkLastSampleNs = timeNanos
+        walkSamples.add(
+            WalkSample(
+                timeMillis = timeNanos / 1_000_000L,
+                rawDegrees = raw,
+                shownDegrees = shown,
+                magneticDegrees = magneticAzimuth(),
+                courseDegrees = courseDegrees(),
+                fieldMicroTesla = currentFieldMicroTesla(),
+                tiltDegrees = CompassSpin.tiltDegrees(accelerometerReading)
+            )
+        )
+    }
+
+    /**
+     * Peilung aus Beschleunigung und Magnetfeld – also ohne die Rechenwege der
+     * Plattform. Weicht sie von [rawDegrees] um die Ortsmissweisung ab, rechnet
+     * die Plattform die Missweisung bereits ein.
+     */
+    private fun magneticAzimuth(): Float? {
+        if (!hasAccelerometer || !hasMagnetometer) return null
+        val rotationMatrix = FloatArray(9)
+        val inclinationMatrix = FloatArray(9)
+        val ok = SensorManager.getRotationMatrix(
+            rotationMatrix,
+            inclinationMatrix,
+            accelerometerReading,
+            magnetometerReading
+        )
+        if (!ok) return null
+        val orientation = FloatArray(3)
+        SensorManager.getOrientation(rotationMatrix, orientation)
+        var azimuth = Math.toDegrees(orientation[0].toDouble()).toFloat()
+        if (azimuth < 0) azimuth += 360f
+        return azimuth
+    }
+
+    /** Legt die Aufzeichnung als CSV im privaten App-Verzeichnis ab. */
+    private fun writeWalkFile(samples: List<WalkSample>): String? {
+        if (samples.isEmpty()) return null
+        val stamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
+        val fileName = "$WALK_FILE_PREFIX$stamp.csv"
+        val written = runCatching {
+            val text = buildString {
+                appendLine("# geraet = ${Build.MANUFACTURER} ${Build.MODEL}")
+                appendLine("# android = ${Build.VERSION.RELEASE} (SDK ${Build.VERSION.SDK_INT})")
+                appendLine(
+                    "# zeit = " +
+                        SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date())
+                )
+                appendLine("# probes = ${samples.size}")
+                appendLine("# spalten = t_ms,raw_deg,shown_deg,mag_deg,course_deg,field_ut,tilt_deg")
+                appendLine("t_ms,raw_deg,shown_deg,mag_deg,course_deg,field_ut,tilt_deg")
+                for (sample in samples) {
+                    appendLine(
+                        listOf(
+                            sample.timeMillis.toString(),
+                            formatAngle(sample.rawDegrees),
+                            formatAngle(sample.shownDegrees),
+                            sample.magneticDegrees?.let { formatAngle(it) } ?: "",
+                            sample.courseDegrees?.let { formatAngle(it) } ?: "",
+                            formatAngle(sample.fieldMicroTesla),
+                            formatAngle(sample.tiltDegrees)
+                        ).joinToString(",")
+                    )
+                }
+            }
+            File(appContext.filesDir, fileName).writeText(text)
+        }.onFailure {
+            Log.w(TAG, "Geh-Test konnte nicht abgelegt werden: ${it.message}")
+        }.isSuccess
+        return if (written) fileName else null
+    }
+
+    private fun formatAngle(value: Float): String = String.format(Locale.US, "%.2f", value)
 
     override fun onSensorChanged(event: SensorEvent) {
         if (event.sensor.type == Sensor.TYPE_ROTATION_VECTOR) {
@@ -377,7 +552,7 @@ class CompassSensorHub(
         }
     }
 
-    private fun updateSmoothedHeading(newHeading: Float) {
+    private fun updateSmoothedHeading(newHeading: Float): Float {
         // Der Sensor liefert zum magnetischen Norden, der GPS-Kurs gilt für
         // wahres Norden. Die Deklination wird deshalb hier einmal addiert –
         // danach rechnet die ganze App in einem Bezugssystem.
@@ -394,6 +569,7 @@ class CompassSensorHub(
                 headingReferenceDegrees = referenceDirection()
             )
         }
+        return corrected
     }
 
     /** Ortsmissweisung an der zuletzt bekannten Position (0 ohne Fix). */

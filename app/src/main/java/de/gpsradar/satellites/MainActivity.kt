@@ -137,6 +137,7 @@ fun GpsAppMainScreen(
     }
     val gpsState by viewModel.rawGpsState.collectAsState()
     val compassSpin by viewModel.compassSpinState.collectAsState()
+    val compassWalk by viewModel.compassWalkState.collectAsState()
     var showCompassCheck by rememberSaveable { mutableStateOf(false) }
     val displayedSatellites by viewModel.displayedSatellites.collectAsState()
     val selectedFilter by viewModel.selectedFilter.collectAsState()
@@ -367,8 +368,11 @@ fun GpsAppMainScreen(
                 CompassCheckDialog(
                     state = gpsState,
                     spin = compassSpin,
+                    walk = compassWalk,
                     onStart = { viewModel.startCompassSpin() },
                     onStop = { viewModel.stopCompassSpin() },
+                    onStartWalk = { viewModel.startCompassWalk() },
+                    onStopWalk = { viewModel.stopCompassWalk() },
                     onDismiss = { showCompassCheck = false }
                 )
             }
