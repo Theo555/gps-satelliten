@@ -41,6 +41,33 @@
     <string name="orientation_north_up">Nord oben (0°)</string>
     <string name="orientation_heading_up">Kompass oben (%1$d°)</string>
     <string name="compass_unreliable">Kompass unzuverlässig</string>
+    <string name="compass_issue_field_strong">Kompass unsicher · Feld %1$.0f µT (zu stark)</string>
+    <string name="compass_issue_field_weak">Kompass unsicher · Feld %1$.0f µT (zu schwach)</string>
+
+    <!-- Kompass-Prüfung (reine Diagnose) -->
+    <string name="compass_check_open">Kompass prüfen</string>
+    <string name="compass_check_title">Kompass-Qualität</string>
+    <string name="compass_check_field_ok">Feld %1$.0f µT – im normalen Bereich</string>
+    <string name="compass_check_field_unknown">Feld: noch keine Werte</string>
+    <string name="compass_check_instruction">Gerät flach hinlegen und einmal langsam ganz herumdrehen – etwa 20 Sekunden.</string>
+    <string name="compass_check_progress">Gedreht: %1$d°</string>
+    <string name="compass_check_start">Drehtest starten</string>
+    <string name="compass_check_repeat">Erneut prüfen</string>
+    <string name="compass_check_stop">Abbrechen</string>
+    <string name="compass_check_close">Schließen</string>
+    <string name="compass_spin_ok">Der Kompass folgt der Drehung – Abweichung %1$d°.</string>
+    <string name="compass_spin_doubtful">Abweichung %1$d° – eingeschränkt glaubwürdig.</string>
+    <string name="compass_spin_contradictory">Deutliche Abweichung – die Ursache ist offen: Gerät, Hülle oder dieser Ort.</string>
+    <string name="compass_check_place_hint">Ein Ausschlag kann auch vom Ort kommen. Erst an einer zweiten Stelle prüfen, bevor das Gerät verdächtig ist.</string>
+    <string name="compass_spin_environment">Hier stört ein Magnetfeld die Messung – über das Gerät sagt das nichts. An einem ruhigeren Ort wiederholen.</string>
+    <string name="compass_spin_insufficient">Zu wenig gedreht – bitte einmal ganz herum.</string>
+    <string name="compass_spin_no_gyro">Dieses Gerät hat keinen Kreisel – der Drehtest ist nicht möglich.</string>
+    <string name="compass_spin_previous">Voriger Durchlauf: Abweichung %1$d°</string>
+    <string name="compass_check_help_title">Was helfen kann</string>
+    <string name="compass_check_help_case">Hülle abnehmen – ein Magnetverschluss wird sonst mitkalibriert.</string>
+    <string name="compass_check_help_figure8">8er-Bewegung: das Gerät dabei in alle Richtungen drehen, nicht nur flach im Kreis. Nur so lässt sich der geräteeigene Magnetanteil vom Erdfeld trennen.</string>
+    <string name="compass_check_help_distance">Abstand zu Metall, Lautsprechern und Fensterbänken halten.</string>
+    <string name="compass_check_limit">Diese Prüfung erkennt Verzerrungen und Sprünge. Einen gleichmäßigen Fehler aller Richtungen kann sie nicht sehen.</string>
 
     <!-- Banner, Statuszeile, Radar -->
     <string name="btn_activate">Aktivieren</string>

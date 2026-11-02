@@ -69,6 +69,7 @@ import de.gpsradar.satellites.model.CapturePhase
 import de.gpsradar.satellites.model.Navigation
 import de.gpsradar.satellites.ui.GpsViewModel
 import de.gpsradar.satellites.ui.components.AboutScreen
+import de.gpsradar.satellites.ui.components.CompassCheckDialog
 import de.gpsradar.satellites.ui.components.MeasurementScreen
 import de.gpsradar.satellites.ui.components.NavigationScreen
 import de.gpsradar.satellites.ui.components.PermissionAndStatusBanner
@@ -131,6 +132,8 @@ fun GpsAppMainScreen(
         }
     }
     val gpsState by viewModel.rawGpsState.collectAsState()
+    val compassSpin by viewModel.compassSpinState.collectAsState()
+    var showCompassCheck by rememberSaveable { mutableStateOf(false) }
     val displayedSatellites by viewModel.displayedSatellites.collectAsState()
     val selectedFilter by viewModel.selectedFilter.collectAsState()
     val selectedSort by viewModel.selectedSort.collectAsState()
@@ -348,6 +351,16 @@ fun GpsAppMainScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
+            if (showCompassCheck) {
+                CompassCheckDialog(
+                    state = gpsState,
+                    spin = compassSpin,
+                    onStart = { viewModel.startCompassSpin() },
+                    onStop = { viewModel.stopCompassSpin() },
+                    onDismiss = { showCompassCheck = false }
+                )
+            }
+
             // Permission and Status Banner (nicht auf der Info-Seite)
             if (!showAbout) PermissionAndStatusBanner(
                 state = gpsState,
@@ -384,6 +397,7 @@ fun GpsAppMainScreen(
                             onFilterSelected = { viewModel.setFilter(it) },
                             onToggleHeadingUp = { viewModel.toggleOrientationMode() },
                             onSatelliteClick = { viewModel.selectSatellite(it) },
+                            onOpenCompassCheck = { showCompassCheck = true },
                             targetBearing = targetBearing
                         )
                     }

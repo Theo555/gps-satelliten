@@ -9,6 +9,7 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -40,6 +41,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -59,6 +61,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import de.gpsradar.satellites.R
+import de.gpsradar.satellites.model.CompassIssue
 import de.gpsradar.satellites.model.Constellation
 import de.gpsradar.satellites.model.GpsLocationState
 import de.gpsradar.satellites.model.SatelliteInfo
@@ -80,6 +83,7 @@ fun RadarSkyView(
     onFilterSelected: (Constellation?) -> Unit,
     onToggleHeadingUp: () -> Unit,
     onSatelliteClick: (SatelliteInfo) -> Unit,
+    onOpenCompassCheck: () -> Unit = {},
     targetBearing: Float? = null,
     modifier: Modifier = Modifier
 ) {
@@ -154,13 +158,25 @@ fun RadarSkyView(
             }
         }
 
-        // Kleiner Hinweis, wenn der Kompass unzuverlässig ist (Sensorgenauigkeit
-        // oder Feldbetrag außerhalb des Erwartungsbereichs).
+        // Kleiner Hinweis, wenn der Kompass unzuverlässig ist – mit dem Grund
+        // und dem gemessenen Feldbetrag, damit der Nutzer etwas damit anfangen kann.
         if (state.compassSuspect) {
+            val fieldMicroTesla = state.compassFieldMicroTesla
+            val hint = when {
+                state.compassIssue == CompassIssue.FIELD_TOO_STRONG && fieldMicroTesla != null ->
+                    stringResource(R.string.compass_issue_field_strong, fieldMicroTesla)
+                state.compassIssue == CompassIssue.FIELD_TOO_WEAK && fieldMicroTesla != null ->
+                    stringResource(R.string.compass_issue_field_weak, fieldMicroTesla)
+                else -> stringResource(R.string.compass_unreliable)
+            }
             Text(
-                text = stringResource(R.string.compass_unreliable),
+                text = hint,
                 fontSize = 11.sp,
-                color = Color(0xFFF59E0B)
+                color = Color(0xFFF59E0B),
+                modifier = Modifier
+                    .clickable { onOpenCompassCheck() }
+                    .padding(vertical = 2.dp)
+                    .testTag("compass_check_hint")
             )
         }
 
@@ -195,6 +211,25 @@ fun RadarSkyView(
             onFilterSelected = onFilterSelected,
             allSatellites = state.satellites
         )
+
+        // Einstieg in die Kompass-Prüfung – immer erreichbar, auch ohne Warnung.
+        TextButton(
+            onClick = onOpenCompassCheck,
+            modifier = Modifier.testTag("compass_check_btn")
+        ) {
+            Icon(
+                imageVector = Icons.Default.CompassCalibration,
+                contentDescription = null,
+                modifier = Modifier.size(16.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = stringResource(R.string.compass_check_open),
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
 
         Spacer(modifier = Modifier.height(6.dp))
     }

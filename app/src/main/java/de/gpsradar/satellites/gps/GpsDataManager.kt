@@ -19,13 +19,21 @@ import androidx.core.content.ContextCompat
 import androidx.core.location.GnssStatusCompat
 import androidx.core.location.LocationManagerCompat
 import de.gpsradar.satellites.R
+import de.gpsradar.satellites.model.CompassHealth
+import de.gpsradar.satellites.model.CompassSpin
+import de.gpsradar.satellites.model.CompassSpinState
 import de.gpsradar.satellites.model.Constellation
 import de.gpsradar.satellites.model.FixType
 import de.gpsradar.satellites.model.GnssNavMessage
 import de.gpsradar.satellites.model.GpsLocationState
 import de.gpsradar.satellites.model.Navigation
 import de.gpsradar.satellites.model.SatelliteInfo
+import de.gpsradar.satellites.model.SpinVerdict
+import java.io.File
+import kotlin.math.abs
 import kotlin.math.sqrt
+import org.json.JSONArray
+import org.json.JSONObject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -43,11 +51,18 @@ private const val TAG = "GpsDataManager"
 private const val NAV_REGISTER_ATTEMPTS = 5
 private const val NAV_REGISTER_RETRY_MS = 2000L
 
-// Kompass-Überwachung: plausibler Feldbetrag in µT (Erdfeld in DE ~48 µT).
-private const val FIELD_MIN_UT = 30f
-private const val FIELD_MAX_UT = 70f
+// Kompass-Überwachung: Proben für den Feldmittelwert und Anzeigeschwelle.
 private const val FIELD_SAMPLES_MIN = 8
 private const val FIELD_SAMPLES_MAX = 16
+private const val FIELD_DISPLAY_STEP_UT = 1f
+
+// Drehtest: eine volle Umdrehung ist das Ziel, danach bricht die Messung ab.
+private const val SPIN_COMPLETE_DEGREES = 355f
+private const val SPIN_TIMEOUT_MS = 45_000L
+
+// Ablage der Drehtest-Läufe. Nur im privaten App-Verzeichnis, keine Übertragung.
+private const val COMPASS_RUNS_FILE = "compass_runs.jsonl"
+private const val MAX_COMPASS_RUNS = 20
 
 class GpsDataManager(private val context: Context) : SensorEventListener {
 
@@ -91,6 +106,18 @@ class GpsDataManager(private val context: Context) : SensorEventListener {
     // Kompass-Überwachung (Sensorgenauigkeit + Feldbetrag).
     private var compassAccuracyLow = false
     private val recentFieldMagnitudes = ArrayDeque<Float>()
+
+    // Drehtest: Magnet gegen Kreisel. Läuft nur auf Anforderung der Oberfläche.
+    private val _spinState = MutableStateFlow(CompassSpinState())
+    val spinState: StateFlow<CompassSpinState> = _spinState.asStateFlow()
+    private var spinRunning = false
+    private var spinSamples = ArrayList<CompassSpin.SpinSample>()
+    private var spinGyroTicks = ArrayList<CompassSpin.GyroTick>()
+    private var spinGyroTurn = 0f
+    private var spinLastGyroTimestampNs = 0L
+    private val spinGravity = FloatArray(3)
+    private var spinHasGravity = false
+    private val spinTimeout = Runnable { finishCompassSpin() }
 
     // Simulated satellite drift
     private var demoSatellites: List<SimulatedSatellite> = emptyList()
@@ -591,6 +618,199 @@ class GpsDataManager(private val context: Context) : SensorEventListener {
 
     private fun stopCompassSensors() {
         sensorManager?.unregisterListener(this)
+        // Ein laufender Drehtest endet mit dem Sensorstopp ohne Ergebnis.
+        if (spinRunning) {
+            spinRunning = false
+            mainHandler.removeCallbacks(spinTimeout)
+            _spinState.update { it.copy(running = false) }
+        }
+    }
+
+    /**
+     * Startet den Drehtest. Ohne Kreisel gibt es keinen Test – dann meldet der
+     * Zustand [CompassSpinState.supported] = false, statt still nichts zu tun.
+     */
+    fun startCompassSpin() {
+        val manager = sensorManager ?: return
+        val gyro = manager.getDefaultSensor(Sensor.TYPE_GYROSCOPE)
+        if (gyro == null) {
+            _spinState.update { it.copy(supported = false, running = false) }
+            return
+        }
+        if (spinRunning) finishCompassSpin()
+
+        spinSamples = ArrayList()
+        spinGyroTicks = ArrayList()
+        spinGyroTurn = 0f
+        spinLastGyroTimestampNs = 0L
+        spinHasGravity = false
+        spinRunning = true
+
+        // Vorigen Durchlauf als Vergleichswert aufheben – aber nur, wenn er ein
+        // echtes Urteil hatte (eine Nullmessung vergleicht man nicht).
+        val previous = _spinState.value
+        val previousVerdict = previous.verdict
+        val previousDeviation =
+            if (previous.verdict != SpinVerdict.INSUFFICIENT) previous.deviationDegrees else null
+        _spinState.update {
+            it.copy(
+                supported = true,
+                running = true,
+                finished = false,
+                turnDegrees = 0f,
+                samples = 0,
+                magneticTurnDegrees = 0f,
+                gyroTurnDegrees = 0f,
+                deviationDegrees = null,
+                verdict = SpinVerdict.INSUFFICIENT,
+                lastVerdict = previousVerdict,
+                lastDeviationDegrees = previousDeviation ?: it.lastDeviationDegrees
+            )
+        }
+
+        manager.registerListener(this, gyro, SensorManager.SENSOR_DELAY_GAME)
+        // Beschleunigungssensor nur für die Schwerkraftrichtung während des Tests.
+        // Die Peilung rechnet er nicht mit, siehe computeHeadingFromAccAndMag().
+        manager.registerListener(this, accelerometerSensor, SensorManager.SENSOR_DELAY_GAME)
+        mainHandler.postDelayed(spinTimeout, SPIN_TIMEOUT_MS)
+    }
+
+    /** Bricht den Drehtest ab, ohne ein Ergebnis zu veröffentlichen. */
+    fun stopCompassSpin() {
+        if (!spinRunning) return
+        spinRunning = false
+        mainHandler.removeCallbacks(spinTimeout)
+        unregisterSpinSensors()
+        _spinState.update { it.copy(running = false) }
+    }
+
+    private fun finishCompassSpin() {
+        if (!spinRunning) return
+        spinRunning = false
+        mainHandler.removeCallbacks(spinTimeout)
+        unregisterSpinSensors()
+
+        val magneticTurn = CompassSpin.magneticTurnDegrees(spinSamples.map { it.azimuthDegrees })
+        val gyroTurn = spinGyroTurn
+        // Ausschlaggebend ist der winkelweise Fehler nach Herausrechnen der
+        // Sensorlatenz. Die Summe allein verdeckt einen Hard-Iron-Versatz
+        // vollständig, und ohne Latenzausgleich hängt das Urteil davon ab,
+        // wie schnell der Nutzer dreht (an 20 °/s gemessen: 1° gegen 6°).
+        val fit = CompassSpin.bestLagFit(spinSamples, spinGyroTicks)
+        val disturbed = CompassSpin.isEnvironmentDisturbed(spinSamples)
+        val verdict = CompassSpin.verdict(
+            magneticTurn,
+            gyroTurn,
+            spinSamples.size,
+            fit.deviationDegrees,
+            disturbed
+        )
+        Log.d(
+            TAG,
+            "Drehtest: Kreisel ${gyroTurn}°, Magnet ${magneticTurn}°, Nachlauf " +
+                "${fit.lagNanos / 1_000_000} ms, Fehler ${fit.deviationDegrees}°, " +
+                "Feldstreuung ${CompassSpin.fieldSpreadPercent(spinSamples)}%, " +
+                "Gegenlauf ${CompassSpin.counterRotationDegrees(spinSamples)}°, " +
+                "gestört $disturbed, Proben ${spinSamples.size}"
+        )
+        _spinState.update {
+            it.copy(
+                running = false,
+                finished = true,
+                turnDegrees = abs(gyroTurn),
+                samples = spinSamples.size,
+                magneticTurnDegrees = magneticTurn,
+                gyroTurnDegrees = gyroTurn,
+                deviationDegrees = fit.deviationDegrees,
+                lagMillis = (fit.lagNanos / 1_000_000).toInt(),
+                verdict = verdict
+            )
+        }
+        // Erst nach der Aktualisierung ablegen – sonst steht im gespeicherten
+        // Lauf noch das alte Urteil (Fehler am 02.11. genau so passiert).
+        storeSpinRun()
+    }
+
+    /**
+     * Legt den abgeschlossenen Drehtest im privaten App-Verzeichnis ab.
+     *
+     * Damit lassen sich Messungen an mehreren Orten sammeln und später
+     * vergleichen – nötig, um „Gerät" von „dieser Ort" zu trennen. Die Datei
+     * bleibt auf dem Gerät, wird nicht übertragen und ist auf die letzten
+     * [MAX_COMPASS_RUNS] Läufe begrenzt.
+     */
+    private fun storeSpinRun() {
+        runCatching {
+            val series = JSONArray()
+            val first = spinSamples.firstOrNull()?.timeNanos ?: 0L
+            for (sample in spinSamples) {
+                series.put(
+                    JSONArray()
+                        .put((sample.timeNanos - first) / 1_000_000)
+                        .put(sample.tiltDegrees.toInt())
+                        .put(sample.azimuthDegrees.toInt())
+                        .put(sample.gyroTurnDegrees.toInt())
+                        .put(sample.fieldMicroTesla.toInt())
+                )
+            }
+            val entry = JSONObject()
+                .put("ts", System.currentTimeMillis())
+                .put("verdict", _spinState.value.verdict.name)
+                .put("deviation", _spinState.value.deviationDegrees ?: -1f)
+                .put("lagMs", _spinState.value.lagMillis)
+                .put("counter", CompassSpin.counterRotationDegrees(spinSamples))
+                .put("spread", CompassSpin.fieldSpreadPercent(spinSamples))
+                .put("samples", spinSamples.size)
+                .put("series", series)
+
+            val file = File(context.applicationContext.filesDir, COMPASS_RUNS_FILE)
+            val previous = if (file.exists()) {
+                file.readLines().filter { it.isNotBlank() }
+            } else {
+                emptyList()
+            }
+            file.writeText((previous + entry.toString()).takeLast(MAX_COMPASS_RUNS).joinToString("\n"))
+        }.onFailure { Log.w(TAG, "Drehtest konnte nicht abgelegt werden: ${it.message}") }
+    }
+
+    private fun unregisterSpinSensors() {
+        val manager = sensorManager ?: return
+        manager.getDefaultSensor(Sensor.TYPE_GYROSCOPE)?.let { manager.unregisterListener(this, it) }
+        accelerometerSensor?.let { manager.unregisterListener(this, it) }
+    }
+
+    private fun publishSpinProgress() {
+        _spinState.update {
+            it.copy(turnDegrees = abs(spinGyroTurn), samples = spinSamples.size)
+        }
+    }
+
+    /** Aktueller Feldbetrag aus dem letzten Magnetometerwert. */
+    private fun currentFieldMicroTesla(): Float {
+        if (!hasMagnetometer) return 0f
+        return sqrt(
+            magnetometerReading[0] * magnetometerReading[0] +
+                magnetometerReading[1] * magnetometerReading[1] +
+                magnetometerReading[2] * magnetometerReading[2]
+        )
+    }
+
+    /** Ein Azimutwert ist eingetroffen – egal über welchen Pfad. */
+    private fun onAzimuth(azimuth: Float, timeNanos: Long) {
+        if (spinRunning) {
+            // Azimut, Kreiselwinkel, Zeit, Neigung und Feldbetrag gehören zusammen.
+            spinSamples.add(
+                CompassSpin.SpinSample(
+                    azimuth,
+                    spinGyroTurn,
+                    timeNanos,
+                    CompassSpin.tiltDegrees(spinGravity),
+                    currentFieldMicroTesla()
+                )
+            )
+            publishSpinProgress()
+        }
+        updateSmoothedHeading(azimuth)
     }
 
     override fun onSensorChanged(event: SensorEvent) {
@@ -601,11 +821,30 @@ class GpsDataManager(private val context: Context) : SensorEventListener {
             SensorManager.getOrientation(rotationMatrix, orientation)
             var azimuth = Math.toDegrees(orientation[0].toDouble()).toFloat()
             if (azimuth < 0) azimuth += 360f
-            updateSmoothedHeading(azimuth)
+            onAzimuth(azimuth, event.timestamp)
         } else if (event.sensor.type == Sensor.TYPE_ACCELEROMETER) {
             System.arraycopy(event.values, 0, accelerometerReading, 0, 3)
             hasAccelerometer = true
-            computeHeadingFromAccAndMag()
+            if (spinRunning) {
+                System.arraycopy(event.values, 0, spinGravity, 0, 3)
+                spinHasGravity = true
+            }
+            computeHeadingFromAccAndMag(event.timestamp)
+        } else if (event.sensor.type == Sensor.TYPE_GYROSCOPE) {
+            if (!spinRunning) return
+            if (spinLastGyroTimestampNs != 0L && spinHasGravity) {
+                val dt = (event.timestamp - spinLastGyroTimestampNs) / 1_000_000_000f
+                if (dt > 0f && dt < 0.25f) {
+                    spinGyroTurn += CompassSpin.azimuthRate(spinGravity, event.values) * dt
+                }
+            }
+            spinLastGyroTimestampNs = event.timestamp
+            spinGyroTicks.add(CompassSpin.GyroTick(event.timestamp, spinGyroTurn))
+            if (abs(spinGyroTurn) >= SPIN_COMPLETE_DEGREES) {
+                finishCompassSpin()
+            } else {
+                publishSpinProgress()
+            }
         } else if (event.sensor.type == Sensor.TYPE_MAGNETIC_FIELD) {
             System.arraycopy(event.values, 0, magnetometerReading, 0, 3)
             hasMagnetometer = true
@@ -617,11 +856,14 @@ class GpsDataManager(private val context: Context) : SensorEventListener {
             recentFieldMagnitudes.addLast(magnitude)
             while (recentFieldMagnitudes.size > FIELD_SAMPLES_MAX) recentFieldMagnitudes.removeFirst()
             updateCompassHealth()
-            computeHeadingFromAccAndMag()
+            computeHeadingFromAccAndMag(event.timestamp)
         }
     }
 
-    private fun computeHeadingFromAccAndMag() {
+    private fun computeHeadingFromAccAndMag(timeNanos: Long) {
+        // Läuft der Rotationsvektor, bleibt er die einzige Peilquelle. Sonst
+        // speisen zwei Wege denselben Wert und die Nadel zappelt.
+        if (rotationVectorSensor != null) return
         if (!hasAccelerometer || !hasMagnetometer) return
         val rotationMatrix = FloatArray(9)
         val inclinationMatrix = FloatArray(9)
@@ -636,7 +878,7 @@ class GpsDataManager(private val context: Context) : SensorEventListener {
             SensorManager.getOrientation(rotationMatrix, orientation)
             var azimuth = Math.toDegrees(orientation[0].toDouble()).toFloat()
             if (azimuth < 0) azimuth += 360f
-            updateSmoothedHeading(azimuth)
+            onAzimuth(azimuth, timeNanos)
         }
     }
 
@@ -660,23 +902,41 @@ class GpsDataManager(private val context: Context) : SensorEventListener {
         return if (courseModeActive && lastBearingDegrees != null) lastBearingDegrees!! else smoothedHeading
     }
 
-    /** Wertet Sensorgenauigkeit und Feldbetrag aus und markiert verdächtige Kompassdaten. */
+    /** Wertet Sensorgenauigkeit und Feldbetrag aus und veröffentlicht den Befund samt Messwert. */
     private fun updateCompassHealth() {
-        val avg = recentFieldMagnitudes
+        val fieldMicroTesla = recentFieldMagnitudes
             .takeIf { it.size >= FIELD_SAMPLES_MIN }
             ?.average()
             ?.toFloat()
-        val fieldSuspect = avg != null && (avg < FIELD_MIN_UT || avg > FIELD_MAX_UT)
-        val suspect = compassAccuracyLow || fieldSuspect
-        if (suspect != _gpsState.value.compassSuspect) {
-            _gpsState.update { it.copy(compassSuspect = suspect) }
+        val issue = CompassHealth.issue(fieldMicroTesla, compassAccuracyLow)
+
+        val current = _gpsState.value
+        val previous = current.compassFieldMicroTesla
+        // Feldwert nur übernehmen, wenn er sich sichtbar ändert – sonst flackert
+        // die Anzeige mit jedem Sensorereignis.
+        val fieldChanged = when {
+            fieldMicroTesla == null -> false
+            previous == null -> true
+            else -> abs(previous - fieldMicroTesla) >= FIELD_DISPLAY_STEP_UT
+        }
+        if (issue != current.compassIssue || fieldChanged) {
+            _gpsState.update {
+                it.copy(
+                    compassIssue = issue,
+                    compassFieldMicroTesla = if (fieldChanged) fieldMicroTesla else previous
+                )
+            }
         }
     }
 
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {
         if (sensor == null) return
         if (sensor.type == Sensor.TYPE_ROTATION_VECTOR || sensor.type == Sensor.TYPE_MAGNETIC_FIELD) {
-            compassAccuracyLow = accuracy < SensorManager.SENSOR_STATUS_ACCURACY_MEDIUM
+            // Nur eine echte Rückstufung zählt: SENSOR_STATUS_UNRELIABLE (-1) heißt
+            // "keine Angabe", nicht "schlecht" – Samsung liefert für den
+            // Rotationsvektor dauerhaft -1. Wer das mitzählt, hat auf diesen
+            // Geräten eine Warnung, die nie wieder ausgeht.
+            compassAccuracyLow = accuracy == SensorManager.SENSOR_STATUS_ACCURACY_LOW
             updateCompassHealth()
         }
     }

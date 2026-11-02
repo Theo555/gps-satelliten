@@ -25,11 +25,16 @@ data class GpsLocationState(
     val satellites: List<SatelliteInfo> = emptyList(),
     val compassHeading: Float = 0f, // 0..360 from device orientation sensor
     val headingReferenceDegrees: Float = 0f, // Pfeil-Referenz: GPS-Kurs bei Bewegung, sonst Kompasskurs
-    val compassSuspect: Boolean = false, // Kompassgenauigkeit oder Feldbetrag unplausibel
+    val compassIssue: CompassIssue = CompassIssue.NONE, // Grund der Kompass-Warnung
+    val compassFieldMicroTesla: Float? = null, // gemittelter Feldbetrag in µT
     val isHeadingUp: Boolean = false, // false = North-Up, true = Heading-Up
     val ttffSeconds: Int? = null, // Time To First Fix in seconds
     val lastUpdateTime: Long = System.currentTimeMillis()
 ) {
+    /** true, sobald ein Grund für eine Kompass-Warnung vorliegt. */
+    val compassSuspect: Boolean
+        get() = compassIssue != CompassIssue.NONE
+
     val satellitesInView: Int
         get() = satellites.size
 

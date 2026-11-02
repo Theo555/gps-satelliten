@@ -41,6 +41,33 @@
     <string name="orientation_north_up">North up (0°)</string>
     <string name="orientation_heading_up">Heading up (%1$d°)</string>
     <string name="compass_unreliable">Compass unreliable</string>
+    <string name="compass_issue_field_strong">Compass unreliable · field %1$.0f µT (too strong)</string>
+    <string name="compass_issue_field_weak">Compass unreliable · field %1$.0f µT (too weak)</string>
+
+    <!-- Compass check (diagnosis only) -->
+    <string name="compass_check_open">Check compass</string>
+    <string name="compass_check_title">Compass quality</string>
+    <string name="compass_check_field_ok">Field %1$.0f µT – normal range</string>
+    <string name="compass_check_field_unknown">Field: no readings yet</string>
+    <string name="compass_check_instruction">Place the device flat and turn it once all the way round – about 20 seconds.</string>
+    <string name="compass_check_progress">Turned: %1$d°</string>
+    <string name="compass_check_start">Start rotation test</string>
+    <string name="compass_check_repeat">Check again</string>
+    <string name="compass_check_stop">Cancel</string>
+    <string name="compass_check_close">Close</string>
+    <string name="compass_spin_ok">The compass follows the rotation – deviation %1$d°.</string>
+    <string name="compass_spin_doubtful">Deviation %1$d° – only partly credible.</string>
+    <string name="compass_spin_contradictory">Clear deviation – the cause is open: device, case or this location.</string>
+    <string name="compass_check_place_hint">A deviation can also come from the location. Check at a second place before suspecting the device.</string>
+    <string name="compass_spin_environment">A magnetic field here disturbs the measurement – this says nothing about the device. Repeat in a calmer place.</string>
+    <string name="compass_spin_insufficient">Not turned far enough – please go once all the way round.</string>
+    <string name="compass_spin_no_gyro">This device has no gyroscope – the rotation test is not possible.</string>
+    <string name="compass_spin_previous">Previous run: deviation %1$d°</string>
+    <string name="compass_check_help_title">What can help</string>
+    <string name="compass_check_help_case">Remove the case – a magnetic clasp gets calibrated in otherwise.</string>
+    <string name="compass_check_help_figure8">Figure-eight: move the device through all orientations, not just flat in a circle. Only then can the sensor separate the device field from the earth field.</string>
+    <string name="compass_check_help_distance">Keep distance from metal, speakers and window sills.</string>
+    <string name="compass_check_limit">This test finds distortion and jumps. A uniform error in all directions cannot be detected.</string>
 
     <!-- Banner, Statuszeile, Radar -->
     <string name="btn_activate">Turn on</string>
