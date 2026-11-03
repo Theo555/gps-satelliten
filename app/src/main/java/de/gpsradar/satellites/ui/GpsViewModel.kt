@@ -115,6 +115,16 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
         prefs.getLong("active_waypoint_id", -1L).takeIf { it >= 0L }
     )
 
+    init {
+        // Ein aus den Einstellungen wiederhergestelltes Ziel muss den Alarm
+        // wieder scharf stellen. Sonst zeigt die App nach einem Neustart ein
+        // aktives Ziel an, dessen Ankunftsalarm nie bewaffnet wurde – er
+        // schweigt dann für immer, ohne dass man es merkt. Am 03.11. genau so
+        // passiert: Nach mehreren Neuinstallationen kam das Ziel aus den
+        // Einstellungen, `setActiveWaypoint()` wurde nie aufgerufen.
+        activeWaypointId.value?.let { startArrivalMonitoring(it) }
+    }
+
     /**
      * Tracks liegen als Einzeldateien in `files/tracks/`, der Index steht in
      * den Einstellungen. Die alte Sammel-Ablage (Schlüssel `tracks`) wird beim
@@ -394,10 +404,9 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
      */
     private fun arrivalLogStart(waypointId: Long) {
         val wp = waypoints.value.find { it.id == waypointId } ?: return
-        val accuracy = rawGpsState.value.accuracyMeters?.toDouble()
         Log.i(
             TAG_ARRIVAL,
-            "scharf für ${wp.name}, Schwelle ${formatMeters(ArrivalAlert.thresholdMeters(accuracy?.toFloat()))} m"
+            "scharf fuer ${wp.name} (Schwelle 5 bis 25 m nach Genauigkeit)"
         )
     }
 
