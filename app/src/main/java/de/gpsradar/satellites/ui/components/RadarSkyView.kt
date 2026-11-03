@@ -9,7 +9,6 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -62,7 +61,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import de.gpsradar.satellites.R
-import de.gpsradar.satellites.model.CompassIssue
 import de.gpsradar.satellites.model.Constellation
 import de.gpsradar.satellites.model.GpsLocationState
 import de.gpsradar.satellites.model.SatelliteInfo
@@ -169,22 +167,10 @@ fun RadarSkyView(
             contentAlignment = Alignment.Center
         ) {
             if (state.compassSuspect) {
-                val fieldMicroTesla = state.compassFieldMicroTesla
-                val hint = when {
-                    state.compassIssue == CompassIssue.FIELD_TOO_STRONG && fieldMicroTesla != null ->
-                        stringResource(R.string.compass_issue_field_strong, fieldMicroTesla)
-                    state.compassIssue == CompassIssue.FIELD_TOO_WEAK && fieldMicroTesla != null ->
-                        stringResource(R.string.compass_issue_field_weak, fieldMicroTesla)
-                    else -> stringResource(R.string.compass_unreliable)
-                }
-                Text(
-                    text = hint,
-                    fontSize = 11.sp,
-                    color = Color(0xFFF59E0B),
-                    modifier = Modifier
-                        .clickable { onOpenCompassCheck() }
-                        .padding(vertical = 2.dp)
-                        .testTag("compass_check_hint")
+                CompassWarningLine(
+                    state = state,
+                    onClick = onOpenCompassCheck,
+                    tag = "compass_check_hint"
                 )
             }
         }

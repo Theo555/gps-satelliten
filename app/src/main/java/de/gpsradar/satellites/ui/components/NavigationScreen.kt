@@ -412,6 +412,12 @@ private fun ActiveTargetCard(
                     color = Color.White
                 )
             }
+            // Gleicher Hinweis wie im Radar: Beim Folgen schaut man hierher,
+            // nicht auf die Nadel-Seite.
+            if (state.compassSuspect) {
+                Spacer(modifier = Modifier.height(6.dp))
+                CompassWarningLine(state = state, tag = "nav_compass_hint")
+            }
             Spacer(modifier = Modifier.height(10.dp))
             if (waypoint == null && track == null) {
                 Text(
