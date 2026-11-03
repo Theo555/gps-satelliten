@@ -312,6 +312,7 @@
     <string name="nav_wait_fix_track">Waiting for GPS fix to follow the track …</string>
     <string name="cd_dir_next_point">Direction to next track point</string>
     <string name="track_reached">Destination reached</string>
+    <string name="nav_arrival_notice_fmt">Arrived – radius %1$s</string>
     <string name="nav_direction_fmt">Bearing %1$s (%2$s)</string>
     <string name="nav_track_progress">Point %1$d of %2$d · target %3$s · left %4$s</string>
     <string name="btn_stop_following">Stop following</string>

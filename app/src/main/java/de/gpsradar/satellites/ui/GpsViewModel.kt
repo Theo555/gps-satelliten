@@ -29,6 +29,7 @@ import de.gpsradar.satellites.model.CompassWalkState
 import de.gpsradar.satellites.model.CsvMeta
 import de.gpsradar.satellites.model.CsvProfile
 import de.gpsradar.satellites.model.ArrivalAlert
+import de.gpsradar.satellites.model.ArrivalNotice
 import de.gpsradar.satellites.model.Constellation
 import de.gpsradar.satellites.model.GpsLocationState
 import de.gpsradar.satellites.model.GnssNavMessage
@@ -69,6 +70,9 @@ private const val TRACK_SNAP_THRESHOLD_M = 100.0
 
 /** Eigener Log-Tag: Der Ankunftsalarm ist sonst nicht nachvollziehbar. */
 private const val TAG_ARRIVAL = "ArrivalAlert"
+
+/** So lange bleibt die Meldung „Angekommen – Umkreis x m" auf dem Schirm. */
+private const val ARRIVAL_NOTICE_MS = 6_000L
 
 /** Dauer einer Rohdaten-Aufzeichnung; danach endet sie selbst und bietet den Export an. */
 private const val RAW_CAPTURE_DURATION_MS = 5 * 60 * 1000L
@@ -187,6 +191,10 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
     private var trackEndArmed = false
     private var trackEndAlerted = false
 
+    /** Kurzmeldung nach dem Ankunftsalarm; null = nichts anzeigen. */
+    val arrivalNotice = MutableStateFlow<ArrivalNotice?>(null)
+    private var arrivalNoticeJob: Job? = null
+
     // Filtered and sorted satellite list
     val displayedSatellites: StateFlow<List<SatelliteInfo>> = combine(
         rawGpsState,
@@ -299,6 +307,7 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun setActiveWaypoint(id: Long?) {
+        clearArrivalNotice()
         activeWaypointId.value = id
         if (id != null) {
             activeTrackId.value = null
@@ -317,6 +326,7 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
     fun setActiveTrack(id: Long?) {
         cancelTrackFollowing()
         resetTrackEndAlert()
+        clearArrivalNotice()
         activeTrackId.value = id
         if (id != null) {
             activeWaypointId.value = null
@@ -379,18 +389,36 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
         trackEndArmed = result.armed
         trackEndAlerted = result.alerted
         if (!result.trigger) return
+        val radius = TrackEndAlert.radiusMeters(accuracy)
         Log.i(
             TAG_ARRIVAL,
             "Track-Ende erreicht: ${track.name}, Rest ${formatMeters(remaining)} m " +
-                "(Schwelle ${formatMeters(TrackEndAlert.radiusMeters(accuracy))} m, " +
+                "(Schwelle ${formatMeters(radius)} m, " +
                 "Genauigkeit ±${formatMeters(accuracy?.toDouble())} m)"
         )
         vibrateArrival()
+        showArrivalNotice(radius)
     }
 
     private fun resetTrackEndAlert() {
         trackEndArmed = false
         trackEndAlerted = false
+    }
+
+    /** Zeigt die Meldung einige Sekunden an; ein neuer Alarm verlängert sie. */
+    private fun showArrivalNotice(radiusMeters: Double) {
+        arrivalNoticeJob?.cancel()
+        arrivalNotice.value = ArrivalNotice(radiusMeters, System.currentTimeMillis())
+        arrivalNoticeJob = viewModelScope.launch {
+            delay(ARRIVAL_NOTICE_MS)
+            arrivalNotice.value = null
+        }
+    }
+
+    private fun clearArrivalNotice() {
+        arrivalNoticeJob?.cancel()
+        arrivalNoticeJob = null
+        arrivalNotice.value = null
     }
 
     private fun cancelTrackFollowing() {
@@ -422,6 +450,7 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
                             "Genauigkeit ±${formatMeters(st.accuracyMeters?.toDouble())} m)"
                     )
                     vibrateArrival()
+                    showArrivalNotice(threshold)
                 } else if (d > ArrivalAlert.resetDistanceMeters(threshold)) {
                     arrivalAlerted = false
                 }
@@ -438,7 +467,7 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
         val wp = waypoints.value.find { it.id == waypointId } ?: return
         Log.i(
             TAG_ARRIVAL,
-            "scharf fuer ${wp.name} (Schwelle 5 bis 25 m nach Genauigkeit)"
+            "scharf fuer ${wp.name} (Schwelle = Genauigkeit + ${ArrivalAlert.MARGIN_M} m)"
         )
     }
 

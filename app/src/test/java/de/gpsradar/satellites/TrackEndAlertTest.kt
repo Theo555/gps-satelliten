@@ -9,32 +9,25 @@ import org.junit.Test
 /** Ankunftsalarm am Track-Ende – reine Rechnung, ohne Standort. */
 class TrackEndAlertTest {
 
-    /** Guter Empfang: es bleibt beim Radius der Anzeige. */
+    /** Guter Empfang: es bleibt bei Genauigkeit plus Zuschlag. */
     @Test
-    fun goodAccuracyKeepsTheMinimumRadius() {
-        assertEquals(30.0, TrackEndAlert.radiusMeters(null), 0.001)
-        assertEquals(30.0, TrackEndAlert.radiusMeters(3f), 0.001)
-        assertEquals(30.0, TrackEndAlert.radiusMeters(20f), 0.001)
+    fun radiusFollowsAccuracy() {
+        assertEquals(7.0, TrackEndAlert.radiusMeters(5f), 0.001)
+        assertEquals(22.0, TrackEndAlert.radiusMeters(20f), 0.001)
+        assertEquals(5.0, TrackEndAlert.radiusMeters(null), 0.001)
     }
 
-    /** Im Wald: der Radius folgt der Unsicherheit, statt sie zu ignorieren. */
+    /** Kein Deckel – dieselbe Regel wie beim Zielpunkt. */
     @Test
-    fun poorAccuracyWidensTheRadius() {
-        assertEquals(38.0, TrackEndAlert.radiusMeters(38f), 0.001)
-        assertEquals(50.0, TrackEndAlert.radiusMeters(50f), 0.001)
+    fun poorAccuracyIsNotCapped() {
+        assertEquals(42.0, TrackEndAlert.radiusMeters(40f), 0.001)
     }
 
-    /** Ein unbrauchbarer Fix darf nicht aus 100 Metern Entfernung melden. */
+    /** Zurückgesetzt wird erst bei mindestens 30 m Abstand. */
     @Test
-    fun veryPoorAccuracyIsCapped() {
-        assertEquals(50.0, TrackEndAlert.radiusMeters(300f), 0.001)
-    }
-
-    /** Der Rücksetzwert liegt bei der doppelten Schwelle. */
-    @Test
-    fun resetHappensAtTwiceTheRadius() {
-        assertEquals(60.0, TrackEndAlert.armMeters(30.0), 0.001)
-        assertEquals(80.0, TrackEndAlert.armMeters(40.0), 0.001)
+    fun resetHappensAtLeast30MetersAway() {
+        assertEquals(30.0, TrackEndAlert.armMeters(7.0), 0.001)
+        assertEquals(44.0, TrackEndAlert.armMeters(22.0), 0.001)
     }
 
     /** Auf dem Weg: weit weg vom Ende, der Alarm wird scharf gestellt. */
@@ -49,7 +42,7 @@ class TrackEndAlertTest {
     /** Am Ende angekommen: einmal melden. */
     @Test
     fun approachingTheEndTriggersOnce() {
-        val r = TrackEndAlert.update(12.0, null, armed = true, alerted = false)
+        val r = TrackEndAlert.update(4.0, null, armed = true, alerted = false)
         assertTrue(r.trigger)
         assertTrue(r.alerted)
     }
@@ -57,7 +50,7 @@ class TrackEndAlertTest {
     /** Wer stehen bleibt, bekommt die Meldung nicht im Sekundentakt. */
     @Test
     fun secondFixAtTheEndStaysQuiet() {
-        val r = TrackEndAlert.update(12.0, null, armed = true, alerted = true)
+        val r = TrackEndAlert.update(4.0, null, armed = true, alerted = true)
         assertFalse(r.trigger)
     }
 
@@ -73,8 +66,7 @@ class TrackEndAlertTest {
         assertTrue(noisy.trigger)
     }
 
-    /**
-     * Start am Track-Ende: Die Reststrecke ist sofort klein, der Alarm war aber
+    /** Start am Track-Ende: Die Reststrecke ist sofort klein, der Alarm war aber
      * nie scharf – er darf nicht grundlos losgehen.
      */
     @Test
@@ -86,21 +78,21 @@ class TrackEndAlertTest {
         // Weggehen schärft ihn, zurückkommen meldet dann.
         r = TrackEndAlert.update(300.0, null, armed = r.armed, alerted = r.alerted)
         assertTrue(r.armed)
-        r = TrackEndAlert.update(10.0, null, armed = r.armed, alerted = r.alerted)
+        r = TrackEndAlert.update(3.0, null, armed = r.armed, alerted = r.alerted)
         assertTrue(r.trigger)
     }
 
     /** Genau auf der Schwelle gilt das Ende noch nicht als erreicht. */
     @Test
     fun radiusIsExclusive() {
-        val r = TrackEndAlert.update(30.0, null, armed = true, alerted = false)
+        val r = TrackEndAlert.update(5.0, null, armed = true, alerted = false)
         assertFalse(r.trigger)
     }
 
     /** Zwischen Schwelle und Sperre bleibt die Meldung aus. */
     @Test
     fun betweenRadiusAndArmIsQuiet() {
-        val r = TrackEndAlert.update(45.0, null, armed = true, alerted = false)
+        val r = TrackEndAlert.update(12.0, null, armed = true, alerted = false)
         assertFalse(r.trigger)
         assertTrue(r.armed)
     }
@@ -112,7 +104,7 @@ class TrackEndAlertTest {
         assertTrue(far.armed)
         assertFalse(far.alerted)
 
-        val back = TrackEndAlert.update(15.0, null, armed = far.armed, alerted = far.alerted)
+        val back = TrackEndAlert.update(3.0, null, armed = far.armed, alerted = far.alerted)
         assertTrue(back.trigger)
     }
 }

@@ -2,29 +2,33 @@ package de.gpsradar.satellites
 
 import de.gpsradar.satellites.model.ArrivalAlert
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /** Schwelle des Ankunftsalarms – reine Rechnung, ohne Standort. */
 class ArrivalAlertTest {
 
-    /** Guter Empfang: 5 m bleiben 5 m. */
+    /** Der Radius ist die Genauigkeit plus ein fester Zuschlag. */
     @Test
-    fun goodAccuracyKeepsMinimumRadius() {
-        assertEquals(5.0, ArrivalAlert.thresholdMeters(4f), 0.001)
-        assertEquals(5.0, ArrivalAlert.thresholdMeters(2f), 0.001)
+    fun radiusFollowsAccuracyPlusMargin() {
+        assertEquals(5.0, ArrivalAlert.thresholdMeters(3f), 0.001)
+        assertEquals(7.0, ArrivalAlert.thresholdMeters(5f), 0.001)
+        assertEquals(8.0, ArrivalAlert.thresholdMeters(6f), 0.001)
+        assertEquals(22.0, ArrivalAlert.thresholdMeters(20f), 0.001)
     }
 
-    /** Im Wald: die Schwelle folgt der Unsicherheit, statt sie zu ignorieren. */
+    /** Gute Genauigkeit heißt strenge Schwelle – kein Mindestabstand. */
     @Test
-    fun poorAccuracyWidensTheRadius() {
-        assertEquals(12.0, ArrivalAlert.thresholdMeters(12f), 0.001)
-        assertEquals(20.0, ArrivalAlert.thresholdMeters(20f), 0.001)
+    fun goodAccuracyDemandsCloserApproach() {
+        assertEquals(4.0, ArrivalAlert.thresholdMeters(2f), 0.001)
+        assertTrue(ArrivalAlert.thresholdMeters(2f) < ArrivalAlert.thresholdMeters(15f))
     }
 
-    /** Ein einzelner Ausreißer darf nicht „angekommen" melden. */
+    /** Keine Obergrenze: was das Gerät nicht weiß, darf die App nicht behaupten. */
     @Test
-    fun veryPoorAccuracyIsCapped() {
-        assertEquals(25.0, ArrivalAlert.thresholdMeters(60f), 0.001)
+    fun poorAccuracyIsNotCapped() {
+        assertEquals(42.0, ArrivalAlert.thresholdMeters(40f), 0.001)
+        assertEquals(62.0, ArrivalAlert.thresholdMeters(60f), 0.001)
     }
 
     /** Ohne Genauigkeitsangabe gilt der vorsichtige Mindestradius. */
@@ -33,10 +37,15 @@ class ArrivalAlertTest {
         assertEquals(5.0, ArrivalAlert.thresholdMeters(null), 0.001)
     }
 
-    /** Der Alarm schärft sich erst wieder, wenn man deutlich weg ist. */
+    /**
+     * Zurückgesetzt wird erst deutlich später – beim Suchen am Ziel bewegt man
+     * sich im Grenzbereich, sonst käme die Meldung im Sekundentakt.
+     */
     @Test
-    fun resetHappensAtTwiceTheRadius() {
-        assertEquals(10.0, ArrivalAlert.resetDistanceMeters(5.0), 0.001)
-        assertEquals(24.0, ArrivalAlert.resetDistanceMeters(12.0), 0.001)
+    fun resetHappensAtTwiceTheRadiusButNotBelow30() {
+        assertEquals(30.0, ArrivalAlert.resetDistanceMeters(5.0), 0.001)
+        assertEquals(30.0, ArrivalAlert.resetDistanceMeters(7.0), 0.001)
+        assertEquals(40.0, ArrivalAlert.resetDistanceMeters(20.0), 0.001)
+        assertEquals(120.0, ArrivalAlert.resetDistanceMeters(60.0), 0.001)
     }
 }

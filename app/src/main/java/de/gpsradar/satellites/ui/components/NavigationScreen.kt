@@ -87,6 +87,7 @@ import de.gpsradar.satellites.model.Cache
 import de.gpsradar.satellites.model.Coordinates
 import de.gpsradar.satellites.model.GpsLocationState
 import de.gpsradar.satellites.model.ImportResult
+import de.gpsradar.satellites.model.ArrivalNotice
 import de.gpsradar.satellites.model.Navigation
 import de.gpsradar.satellites.model.Track
 import de.gpsradar.satellites.model.TrackEndAlert
@@ -113,6 +114,7 @@ fun NavigationScreen(
     tracks: List<Track>,
     activeTrackId: Long?,
     activeTrackProgress: Int,
+    arrivalNotice: ArrivalNotice?,
     onAddCurrentPosition: (name: String, code: String?) -> Unit,
     onAddManual: (name: String, code: String?, latitude: Double, longitude: Double) -> Unit,
     onUpdateWaypoint: (Waypoint) -> Unit,
@@ -176,6 +178,7 @@ fun NavigationScreen(
             waypoint = activeWaypoint,
             track = activeTrack,
             trackProgress = activeTrackProgress,
+            arrivalNotice = arrivalNotice,
             hintR13Map = hintR13Map,
             onToggleHintFormat = onToggleHintFormat,
             onOpenMap = { activeWaypoint?.let { openInMap(context, it) } },
@@ -385,6 +388,7 @@ private fun ActiveTargetCard(
     waypoint: Waypoint?,
     track: Track?,
     trackProgress: Int,
+    arrivalNotice: ArrivalNotice?,
     hintR13Map: Map<String, Boolean>,
     onToggleHintFormat: (String) -> Unit,
     onOpenMap: () -> Unit,
@@ -447,6 +451,27 @@ private fun ActiveTargetCard(
                         trackProgress = trackProgress,
                         onStop = onStopTrack,
                         onReverse = onReverseTrack
+                    )
+                }
+            }
+            // Ankunftsmeldung: nennt den Umkreis, innerhalb dessen die App
+            // „angekommen" belegen kann. Verschwindet von selbst.
+            arrivalNotice?.let { notice ->
+                Spacer(modifier = Modifier.height(10.dp))
+                Surface(
+                    color = SignalGreen.copy(alpha = 0.16f),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.fillMaxWidth().testTag("arrival_notice")
+                ) {
+                    Text(
+                        text = stringResource(
+                            R.string.nav_arrival_notice_fmt,
+                            formatDistance(notice.radiusMeters)
+                        ),
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = SignalGreen
                     )
                 }
             }

@@ -159,6 +159,7 @@ fun GpsAppMainScreen(
     val tracks by viewModel.tracks.collectAsState()
     val activeTrackId by viewModel.activeTrackId.collectAsState()
     val activeTrackProgress by viewModel.activeTrackProgress.collectAsState()
+    val arrivalNotice by viewModel.arrivalNotice.collectAsState()
     val navSection by viewModel.navSection.collectAsState()
     val isRecording by viewModel.isRecording.collectAsState()
     val isRecordingPaused by viewModel.isRecordingPaused.collectAsState()
@@ -462,6 +463,7 @@ fun GpsAppMainScreen(
                             tracks = tracks,
                             activeTrackId = activeTrackId,
                             activeTrackProgress = activeTrackProgress,
+                            arrivalNotice = arrivalNotice,
                             onAddCurrentPosition = { name, code -> viewModel.addWaypointAtCurrentPosition(name, code) },
                             onAddManual = { name, code, lat, lon -> viewModel.addWaypoint(name, code, lat, lon) },
                             onUpdateWaypoint = { wp -> viewModel.updateWaypoint(wp) },
