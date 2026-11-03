@@ -6,6 +6,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
+import android.util.Log
 import androidx.annotation.StringRes
 import androidx.documentfile.provider.DocumentFile
 import androidx.lifecycle.AndroidViewModel
@@ -27,6 +28,7 @@ import de.gpsradar.satellites.model.CompassSpinState
 import de.gpsradar.satellites.model.CompassWalkState
 import de.gpsradar.satellites.model.CsvMeta
 import de.gpsradar.satellites.model.CsvProfile
+import de.gpsradar.satellites.model.ArrivalAlert
 import de.gpsradar.satellites.model.Constellation
 import de.gpsradar.satellites.model.GpsLocationState
 import de.gpsradar.satellites.model.GnssNavMessage
@@ -63,7 +65,9 @@ enum class SatelliteSort(@StringRes val labelRes: Int) {
 
 private const val TRACK_ADVANCE_THRESHOLD_M = 25.0
 private const val TRACK_SNAP_THRESHOLD_M = 100.0
-private const val ARRIVAL_THRESHOLD_M = 5.0
+
+/** Eigener Log-Tag: Der Ankunftsalarm ist sonst nicht nachvollziehbar. */
+private const val TAG_ARRIVAL = "ArrivalAlert"
 
 /** Dauer einer Rohdaten-Aufzeichnung; danach endet sie selbst und bietet den Export an. */
 private const val RAW_CAPTURE_DURATION_MS = 5 * 60 * 1000L
@@ -355,6 +359,7 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
     private fun startArrivalMonitoring(waypointId: Long) {
         cancelArrivalMonitoring()
         arrivalAlerted = false
+        arrivalLogStart(waypointId)
         arrivalJob = viewModelScope.launch {
             rawGpsState.collect { st ->
                 if (activeWaypointId.value != waypointId) return@collect
@@ -362,15 +367,42 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
                 val lat = st.latitude ?: return@collect
                 val lon = st.longitude ?: return@collect
                 val d = Navigation.distanceMeters(lat, lon, wp.latitude, wp.longitude)
-                if (d < ARRIVAL_THRESHOLD_M && !arrivalAlerted) {
+                // Die Schwelle folgt der gemeldeten Genauigkeit: Im Wald schwankt
+                // die Position um 10–20 m, ein fester 5-m-Radius löst dann nie aus
+                // (am 03.11. genau so passiert).
+                val threshold = ArrivalAlert.thresholdMeters(st.accuracyMeters)
+                if (d < threshold && !arrivalAlerted) {
                     arrivalAlerted = true
+                    Log.i(
+                        TAG_ARRIVAL,
+                        "Ankunft bei ${wp.name}: ${formatMeters(d)} m " +
+                            "(Schwelle ${formatMeters(threshold)} m, " +
+                            "Genauigkeit ±${formatMeters(st.accuracyMeters?.toDouble())} m)"
+                    )
                     vibrateArrival()
-                } else if (d > ARRIVAL_THRESHOLD_M * 2) {
+                } else if (d > ArrivalAlert.resetDistanceMeters(threshold)) {
                     arrivalAlerted = false
                 }
             }
         }
     }
+
+    /**
+     * Schreibt einmal hin, dass ein Ziel scharf gestellt wurde. Damit lässt sich
+     * später sagen, ob der Alarm überhaupt bewaffnet war — beim Feldtest am
+     * 03.11. war das nicht mehr feststellbar.
+     */
+    private fun arrivalLogStart(waypointId: Long) {
+        val wp = waypoints.value.find { it.id == waypointId } ?: return
+        val accuracy = rawGpsState.value.accuracyMeters?.toDouble()
+        Log.i(
+            TAG_ARRIVAL,
+            "scharf für ${wp.name}, Schwelle ${formatMeters(ArrivalAlert.thresholdMeters(accuracy?.toFloat()))} m"
+        )
+    }
+
+    private fun formatMeters(value: Double?): String =
+        if (value == null) "—" else String.format(Locale.US, "%.1f", value)
 
     private fun cancelArrivalMonitoring() {
         arrivalJob?.cancel()
