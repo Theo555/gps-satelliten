@@ -34,11 +34,13 @@ object TrackEndAlert {
      *
      * @param armed der Alarm ist scharf (man war schon weiter als der Rücksetzabstand weg)
      * @param alerted das Ende wurde bereits gemeldet
+     * @param hits Messungen in Folge unter der Schwelle
      * @param trigger jetzt melden – der Aufrufer vibriert einmal
      */
     data class Result(
         val armed: Boolean,
         val alerted: Boolean,
+        val hits: Int,
         val trigger: Boolean
     )
 
@@ -50,18 +52,23 @@ object TrackEndAlert {
         remainingMeters: Double,
         accuracyMeters: Float?,
         armed: Boolean,
-        alerted: Boolean
+        alerted: Boolean,
+        hits: Int = 0
     ): Result {
         val radius = radiusMeters(accuracyMeters)
         if (remainingMeters > armMeters(radius)) {
-            return Result(armed = true, alerted = false, trigger = false)
+            return Result(armed = true, alerted = false, hits = 0, trigger = false)
         }
         if (!armed || alerted) {
-            return Result(armed = armed, alerted = alerted, trigger = false)
+            return Result(armed = armed, alerted = alerted, hits = hits, trigger = false)
         }
         if (remainingMeters >= radius) {
-            return Result(armed = true, alerted = false, trigger = false)
+            return Result(armed = true, alerted = false, hits = 0, trigger = false)
         }
-        return Result(armed = true, alerted = true, trigger = true)
+        val confirmedHits = hits + 1
+        if (!ArrivalAlert.confirmed(confirmedHits)) {
+            return Result(armed = true, alerted = false, hits = confirmedHits, trigger = false)
+        }
+        return Result(armed = true, alerted = true, hits = confirmedHits, trigger = true)
     }
 }

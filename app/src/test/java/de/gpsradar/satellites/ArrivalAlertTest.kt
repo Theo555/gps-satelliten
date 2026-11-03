@@ -48,4 +48,21 @@ class ArrivalAlertTest {
         assertEquals(40.0, ArrivalAlert.resetDistanceMeters(20.0), 0.001)
         assertEquals(120.0, ArrivalAlert.resetDistanceMeters(60.0), 0.001)
     }
+
+    /** Zwei Messungen in Folge unter der Schwelle, sonst zählt nichts. */
+    @Test
+    fun hitsMustBeConsecutive() {
+        var hits = ArrivalAlert.nextHits(6.0, 7.0, 0)
+        assertEquals(1, hits)
+        assertTrue(!ArrivalAlert.confirmed(hits))
+
+        hits = ArrivalAlert.nextHits(4.0, 7.0, hits)
+        assertEquals(2, hits)
+        assertTrue(ArrivalAlert.confirmed(hits))
+
+        // Ein Ausrutscher über die Schwelle setzt die Folge zurück.
+        hits = ArrivalAlert.nextHits(8.0, 7.0, hits)
+        assertEquals(0, hits)
+        assertTrue(!ArrivalAlert.confirmed(hits))
+    }
 }

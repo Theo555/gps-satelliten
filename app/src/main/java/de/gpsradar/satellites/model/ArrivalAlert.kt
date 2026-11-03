@@ -34,6 +34,17 @@ object ArrivalAlert {
     const val MIN_RESET_M = 30.0
 
     /**
+     * So viele Messungen in Folge müssen unter der Schwelle liegen.
+     *
+     * Die letzten Meter vor einem Ziel sind die unzuverlässigsten: Im Wald
+     * springt die gemessene Entfernung bei jedem Fix um ±10 m. Ein einzelner
+     * Glücksfix unter der Schwelle würde die Meldung an einer falschen Stelle
+     * auslösen – und weil erst bei 30 m zurückgesetzt wird, käme keine zweite.
+     * Zwei Messungen in Folge kosten rund eine Sekunde und halbieren das.
+     */
+    const val HITS_REQUIRED = 2
+
+    /**
      * Radius in Metern für eine gemeldete Genauigkeit.
      *
      * Ohne Genauigkeitsangabe bleibt es beim Mindestradius – dann ist die Lage
@@ -52,4 +63,14 @@ object ArrivalAlert {
      */
     fun resetDistanceMeters(thresholdMeters: Double): Double =
         maxOf(MIN_RESET_M, thresholdMeters * 2.0)
+
+    /**
+     * Zählt die Messungen in Folge unter der Schwelle. Alles außerhalb setzt
+     * den Zähler auf null – nur eine ununterbrochene Folge zählt.
+     */
+    fun nextHits(distanceMeters: Double, thresholdMeters: Double, hits: Int): Int =
+        if (distanceMeters < thresholdMeters) hits + 1 else 0
+
+    /** Genug Messungen in Folge, um „angekommen" zu behaupten. */
+    fun confirmed(hits: Int): Boolean = hits >= HITS_REQUIRED
 }

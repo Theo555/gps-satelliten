@@ -187,9 +187,13 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
     private var arrivalJob: Job? = null
     private var arrivalAlerted = false
 
+    /** Messungen in Folge unter der Schwelle; ein Ausrutscher setzt zurück. */
+    private var arrivalHits = 0
+
     /** Zustand des Alarms am Track-Ende; getrennt vom Zielpunkt-Alarm. */
     private var trackEndArmed = false
     private var trackEndAlerted = false
+    private var trackEndHits = 0
 
     /** Kurzmeldung nach dem Ankunftsalarm; null = nichts anzeigen. */
     val arrivalNotice = MutableStateFlow<ArrivalNotice?>(null)
@@ -385,9 +389,16 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
      */
     private fun checkTrackEnd(track: Track, idx: Int, metersToTarget: Double, accuracy: Float?) {
         val remaining = track.remainingMeters(idx) + metersToTarget
-        val result = TrackEndAlert.update(remaining, accuracy, trackEndArmed, trackEndAlerted)
+        val result = TrackEndAlert.update(
+            remainingMeters = remaining,
+            accuracyMeters = accuracy,
+            armed = trackEndArmed,
+            alerted = trackEndAlerted,
+            hits = trackEndHits
+        )
         trackEndArmed = result.armed
         trackEndAlerted = result.alerted
+        trackEndHits = result.hits
         if (!result.trigger) return
         val radius = TrackEndAlert.radiusMeters(accuracy)
         Log.i(
@@ -403,6 +414,7 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
     private fun resetTrackEndAlert() {
         trackEndArmed = false
         trackEndAlerted = false
+        trackEndHits = 0
     }
 
     /** Zeigt die Meldung einige Sekunden an; ein neuer Alarm verlängert sie. */
@@ -429,6 +441,7 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
     private fun startArrivalMonitoring(waypointId: Long) {
         cancelArrivalMonitoring()
         arrivalAlerted = false
+        arrivalHits = 0
         arrivalLogStart(waypointId)
         arrivalJob = viewModelScope.launch {
             rawGpsState.collect { st ->
@@ -441,7 +454,10 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
                 // die Position um 10–20 m, ein fester 5-m-Radius löst dann nie aus
                 // (am 03.11. genau so passiert).
                 val threshold = ArrivalAlert.thresholdMeters(st.accuracyMeters)
-                if (d < threshold && !arrivalAlerted) {
+                // Erst zwei Messungen in Folge unter der Schwelle: ein einzelner
+                // Glücksfix unter Bäumen würde sonst an falscher Stelle melden.
+                arrivalHits = ArrivalAlert.nextHits(d, threshold, arrivalHits)
+                if (ArrivalAlert.confirmed(arrivalHits) && !arrivalAlerted) {
                     arrivalAlerted = true
                     Log.i(
                         TAG_ARRIVAL,
