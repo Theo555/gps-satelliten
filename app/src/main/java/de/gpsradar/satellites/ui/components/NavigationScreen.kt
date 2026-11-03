@@ -89,6 +89,7 @@ import de.gpsradar.satellites.model.GpsLocationState
 import de.gpsradar.satellites.model.ImportResult
 import de.gpsradar.satellites.model.Navigation
 import de.gpsradar.satellites.model.Track
+import de.gpsradar.satellites.model.TrackEndAlert
 import de.gpsradar.satellites.model.Waypoint
 import de.gpsradar.satellites.model.WaypointCodec
 import de.gpsradar.satellites.model.cacheTypeEmoji
@@ -1063,7 +1064,11 @@ private fun ActiveTrackSummary(
         ?: Navigation.initialBearingDegrees(lat, lon, target.latitude, target.longitude)
     val arrowRotation = (course - state.headingReferenceDegrees).toFloat()
     val remaining = track.remainingMeters(idx)
-    val finished = idx == track.orderedPoints.lastIndex && distance < 30.0
+    // Dieselbe Grenze wie der Ankunftsalarm: mindestens 30 m, bei schlechtem
+    // Empfang so weit wie die Genauigkeit. Sonst stünde „Ziel erreicht" da,
+    // ohne dass der Alarm je käme.
+    val finished = idx == track.orderedPoints.lastIndex &&
+        distance < TrackEndAlert.radiusMeters(state.accuracyMeters)
 
     Surface(
         color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),

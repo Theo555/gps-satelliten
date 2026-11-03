@@ -40,6 +40,7 @@ import de.gpsradar.satellites.model.RawMeasurement
 import de.gpsradar.satellites.model.SatelliteInfo
 import de.gpsradar.satellites.model.SkipReason
 import de.gpsradar.satellites.model.Track
+import de.gpsradar.satellites.model.TrackEndAlert
 import de.gpsradar.satellites.model.TrackPoint
 import de.gpsradar.satellites.model.TrackRecorder
 import de.gpsradar.satellites.model.TrackStore
@@ -182,6 +183,10 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
     private var arrivalJob: Job? = null
     private var arrivalAlerted = false
 
+    /** Zustand des Alarms am Track-Ende; getrennt vom Zielpunkt-Alarm. */
+    private var trackEndArmed = false
+    private var trackEndAlerted = false
+
     // Filtered and sorted satellite list
     val displayedSatellites: StateFlow<List<SatelliteInfo>> = combine(
         rawGpsState,
@@ -311,6 +316,7 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setActiveTrack(id: Long?) {
         cancelTrackFollowing()
+        resetTrackEndAlert()
         activeTrackId.value = id
         if (id != null) {
             activeWaypointId.value = null
@@ -349,16 +355,42 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
                 val track = tracks.value.find { it.id == trackId } ?: return@collect
                 val lat = st.latitude ?: return@collect
                 val lon = st.longitude ?: return@collect
-                val idx = activeTrackProgress.value
                 val pts = track.orderedPoints
-                if (idx >= pts.lastIndex) return@collect
+                if (pts.size < 2) return@collect
+                val idx = activeTrackProgress.value.coerceIn(0, pts.lastIndex)
                 val target = pts[idx]
                 val d = Navigation.distanceMeters(lat, lon, target.latitude, target.longitude)
-                if (d < TRACK_ADVANCE_THRESHOLD_M) {
+                if (idx < pts.lastIndex && d < TRACK_ADVANCE_THRESHOLD_M) {
                     activeTrackProgress.value = idx + 1
                 }
+                checkTrackEnd(track, idx, d, st.accuracyMeters)
             }
         }
+    }
+
+    /**
+     * Meldet das Ende eines verfolgten Tracks hörbar – in beiden Richtungen,
+     * denn das Ende ist immer der letzte Punkt der aktuellen Richtung. Schwelle
+     * und Wortlaut entsprechen der Anzeige „Ziel erreicht".
+     */
+    private fun checkTrackEnd(track: Track, idx: Int, metersToTarget: Double, accuracy: Float?) {
+        val remaining = track.remainingMeters(idx) + metersToTarget
+        val result = TrackEndAlert.update(remaining, accuracy, trackEndArmed, trackEndAlerted)
+        trackEndArmed = result.armed
+        trackEndAlerted = result.alerted
+        if (!result.trigger) return
+        Log.i(
+            TAG_ARRIVAL,
+            "Track-Ende erreicht: ${track.name}, Rest ${formatMeters(remaining)} m " +
+                "(Schwelle ${formatMeters(TrackEndAlert.radiusMeters(accuracy))} m, " +
+                "Genauigkeit ±${formatMeters(accuracy?.toDouble())} m)"
+        )
+        vibrateArrival()
+    }
+
+    private fun resetTrackEndAlert() {
+        trackEndArmed = false
+        trackEndAlerted = false
     }
 
     private fun cancelTrackFollowing() {
@@ -442,6 +474,8 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
             val updated = tracks.value[idx]
             cancelTrackFollowing()
             activeTrackProgress.value = snapStartIndex(updated)
+            // Die Richtung dreht das Ziel um: Alarm neu bewaffnen.
+            resetTrackEndAlert()
             startTrackFollowing(id)
         }
     }
