@@ -813,6 +813,9 @@ object WaypointCodec {
                     wp.difficulty?.let { put("difficulty", it) }
                     wp.terrain?.let { put("terrain", it) }
                     wp.cacheType?.let { put("cacheType", it) }
+                    // Ohne diese Zeile kam ein Multi mit seinen Zusatzpunkten
+                    // beim Import als lose Zielpunkte zurück (stiller Verlust).
+                    wp.groupCacheId?.let { put("groupCacheId", it) }
                     put("found", wp.found)
                 }
             )
@@ -863,6 +866,7 @@ object WaypointCodec {
                     difficulty = if (o.has("difficulty")) o.optDouble("difficulty") else null,
                     terrain = if (o.has("terrain")) o.optDouble("terrain") else null,
                     cacheType = o.optString("cacheType", "").ifBlank { null },
+                    groupCacheId = o.optString("groupCacheId", "").ifBlank { null },
                     found = o.optBoolean("found", false)
                 )
             )
