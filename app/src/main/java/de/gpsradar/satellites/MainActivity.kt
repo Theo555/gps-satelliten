@@ -5,7 +5,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
-import android.util.Log
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -233,7 +232,6 @@ fun GpsAppMainScreen(
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
-            Log.i("GpsLifecycle", "Ereignis: $event")
             when (event) {
                 Lifecycle.Event.ON_START ->
                     if (hasLocationPermission(context)) viewModel.startTracking(true)
