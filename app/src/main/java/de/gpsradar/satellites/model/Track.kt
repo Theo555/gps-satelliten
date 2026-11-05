@@ -66,6 +66,54 @@ data class Track(
     }
 
     /**
+     * Nächster Fortschritts-Index für eine Position.
+     *
+     * Ein Schritt je Positionssatz klingt richtig, reicht aber nur bis zu einer
+     * Geschwindigkeit, die dem Punktabstand pro Sekunde entspricht. Bei einer
+     * Aufzeichnung im Sekundentakt sind das rund 10 m/s (36 km/h); wer schneller
+     * fährt, fällt zurück – und weil immer nur der *erwartete* Punkt geprüft
+     * wurde, holte der Zeiger das nie wieder auf. Am 03.11. blieb dadurch die
+     * Reststrecke bis zum Ziel groß und der Ankunftsalarm konnte nicht auslösen.
+     *
+     * Deshalb wird unter allen Punkten *vor* der aktuellen Stelle der nächst-
+     * gelegene gesucht, höchstens [maxJumpMeters] Strecke weit. Die Grenze ist
+     * kein Tempolimit, sondern deckt eine Funk-Lücke ab: 400 m entsprechen einer
+     * halben Minute Fahrt bei 50 km/h. Sie verhindert außerdem, dass eine
+     * Schleife in einem Satz übersprungen wird.
+     *
+     * Zurück geht es nie. Liegt kein Punkt in der Nähe ([thresholdMeters]), bleibt
+     * der Index stehen – weit weg von der Linie passiert also nichts.
+     */
+    fun advanceIndex(
+        fromIndex: Int,
+        latitude: Double,
+        longitude: Double,
+        thresholdMeters: Double,
+        maxJumpMeters: Double
+    ): Int {
+        val pts = orderedPoints
+        if (pts.size < 2) return 0
+        val start = fromIndex.coerceIn(0, pts.lastIndex)
+        var best = start
+        var bestDistance = Double.MAX_VALUE
+        var travelled = 0.0
+        var i = start + 1
+        while (i <= pts.lastIndex && travelled <= maxJumpMeters) {
+            travelled += Navigation.distanceMeters(
+                pts[i - 1].latitude, pts[i - 1].longitude,
+                pts[i].latitude, pts[i].longitude
+            )
+            val d = Navigation.distanceMeters(latitude, longitude, pts[i].latitude, pts[i].longitude)
+            if (d < bestDistance) {
+                bestDistance = d
+                best = i
+            }
+            i++
+        }
+        return if (bestDistance < thresholdMeters) best else start
+    }
+
+    /**
      * Kurs der Linie in Verfolgungsrichtung ab [fromIndex]: Peilung von diesem
      * Punkt zu dem Punkt, der mindestens [lookAheadMeters] weiter entlang der
      * Linie liegt. Der Anker liegt damit auf der Linie selbst (nicht an der

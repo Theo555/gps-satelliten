@@ -68,6 +68,18 @@ enum class SatelliteSort(@StringRes val labelRes: Int) {
 private const val TRACK_ADVANCE_THRESHOLD_M = 25.0
 private const val TRACK_SNAP_THRESHOLD_M = 100.0
 
+/**
+ * Wie weit der Fortschritt in einem Positionssatz aufholen darf.
+ *
+ * Mit einem einzigen Schritt (ein Punkt je Fix) käme man nur bis zur
+ * Geschwindigkeit, die dem Punktabstand pro Sekunde entspricht – bei einer
+ * Sekundenaufzeichnung rund 36 km/h. Am 03.11. fiel der Zeiger bei 47 km/h
+ * zurück und blieb dort hängen. 400 m genügen, um selbst einen großen
+ * Rückstand in wenigen Sekunden aufzuholen, und sind zu kurz, um eine Schleife
+ * versehentlich zu überspringen.
+ */
+private const val TRACK_ADVANCE_MAX_JUMP_M = 400.0
+
 /** Eigener Log-Tag: Der Ankunftsalarm ist sonst nicht nachvollziehbar. */
 private const val TAG_ARRIVAL = "ArrivalAlert"
 
@@ -363,6 +375,14 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun startTrackFollowing(trackId: Long) {
+        tracks.value.find { it.id == trackId }?.let { t ->
+            Log.i(
+                TAG_ARRIVAL,
+                "Folgen: ${t.name}, ${t.orderedPoints.size} Punkte, " +
+                    "${formatMeters(t.lengthMeters)} m, Start bei Punkt ${activeTrackProgress.value + 1} " +
+                    "(${if (t.reversed) "Richtung Anfang" else "Richtung Ende"})"
+            )
+        }
         trackFollowJob = viewModelScope.launch {
             rawGpsState.collect { st ->
                 if (activeTrackId.value != trackId) return@collect
@@ -372,12 +392,19 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
                 val pts = track.orderedPoints
                 if (pts.size < 2) return@collect
                 val idx = activeTrackProgress.value.coerceIn(0, pts.lastIndex)
-                val target = pts[idx]
-                val d = Navigation.distanceMeters(lat, lon, target.latitude, target.longitude)
-                if (idx < pts.lastIndex && d < TRACK_ADVANCE_THRESHOLD_M) {
-                    activeTrackProgress.value = idx + 1
+                val next = track.advanceIndex(
+                    fromIndex = idx,
+                    latitude = lat,
+                    longitude = lon,
+                    thresholdMeters = TRACK_ADVANCE_THRESHOLD_M,
+                    maxJumpMeters = TRACK_ADVANCE_MAX_JUMP_M
+                )
+                if (next != idx) {
+                    activeTrackProgress.value = next
                 }
-                checkTrackEnd(track, idx, d, st.accuracyMeters)
+                val target = pts[next]
+                val d = Navigation.distanceMeters(lat, lon, target.latitude, target.longitude)
+                checkTrackEnd(track, next, d, st.accuracyMeters)
             }
         }
     }
@@ -389,6 +416,7 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
      */
     private fun checkTrackEnd(track: Track, idx: Int, metersToTarget: Double, accuracy: Float?) {
         val remaining = track.remainingMeters(idx) + metersToTarget
+        val wasArmed = trackEndArmed
         val result = TrackEndAlert.update(
             remainingMeters = remaining,
             accuracyMeters = accuracy,
@@ -399,6 +427,14 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
         trackEndArmed = result.armed
         trackEndAlerted = result.alerted
         trackEndHits = result.hits
+        if (!wasArmed && result.armed) {
+            // Beleg dafür, dass der Alarm überhaupt bewaffnet war.
+            Log.i(
+                TAG_ARRIVAL,
+                "Track-Ende scharf: ${track.name}, Rest ${formatMeters(remaining)} m " +
+                    "(Schwelle ${formatMeters(TrackEndAlert.radiusMeters(accuracy))} m)"
+            )
+        }
         if (!result.trigger) return
         val radius = TrackEndAlert.radiusMeters(accuracy)
         Log.i(
@@ -498,7 +534,10 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
     private fun vibrateArrival() {
         val vibrator = getApplication<Application>().getSystemService(Vibrator::class.java) ?: return
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            vibrator.vibrate(VibrationEffect.createOneShot(500, VibrationEffect.DEFAULT_AMPLITUDE))
+            // Drei Stöße statt eines kurzen Summers: Eine einzelne 500-ms-
+            // Vibration ging am 03.11. im Auto unter (Motor, Halterung).
+            val pattern = longArrayOf(0, 250, 150, 250, 150, 400)
+            vibrator.vibrate(VibrationEffect.createWaveform(pattern, -1))
         } else {
             @Suppress("DEPRECATION")
             vibrator.vibrate(500)
