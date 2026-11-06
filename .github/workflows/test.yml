@@ -34,6 +34,18 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
+      # Robolectric lädt beim ersten Testlauf die Android-JARs aus Maven Central
+      # nach (~/.m2). Ohne Zwischenspeicher hängt jeder Lauf am Netz – am
+      # 05.11. ist genau das schiefgegangen: alle Robolectric-Tests scheiterten
+      # mit "IOException" im MavenArtifactFetcher, ohne dass der Code schuld war.
+      - name: Robolectric-JARs zwischenspeichern
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository/org/robolectric
+          key: robolectric-${{ hashFiles('gradle/libs.versions.toml') }}
+          restore-keys: |
+            robolectric-
+
       - name: Unit-Tests
         run: ./gradlew testDebugUnitTest --console=plain
 
