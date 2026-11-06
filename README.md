@@ -149,6 +149,18 @@ Die Release-APK liegt danach unter `app/build/outputs/apk/release/app-release.ap
 
 > **Hinweis zum Signieren:** Für den Release-Build wird ein Signatur-Key benötigt (siehe `signingConfigs` in `app/build.gradle.kts`). Für eine Play-Store-Veröffentlichung einen **eigenen** Upload-Key erstellen und sicher aufbewahren – ein im Projekt liegender Key ist nur für lokale Tests gedacht.
 
+## Tests
+
+![Tests](https://github.com/Theo555/gps-satelliten/actions/workflows/test.yml/badge.svg)
+
+Die Logik ist durch über 200 Unit-Tests abgedeckt: Import von GPX, JSON und ZIP (mit echten Beispieldateien), Cache-Gruppierung, Track-Speicherung sowie die Rechenwege für Pseudorange und Ankunftsschwellen. Sie laufen bei jedem Push automatisch:
+
+```bash
+./gradlew testDebugUnitTest
+```
+
+Was Tests nicht sehen können – GPS-Empfang, Vibration, Sensor-Anmeldung und die Dateidialoge – wird am Gerät geprüft.
+
 ## Nutzung als Geocaching-Begleiter
 
 1. Pocket-Query von geocaching.com als **GPX** herunterladen.

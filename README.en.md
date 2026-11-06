@@ -149,6 +149,18 @@ The release APK is then located at `app/build/outputs/apk/release/app-release.ap
 
 > **Note on signing:** The release build needs a signing key (see `signingConfigs` in `app/build.gradle.kts`). For a Play Store release, create your **own** upload key and keep it safe – a key that lives in the project is meant for local tests only.
 
+## Tests
+
+![Tests](https://github.com/Theo555/gps-satelliten/actions/workflows/test.yml/badge.svg)
+
+The logic is covered by more than 200 unit tests: importing GPX, JSON and ZIP (with real sample files), cache grouping, track storage, and the calculations for pseudorange and arrival thresholds. They run automatically on every push:
+
+```bash
+./gradlew testDebugUnitTest
+```
+
+What tests cannot see – GPS reception, vibration, sensor registration and the file dialogs – is checked on the device.
+
 ## Using it as a geocaching companion
 
 1. Download a pocket query from geocaching.com as **GPX**.
