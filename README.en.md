@@ -152,7 +152,7 @@ echo "sdk.dir=/path/to/android-sdk" > local.properties
 
 The release APK is then located at `app/build/outputs/apk/release/app-release.apk`.
 
-> **Note on signing:** The release build needs a signing key (see `signingConfigs` in `app/build.gradle.kts`). If you want to pass the app on yourself, create your **own** key and keep it safe – a key that lives in the project is meant for local tests only. Distribution happens through GitHub releases; an app store is not planned.
+> **Note on signing:** The release build needs a signing key (see `signingConfigs` in `app/build.gradle.kts`). If you want to pass the app on yourself, create your **own** key and keep it safe – a key that lives in the project is meant for local tests only. Distribution happens through **GitHub releases** and **F-Droid**; an app store is not a goal of this project.
 
 ## Tests
 
