@@ -49,7 +49,7 @@ No desire to build it yourself? Just download the ready-made APK and install it 
 
 ### 🗂️ Nav tab
 
-- **Active target always on top** – the waypoint (or track) you are following, with distance, bearing and “Open in map”
+- **Active target always on top** – the waypoint (or track) you are following, with distance (for a track: distance left in the current direction), bearing and “Open in map”
 - **Toolbar** – *Save position*, *Enter coordinates* and *Projection* in one tap
 - **Four sections** – caches, other waypoints, tracks, files. Only one is open at a time, and the last one you opened is remembered
 - **Recording stays visible** – while recording, the collapsed tracks header shows the point count and a stop button

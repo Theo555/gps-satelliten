@@ -49,7 +49,7 @@ Keine Lust, selbst zu kompilieren? Lade einfach die fertige APK herunter und ins
 
 ### 🗂️ Nav-Tab
 
-- **Aktives Ziel immer oben** – der Zielpunkt (oder Track), dem du folgst, mit Entfernung, Peilung und „In Karte öffnen"
+- **Aktives Ziel immer oben** – der Zielpunkt (oder Track), dem du folgst, mit Entfernung (bei einem Track: Reststrecke bis zum Ende der Richtung), Peilung und „In Karte öffnen"
 - **Symbolleiste** – *Position speichern*, *Koordinaten eingeben* und *Projektion* mit einem Tipp
 - **Vier Abteilungen** – Caches, weitere Zielpunkte, Tracks, Dateien. Es ist immer nur eine offen, und die zuletzt geöffnete bleibt gemerkt
 - **Aufzeichnung im Blick** – läuft eine Aufzeichnung, zeigt der zugeklappte Tracks-Kopf Punktzahl und einen Stopp-Knopf

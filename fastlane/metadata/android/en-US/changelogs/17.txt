@@ -1,0 +1,13 @@
+1.3.12
+* Fixed: following long tracks froze the display, because the remaining
+  distance was recomputed from every point on each position update
+* While following a track, the number next to the arrow shows the distance
+  left in the current direction instead of the distance to the next point
+* Arrival alert: the radius follows the reported accuracy - the more precise
+  the fix, the closer you have to get. It triggers only after two readings in
+  a row, re-arms after a restart and also works at the end of a track
+* Compass: local magnetic declination is corrected, so heading and GPS course
+  agree; the warning is now also shown on the nav page
+* Radar: the hint line keeps its height, nothing jumps anymore
+* Location and sensors follow the app lifecycle (less drain in background)
+* JSON export keeps the cache grouping

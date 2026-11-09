@@ -1,0 +1,16 @@
+1.3.12
+* Behoben: bei langen Tracks fror die Anzeige beim Folgen ein - die
+  Reststrecke wurde bei jeder Positionsmeldung neu aus allen Punkten
+  zusammengerechnet
+* Beim Folgen eines Tracks steht neben dem Pfeil die Reststrecke bis zum Ende
+  der Richtung statt des Abstands zum nächsten Track-Punkt
+* Ankunftsalarm: Der Radius folgt der gemeldeten Genauigkeit - je genauer die
+  Position, desto näher muss man ans Ziel. Er meldet sich erst nach zwei
+  Messungen in Folge, ist nach einem Neustart wieder scharf und gilt auch am
+  Track-Ende
+* Kompass: Ortsmissweisung wird ausgeglichen, Richtung und GPS-Kurs passen
+  damit zusammen; die Warnung erscheint jetzt auch auf der Nav-Seite
+* Radar: die Hinweiszeile behält ihre Höhe, nichts springt mehr
+* Ortung und Sensoren folgen dem Lebenszyklus (weniger Verbrauch im
+  Hintergrund)
+* JSON-Export behält die Cache-Gruppierung
