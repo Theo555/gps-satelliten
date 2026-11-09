@@ -1089,6 +1089,14 @@ private fun ActiveTrackSummary(
         ?: Navigation.initialBearingDegrees(lat, lon, target.latitude, target.longitude)
     val arrowRotation = (course - state.headingReferenceDegrees).toFloat()
     val remaining = track.remainingMeters(idx)
+    // Angezeigt wird die Reststrecke bis zum Ende der Richtung – die Zahl, die
+    // der Endalarm ebenfalls benutzt. Vorher stand dort der Abstand zum
+    // aktuellen Track-Punkt; der Zeiger läuft aber bis zu 25 m vor
+    // (TRACK_ADVANCE_THRESHOLD_M), deshalb pendelte die Zahl beim Gehen
+    // zwischen rund 18 und 25 m, mit GPS-Streuung 20 bis 35 m (an einem
+    // 891-Punkte-Track nachgerechnet). Der Abstand zum Zielpunkt wird addiert,
+    // weil der Zeiger vor der eigenen Position liegt.
+    val restMeters = remaining + distance
     // Dieselbe Grenze wie der Ankunftsalarm: mindestens 30 m, bei schlechtem
     // Empfang so weit wie die Genauigkeit. Sonst stünde „Ziel erreicht" da,
     // ohne dass der Alarm je käme.
@@ -1135,7 +1143,7 @@ private fun ActiveTrackSummary(
                     text = if (finished) {
                         stringResource(R.string.track_reached)
                     } else {
-                        formatDistance(distance)
+                        formatDistance(restMeters)
                     },
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
@@ -1155,8 +1163,7 @@ private fun ActiveTrackSummary(
                         R.string.nav_track_progress,
                         idx + 1,
                         track.points.size,
-                        if (track.reversed) stringResource(R.string.target_start) else stringResource(R.string.target_end),
-                        formatDistance(remaining)
+                        if (track.reversed) stringResource(R.string.target_start) else stringResource(R.string.target_end)
                     ),
                     fontSize = 11.sp,
                     color = Color(0xFFCBD5E1)

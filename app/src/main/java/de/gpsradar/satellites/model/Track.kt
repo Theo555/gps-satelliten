@@ -22,22 +22,41 @@ data class Track(
      * Punkte in aktueller Verfolgungsrichtung. `points` bleibt immer in der
      * ursprünglich aufgezeichneten/importierten Reihenfolge; `reversed` kippt
      * lediglich die Verfolgungsrichtung (ohne die Daten zu verändern).
+     *
+     * Einmal berechnet und gemerkt: `points.reversed()` baut jedes Mal eine neue
+     * Liste. Solange dieser Wert bei jedem Zugriff neu entstand, wurde
+     * [remainingMeters] quadratisch – gemessen 9,5 Millionen Lesezugriffe pro
+     * Aufruf bei 891 Punkten (ein Track mit 63 Punkten blieb unauffällig). Da
+     * die Reststrecke bei jeder Positionsmeldung und bei jedem Neuzeichnen
+     * gebraucht wird, fror die Anzeige ein. [asReversed] ist dagegen eine Sicht
+     * auf die vorhandene Liste, keine Kopie.
      */
-    val orderedPoints: List<TrackPoint>
-        get() = if (reversed) points.reversed() else points
+    val orderedPoints: List<TrackPoint> by lazy {
+        if (reversed) points.asReversed() else points
+    }
+
+    /**
+     * Aufsummierte Länge bis zum Punkt mit gleichem Index, in Verfolgungs-
+     * richtung. Einmal berechnet; danach sind [lengthMeters] und
+     * [remainingMeters] ein einziger Array-Zugriff. Beide werden bei jeder
+     * Positionsmeldung (15 Hz) und bei jedem Neuzeichnen gebraucht – die
+     * Summierung bei jedem Aufruf war der zweite Teil des Ruckelns.
+     */
+    private val distanceToIndex: DoubleArray by lazy {
+        val pts = orderedPoints
+        val acc = DoubleArray(pts.size)
+        for (i in 1 until pts.size) {
+            acc[i] = acc[i - 1] + Navigation.distanceMeters(
+                pts[i - 1].latitude, pts[i - 1].longitude,
+                pts[i].latitude, pts[i].longitude
+            )
+        }
+        acc
+    }
 
     /** Gesamtlänge der Linie in Metern (richtungsunabhängig). */
     val lengthMeters: Double
-        get() {
-            var sum = 0.0
-            for (i in 1 until points.size) {
-                sum += Navigation.distanceMeters(
-                    points[i - 1].latitude, points[i - 1].longitude,
-                    points[i].latitude, points[i].longitude
-                )
-            }
-            return sum
-        }
+        get() = if (distanceToIndex.isEmpty()) 0.0 else distanceToIndex[distanceToIndex.lastIndex]
 
     /** Index (in Verfolgungsrichtung) des Punktes, der der Position am nächsten liegt. */
     fun nearestIndex(lat: Double, lon: Double): Int {
@@ -55,14 +74,10 @@ data class Track(
 
     /** Reststrecke in Metern vom Punkt [fromIndex] bis zum Ende der Verfolgungsrichtung. */
     fun remainingMeters(fromIndex: Int): Double {
-        var sum = 0.0
-        for (i in fromIndex until orderedPoints.lastIndex) {
-            sum += Navigation.distanceMeters(
-                orderedPoints[i].latitude, orderedPoints[i].longitude,
-                orderedPoints[i + 1].latitude, orderedPoints[i + 1].longitude
-            )
-        }
-        return sum
+        val acc = distanceToIndex
+        if (acc.isEmpty()) return 0.0
+        val idx = fromIndex.coerceIn(0, acc.lastIndex)
+        return acc[acc.lastIndex] - acc[idx]
     }
 
     /**

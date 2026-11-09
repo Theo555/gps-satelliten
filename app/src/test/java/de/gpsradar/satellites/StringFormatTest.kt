@@ -56,7 +56,7 @@ class StringFormatTest {
     R.string.nav_tracks_title to arrayOf<Any>(3),
     R.string.nav_active_target to arrayOf<Any>("Parkplatz"),
     R.string.nav_direction_fmt to arrayOf<Any>("245°", "SW (Südwest)"),
-    R.string.nav_track_progress to arrayOf<Any>(3, 42, "Anfang", "1,2 km"),
+    R.string.nav_track_progress to arrayOf<Any>(3, 42, "Anfang"),
     R.string.hint_prefix_fmt to arrayOf<Any>("Unter der Bank"),
     R.string.proj_base to arrayOf<Any>("Parkplatz")
   )

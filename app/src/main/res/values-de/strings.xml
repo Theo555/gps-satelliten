@@ -311,11 +311,11 @@
     <string name="target_start">Anfang</string>
     <string name="target_end">Ende</string>
     <string name="nav_wait_fix_track">Warte auf GPS-Fix, um dem Track zu folgen …</string>
-    <string name="cd_dir_next_point">Richtung zum nächsten Trackpunkt</string>
+    <string name="cd_dir_next_point">Richtung des Tracks und Reststrecke</string>
     <string name="track_reached">Ziel erreicht</string>
     <string name="nav_arrival_notice_fmt">Angekommen – Umkreis %1$s</string>
     <string name="nav_direction_fmt">Richtung %1$s (%2$s)</string>
-    <string name="nav_track_progress">Punkt %1$d von %2$d · Ziel %3$s · Rest %4$s</string>
+    <string name="nav_track_progress">Punkt %1$d von %2$d · Ziel %3$s</string>
     <string name="btn_stop_following">Folgen beenden</string>
     <plurals name="track_meta">
         <item quantity="one">%1$d Punkt · %2$s · %3$s</item>
