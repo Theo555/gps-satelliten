@@ -92,22 +92,27 @@ Alle Bilder sind Vorschaubilder – **anklicken** öffnet das jeweilige Bild in 
 
 <table>
   <tr>
-    <td align="center"><a href="screenshots/radar.jpg"><img src="screenshots/radar.jpg" width="150" alt="Radar" /></a><br /><sub>Radar · Satelliten am Himmel</sub></td>
-    <td align="center"><a href="screenshots/signal.jpg"><img src="screenshots/signal.jpg" width="150" alt="Signale" /></a><br /><sub>Signale · C/N₀ je Satellit</sub></td>
-    <td align="center"><a href="screenshots/liste.jpg"><img src="screenshots/liste.jpg" width="150" alt="Satellitenliste" /></a><br /><sub>Liste · sortier- und filterbar</sub></td>
-    <td align="center"><a href="screenshots/position.jpg"><img src="screenshots/position.jpg" width="150" alt="Position" /></a><br /><sub>Position · Koordinaten in drei Formaten</sub></td>
+    <td align="center"><a href="screenshots/radar.jpg"><img src="screenshots/radar.jpg" width="150" alt="Radar" /></a><br /><sub>Radar<br />Satelliten am Himmel</sub></td>
+    <td align="center"><a href="screenshots/signal.jpg"><img src="screenshots/signal.jpg" width="150" alt="Signale" /></a><br /><sub>Signale<br />C/N₀ je Satellit</sub></td>
   </tr>
   <tr>
-    <td align="center"><a href="screenshots/navigation.jpg"><img src="screenshots/navigation.jpg" width="150" alt="Navigation" /></a><br /><sub>Navigation · Zielpunkt mit Richtung</sub></td>
-    <td align="center"><a href="screenshots/liste-detail.jpg"><img src="screenshots/liste-detail.jpg" width="150" alt="Satelliten-Detail" /></a><br /><sub>Details · Signal, Winkel, Ephemeride</sub></td>
-    <td align="center"><a href="screenshots/liste-rohdaten.jpg"><img src="screenshots/liste-rohdaten.jpg" width="150" alt="GNSS-Rohdaten" /></a><br /><sub>Rohdaten · Navigationsnachrichten</sub></td>
-    <td align="center"><a href="screenshots/position-dop.jpg"><img src="screenshots/position-dop.jpg" width="150" alt="DOP-Werte" /></a><br /><sub>Genauigkeit · DOP-Werte</sub></td>
+    <td align="center"><a href="screenshots/liste.jpg"><img src="screenshots/liste.jpg" width="150" alt="Satellitenliste" /></a><br /><sub>Liste<br />sortieren, filtern</sub></td>
+    <td align="center"><a href="screenshots/position.jpg"><img src="screenshots/position.jpg" width="150" alt="Position" /></a><br /><sub>Position<br />Koordinaten in<br />drei Formaten</sub></td>
   </tr>
   <tr>
-    <td align="center"><a href="screenshots/messung.jpg"><img src="screenshots/messung.jpg" width="150" alt="Messung (Rohdaten)" /></a><br /><sub>Messung · Rohdaten je Signalpfad</sub></td>
-    <td align="center"><a href="screenshots/messung-export.jpg"><img src="screenshots/messung-export.jpg" width="150" alt="CSV-Export-Dialog" /></a><br /><sub>Export · CSV mit zwei Profilen</sub></td>
-    <td align="center"><a href="screenshots/kompass-pruefung.jpg"><img src="screenshots/kompass-pruefung.jpg" width="150" alt="Kompass-Prüfung" /></a><br /><sub>Kompass · Drehtest gegen den Kreisel</sub></td>
-    <td></td>
+    <td align="center"><a href="screenshots/navigation.jpg"><img src="screenshots/navigation.jpg" width="150" alt="Navigation" /></a><br /><sub>Navigation<br />Zielpunkt mit<br />Richtung</sub></td>
+    <td align="center"><a href="screenshots/liste-detail.jpg"><img src="screenshots/liste-detail.jpg" width="150" alt="Satelliten-Detail" /></a><br /><sub>Details<br />Signal, Winkel,<br />Ephemeride</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><a href="screenshots/liste-rohdaten.jpg"><img src="screenshots/liste-rohdaten.jpg" width="150" alt="GNSS-Rohdaten" /></a><br /><sub>Rohdaten<br />Nachrichten</sub></td>
+    <td align="center"><a href="screenshots/position-dop.jpg"><img src="screenshots/position-dop.jpg" width="150" alt="DOP-Werte" /></a><br /><sub>Genauigkeit<br />DOP-Werte</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><a href="screenshots/messung.jpg"><img src="screenshots/messung.jpg" width="150" alt="Messung (Rohdaten)" /></a><br /><sub>Messung<br />Rohdaten je<br />Signalpfad</sub></td>
+    <td align="center"><a href="screenshots/messung-export.jpg"><img src="screenshots/messung-export.jpg" width="150" alt="CSV-Export-Dialog" /></a><br /><sub>Export<br />CSV mit zwei<br />Profilen</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><a href="screenshots/kompass-pruefung.jpg"><img src="screenshots/kompass-pruefung.jpg" width="150" alt="Kompass-Prüfung" /></a><br /><sub>Kompass<br />Drehtest gegen<br />den Kreisel</sub></td>
     <td></td>
   </tr>
 </table>

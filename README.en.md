@@ -92,22 +92,27 @@ All images are thumbnails – **click one** to open it at full size.
 
 <table>
   <tr>
-    <td align="center"><a href="screenshots/en/radar.jpg"><img src="screenshots/en/radar.jpg" width="150" alt="Radar" /></a><br /><sub>Radar · satellites in the sky</sub></td>
-    <td align="center"><a href="screenshots/en/signal.jpg"><img src="screenshots/en/signal.jpg" width="150" alt="Signals" /></a><br /><sub>Signals · C/N₀ per satellite</sub></td>
-    <td align="center"><a href="screenshots/en/liste.jpg"><img src="screenshots/en/liste.jpg" width="150" alt="Satellite list" /></a><br /><sub>List · sortable and filterable</sub></td>
-    <td align="center"><a href="screenshots/en/position.jpg"><img src="screenshots/en/position.jpg" width="150" alt="Position" /></a><br /><sub>Position · coordinates in three formats</sub></td>
+    <td align="center"><a href="screenshots/en/radar.jpg"><img src="screenshots/en/radar.jpg" width="150" alt="Radar" /></a><br /><sub>Radar<br />satellites in the sky</sub></td>
+    <td align="center"><a href="screenshots/en/signal.jpg"><img src="screenshots/en/signal.jpg" width="150" alt="Signals" /></a><br /><sub>Signals<br />C/N₀ per satellite</sub></td>
   </tr>
   <tr>
-    <td align="center"><a href="screenshots/en/navigation.jpg"><img src="screenshots/en/navigation.jpg" width="150" alt="Navigation" /></a><br /><sub>Navigation · target with direction</sub></td>
-    <td align="center"><a href="screenshots/en/liste-detail.jpg"><img src="screenshots/en/liste-detail.jpg" width="150" alt="Satellite details" /></a><br /><sub>Details · signal, angles, ephemeris</sub></td>
-    <td align="center"><a href="screenshots/en/liste-rohdaten.jpg"><img src="screenshots/en/liste-rohdaten.jpg" width="150" alt="GNSS raw data" /></a><br /><sub>Raw data · navigation messages</sub></td>
-    <td align="center"><a href="screenshots/en/position-dop.jpg"><img src="screenshots/en/position-dop.jpg" width="150" alt="DOP values" /></a><br /><sub>Accuracy · DOP values</sub></td>
+    <td align="center"><a href="screenshots/en/liste.jpg"><img src="screenshots/en/liste.jpg" width="150" alt="Satellite list" /></a><br /><sub>List<br />sort and filter</sub></td>
+    <td align="center"><a href="screenshots/en/position.jpg"><img src="screenshots/en/position.jpg" width="150" alt="Position" /></a><br /><sub>Position<br />three formats</sub></td>
   </tr>
   <tr>
-    <td align="center"><a href="screenshots/en/messung.jpg"><img src="screenshots/en/messung.jpg" width="150" alt="Measurements (raw data)" /></a><br /><sub>Measurement · raw data per signal path</sub></td>
-    <td align="center"><a href="screenshots/en/messung-export.jpg"><img src="screenshots/en/messung-export.jpg" width="150" alt="CSV export dialog" /></a><br /><sub>Export · CSV with two profiles</sub></td>
-    <td align="center"><a href="screenshots/en/kompass-pruefung.jpg"><img src="screenshots/en/kompass-pruefung.jpg" width="150" alt="Compass check" /></a><br /><sub>Compass · rotation test against the gyroscope</sub></td>
-    <td></td>
+    <td align="center"><a href="screenshots/en/navigation.jpg"><img src="screenshots/en/navigation.jpg" width="150" alt="Navigation" /></a><br /><sub>Navigation<br />target with<br />direction</sub></td>
+    <td align="center"><a href="screenshots/en/liste-detail.jpg"><img src="screenshots/en/liste-detail.jpg" width="150" alt="Satellite details" /></a><br /><sub>Details<br />signal, angles,<br />ephemeris</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><a href="screenshots/en/liste-rohdaten.jpg"><img src="screenshots/en/liste-rohdaten.jpg" width="150" alt="GNSS raw data" /></a><br /><sub>Raw data<br />messages</sub></td>
+    <td align="center"><a href="screenshots/en/position-dop.jpg"><img src="screenshots/en/position-dop.jpg" width="150" alt="DOP values" /></a><br /><sub>Accuracy<br />DOP values</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><a href="screenshots/en/messung.jpg"><img src="screenshots/en/messung.jpg" width="150" alt="Measurements (raw data)" /></a><br /><sub>Measurement<br />raw data per<br />signal path</sub></td>
+    <td align="center"><a href="screenshots/en/messung-export.jpg"><img src="screenshots/en/messung-export.jpg" width="150" alt="CSV export dialog" /></a><br /><sub>Export<br />CSV, two profiles</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><a href="screenshots/en/kompass-pruefung.jpg"><img src="screenshots/en/kompass-pruefung.jpg" width="150" alt="Compass check" /></a><br /><sub>Compass<br />rotation test</sub></td>
     <td></td>
   </tr>
 </table>
