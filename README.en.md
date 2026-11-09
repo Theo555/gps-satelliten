@@ -76,7 +76,7 @@ No desire to build it yourself? Just download the ready-made APK and install it 
 - **Follow a track** in the stored order (start at the beginning or at the nearest point)
 - **Reverse a track** – walk the route backwards (e.g. back to the start)
 - **Record your own trail** (breadcrumb) with pause/resume and rename; exportable as GPX (including altitude + timestamps)
-- **Arrival alarm** – vibration as soon as you are closer than 5 m to the active target
+- **Arrival alarm** – vibration as soon as you get closer to the target than the reported accuracy allows: at ±8 m accuracy that means 10 m. This way it also fires in the woods instead of staying silent
 - **Bearing arrow in the radar** – direction to the active target right in the sky radar
 
 ### ⚙️ Other

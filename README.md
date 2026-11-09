@@ -76,7 +76,7 @@ Keine Lust, selbst zu kompilieren? Lade einfach die fertige APK herunter und ins
 - **Track folgen** in der gespeicherten Reihenfolge (Einstieg am Anfang oder am nächstgelegenen Punkt)
 - **Track umkehren** – Route rückwärts ablaufen (z. B. zurück zum Start)
 - **Eigene Spur aufzeichnen** (Breadcrumb) mit Pause/Fortsetzen und Umbenennen; als GPX exportierbar (inkl. Höhe + Zeitstempel)
-- **Ankunfts-Alarm** – Vibration, sobald du dem aktiven Ziel näher als 5 m kommst
+- **Ankunfts-Alarm** – Vibration, sobald du dem Ziel näher kommst, als die gemeldete Genauigkeit zulässt: bei ±8 m Genauigkeit sind es 10 m. So meldet er auch im Wald, statt dort zu schweigen
 - **Peilungspfeil im Radar** – Richtung zum aktiven Ziel direkt im Himmels-Radar
 
 ### ⚙️ Sonstiges
