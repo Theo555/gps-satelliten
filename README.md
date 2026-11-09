@@ -152,7 +152,7 @@ echo "sdk.dir=/pfad/zu/android-sdk" > local.properties
 
 Die Release-APK liegt danach unter `app/build/outputs/apk/release/app-release.apk`.
 
-> **Hinweis zum Signieren:** Für den Release-Build wird ein Signatur-Key benötigt (siehe `signingConfigs` in `app/build.gradle.kts`). Für eine Play-Store-Veröffentlichung einen **eigenen** Upload-Key erstellen und sicher aufbewahren – ein im Projekt liegender Key ist nur für lokale Tests gedacht.
+> **Hinweis zum Signieren:** Für den Release-Build wird ein Signatur-Key benötigt (siehe `signingConfigs` in `app/build.gradle.kts`). Wer die App selbst weitergeben will, erstellt dafür einen **eigenen** Schlüssel und bewahrt ihn sicher auf – ein im Projekt liegender Key ist nur für lokale Tests gedacht. Verteilt wird über GitHub-Releases; ein App-Store ist nicht vorgesehen.
 
 ## Tests
 
