@@ -255,6 +255,13 @@ In Excel das Profil **„Excel (deutsch)“** wählen und die Datei direkt öffn
 `(time_ns − full_bias_ns − bias_ns − t_tx_ns) · 1e-9 · c ≈ pseudorange_m`.
 Dabei gilt die umgerechnete Sendezeit: `t_tx_ns` enthält die Zeitbasiskorrektur bereits, `t_tx_raw_ns` nicht.
 
+**Wichtig für Phasenauswertungen:** `adr_m` und `doppler_mps` werden gegen den **Empfänger-Oszillator** gemessen und tragen dessen Frequenzversatz mit — beim S20 FE rund **500 ns/s = 0,5 ppm**, das sind etwa **150 m/s**. `pseudorange_m` ist davon nicht betroffen, weil sie aus `full_bias_ns` stammt. Ohne Korrektur läuft die Phase sichtbar schneller als der Code (gemessen: +149,6 m/s, nach Korrektur +0,0 m/s) und keine Ambiguitätssuche findet ganze Zyklen. Die Korrektur steht in `drift_nsps`:
+
+```text
+Phase:   adr_m  − c · Σ(drift_nsps · 1e-9 · Epochenabstand)
+Doppler: dop    − c · drift_nsps · 1e-9
+```
+
 **Grenzen, ehrlich:** `export_utc` ist die Geräteuhr, nicht die GNSS-Zeit. Meldet der Chipsatz keine Qualitätsmerkmale, bleiben die Flag-Spalten bei 0 – die App schätzt nichts dazu.
 
 **Mehr Rohdaten aus dem Gerät:** In den Android-**Entwickleroptionen** gibt es den Schalter „Vollst. GNSS-Messung erzwingen“. Damit trackt der Chip dauerhaft vollständig statt im Stromsparmodus – das bringt mehr Signale und häufiger gesetzte Status-Bits. Der Preis ist ein **höherer Akkuverbrauch**, deshalb ist die Option standardmäßig aus; für einen Export lohnt es sich, sie vorübergehend einzuschalten. Wie stark sie wirkt, hängt vom Chipsatz ab. Die App kann diese Systemeinstellung nicht selbst umschalten.
