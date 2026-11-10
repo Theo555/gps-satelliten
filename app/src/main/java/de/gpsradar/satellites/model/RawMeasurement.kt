@@ -44,7 +44,9 @@ data class RawMeasurement(
     /** 1-Sigma-Unsicherheit der Sendezeit in ns; null = nicht gemeldet (<= 0). */
     val svTimeUncertaintyNanos: Long? = null,
     /** Rohwert von accumulatedDeltaRangeState; 0 = nicht geliefert. */
-    val adrState: Int = 0
+    val adrState: Int = 0,
+    /** Warum die Pseudorange fehlt (oder dass sie brauchbar ist) – landet im CSV. */
+    val pseudorangeStatus: PseudorangeStatus = PseudorangeStatus.OK
 )
 
 /** Empfänger-Uhr (GnssClock) zum Zeitpunkt der letzten Messung. */

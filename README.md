@@ -236,11 +236,11 @@ Deutsches Excel trennt Listen mit `;` und Dezimalzahlen mit `,`; eine RFC-Datei 
 # export_utc = 2026-10-25T12:33:07Z
 # geraet = samsung SM-N960F · hardware qcom · board msm8998
 # aufzeichnung = 60 Epochen · 2140 Zeilen · 1 Epoche = ein GnssMeasurementsEvent
-# flags = state_flags: GnssMeasurement.getState() · code_lock/tow_known/msec_ambiguous: 1 ja, 0 nein
-epoch,svid,constellation,band,freq_hz,cn0_dbhz,time_ns,full_bias_ns,bias_ns,drift_nsps,leap_s,week_offset_ns,t_tx_raw_ns,t_tx_ns,sv_time_unc_ns,pseudorange_m,doppler_mps,adr_m,adr_state,phase_unc_m,state_flags,code_lock,tow_known,msec_ambiguous,multipath
+# flags = state_flags: GnssMeasurement.getState() · code_lock/tow_known/msec_ambiguous: 1 ja, 0 nein · pr_status: ok, no_clock, no_time oder implausible
+epoch,svid,constellation,band,freq_hz,cn0_dbhz,time_ns,full_bias_ns,bias_ns,drift_nsps,leap_s,week_offset_ns,t_tx_raw_ns,t_tx_ns,sv_time_unc_ns,pseudorange_m,doppler_mps,adr_m,adr_state,phase_unc_m,state_flags,code_lock,tow_known,msec_ambiguous,multipath,pr_status
 ```
 
-`epoch` nummeriert die Messsätze (1 = der älteste im Export); Lücken bedeuten, dass der Chip in dem Moment nichts geliefert hat. `adr_m` ist die **accumulated delta range** – die aufsummierte Trägerphase in Metern seit dem letzten Lock-Verlust (jeder Satellit ab eigenem Nullpunkt), keine absolute Trägerphase. `time_ns` ist die Empfängerzeit, `t_tx_ns` die Sendezeit des Satelliten; `full_bias_ns`, `bias_ns`, `drift_nsps` und `leap_s` sind die Empfängeruhr.
+`epoch` nummeriert die Messsätze (1 = der älteste im Export); Lücken bedeuten, dass der Chip in dem Moment nichts geliefert hat. `adr_m` ist die **accumulated delta range** – die aufsummierte Trägerphase in Metern seit dem letzten Lock-Verlust (jeder Satellit ab eigenem Nullpunkt), keine absolute Trägerphase. `time_ns` ist die Empfängerzeit, `t_tx_raw_ns` die Sendezeit des Satelliten so, wie das Gerät sie meldet – **jede Konstellation in ihrer eigenen Zeitbasis**, GLONASS zusätzlich ab dem Systemtag statt ab der Woche. `t_tx_ns` ist dieselbe Sendezeit auf GPS-Zeit umgerechnet (BeiDou liegt 14 s zurück, GLONASS 3 h vor UTC plus Schaltsekunden); `week_offset_ns` ist genau der dafür angewandte Versatz. `pr_status` sagt, warum eine Pseudorange fehlt: `ok`, `no_clock`, `no_time` oder `implausible`. `full_bias_ns`, `bias_ns`, `drift_nsps` und `leap_s` sind die Empfängeruhr.
 
 **Einlesen:**
 
@@ -253,6 +253,7 @@ In Excel das Profil **„Excel (deutsch)“** wählen und die Datei direkt öffn
 
 **Gegenprobe:** Die Pseudorange lässt sich aus den Zeitstempeln nachrechnen –
 `(time_ns − full_bias_ns − bias_ns − t_tx_ns) · 1e-9 · c ≈ pseudorange_m`.
+Dabei gilt die umgerechnete Sendezeit: `t_tx_ns` enthält die Zeitbasiskorrektur bereits, `t_tx_raw_ns` nicht.
 
 **Grenzen, ehrlich:** `export_utc` ist die Geräteuhr, nicht die GNSS-Zeit. Meldet der Chipsatz keine Qualitätsmerkmale, bleiben die Flag-Spalten bei 0 – die App schätzt nichts dazu.
 

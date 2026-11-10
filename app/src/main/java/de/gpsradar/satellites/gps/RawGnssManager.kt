@@ -17,6 +17,8 @@ import de.gpsradar.satellites.model.Constellation
 import de.gpsradar.satellites.model.EpochBuffer
 import de.gpsradar.satellites.model.MultipathState
 import de.gpsradar.satellites.model.Pseudorange
+import de.gpsradar.satellites.model.PseudorangeResult
+import de.gpsradar.satellites.model.PseudorangeStatus
 import de.gpsradar.satellites.model.RawClockSnapshot
 import de.gpsradar.satellites.model.RawEpoch
 import de.gpsradar.satellites.model.RawMeasurement
@@ -276,10 +278,11 @@ class RawGnssManager(context: Context) {
         // Terme in Long verrechnet; nur die Differenz (~1e8 ns) geht nach Double.
         val tRxNanos = clock.timeNanos - clock.fullBiasNanos
         val biasNanos = clock.biasNanos
-        val weekOffsetNanos = Pseudorange.weekOffsetNanos(clock.fullBiasNanos)
+        // Schaltsekunden braucht nur GLONASS; das Gerät meldet sie nicht, siehe Pseudorange.
+        val leapSecond = clock.leapSecond
 
         val list = event.measurements.mapNotNull { measurement ->
-            measurement.toRawMeasurement(tRxNanos, weekOffsetNanos, biasNanos, clockUsable)
+            measurement.toRawMeasurement(tRxNanos, biasNanos, leapSecond, clockUsable)
         }
 
         // Pro (SVID, Band) nur den letzten Wert behalten.
@@ -297,8 +300,8 @@ class RawGnssManager(context: Context) {
 
     private fun GnssMeasurement.toRawMeasurement(
         tRxNanos: Long,
-        weekOffsetNanos: Long,
         biasNanos: Double,
+        leapSecond: Int,
         clockUsable: Boolean
     ): RawMeasurement? {
         val freq = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && hasCarrierFrequencyHz()) {
@@ -313,13 +316,13 @@ class RawGnssManager(context: Context) {
         val constellation = Constellation.fromTypeId(constellationType)
             .let { if (it == Constellation.UNKNOWN) constellationForFreq(freq) else it }
 
-        val tTxNanos = receivedSvTimeNanos + weekOffsetNanos
-        // GnssMeasurement.HAS_NO_RECEIVED_SV_TIME_NANOS = Long.MIN_VALUE ("unbekannt").
+        // Zeitbasis je Konstellation (GLONASS zählt ab dem Systemtag, BeiDou liegt
+        // 14 s hinter GPS) -- siehe Pseudorange. Ohne Uhr gibt es keine Pseudorange,
+        // dann trägt der Status den Grund in den Export.
         val pseudorange = if (clockUsable) {
-            // Rechnung in Long, siehe Pseudorange.meters().
-            Pseudorange.meters(tRxNanos, receivedSvTimeNanos, weekOffsetNanos, biasNanos)
+            Pseudorange.meters(constellation, tRxNanos, receivedSvTimeNanos, biasNanos, leapSecond)
         } else {
-            null
+            PseudorangeResult(null, PseudorangeStatus.NO_CLOCK)
         }
 
         val adrState = accumulatedDeltaRangeState
@@ -375,7 +378,7 @@ class RawGnssManager(context: Context) {
             bandLabel = gnssBandLabel(constellation, if (freq > 0f) freq else null),
             bandShort = gnssBandShort(constellation, if (freq > 0f) freq else null),
             cn0DbHz = cn0DbHz.toFloat(),
-            pseudorangeMeters = pseudorange,
+            pseudorangeMeters = pseudorange.meters,
             dopplerMetersPerSec = pseudorangeRateMetersPerSecond,
             carrierPhaseMeters = accumulatedDeltaRangeMeters,
             phaseValid = phaseValid,
@@ -390,7 +393,8 @@ class RawGnssManager(context: Context) {
             carrierPhaseUncertaintyMeters = phaseUncertainty,
             tTxRawNanos = tTxRawNanos,
             svTimeUncertaintyNanos = svTimeUncertaintyNanos,
-            adrState = adrState
+            adrState = adrState,
+            pseudorangeStatus = pseudorange.status
         )
     }
 

@@ -1,7 +1,6 @@
 package de.gpsradar.satellites.model
 
 import java.util.Locale
-import kotlin.math.floor
 
 /**
  * Zielprofil für den Rohdaten-Export. Trennzeichen, Dezimalzeichen und BOM
@@ -27,14 +26,14 @@ data class CsvMeta(
  */
 object MeasurementCsv {
 
-    private const val WEEK_NANOS = 604_800_000_000_000.0
-
     private val HEADER = listOf(
         "epoch", "svid", "constellation", "band", "freq_hz", "cn0_dbhz",
         "time_ns", "full_bias_ns", "bias_ns", "drift_nsps", "leap_s",
         "week_offset_ns", "t_tx_raw_ns", "t_tx_ns", "sv_time_unc_ns",
         "pseudorange_m", "doppler_mps", "adr_m", "adr_state", "phase_unc_m",
-        "state_flags", "code_lock", "tow_known", "msec_ambiguous", "multipath"
+        "state_flags", "code_lock", "tow_known", "msec_ambiguous", "multipath",
+        // Neue Spalte am Ende, damit Leser nach Spaltennamen weiter funktionieren.
+        "pr_status"
     )
 
     fun toCsv(
@@ -54,9 +53,9 @@ object MeasurementCsv {
         lines += comment("android", meta.android, profile)
         lines += comment("app", meta.app, profile)
         lines += comment("aufzeichnung", "${epochs.size} Epochen · $totalRows Zeilen · 1 Epoche = ein GnssMeasurementsEvent", profile)
-        lines += comment("zeitbasis", "export_utc ist die Geräteuhr · time_ns ist GNSS-Zeit · alle *_ns sind Nanosekunden · Epochen können Lücken haben", profile)
+        lines += comment("zeitbasis", "export_utc ist die Geräteuhr · time_ns ist GNSS-Zeit · alle *_ns sind Nanosekunden · Epochen können Lücken haben · t_tx_ns ist die Sendezeit in GPS-Zeitbasis (Zeitbasis je Konstellation, GLONASS ab Systemtag) und week_offset_ns der dafür angewandte Versatz · fehlt leap_s, meldet das Gerät keine Schaltsekunde und es gilt der Rückfallwert 18 s", profile)
         lines += comment("hinweis", "adr_m ist die aufsummierte Trägerphase in Metern seit dem letzten Lock-Verlust (kumulativ, jeder Satellit ab eigenem Nullpunkt, keine absolute Phase) · vier Nachkommastellen = 0,1 mm · adr_state Bit 1 gesetzt bedeutet gültig", profile)
-        lines += comment("flags", "state_flags: GnssMeasurement.getState() · adr_state: accumulatedDeltaRangeState · code_lock/tow_known/msec_ambiguous: 1 ja, 0 nein", profile)
+        lines += comment("flags", "state_flags: GnssMeasurement.getState() · adr_state: accumulatedDeltaRangeState · code_lock/tow_known/msec_ambiguous: 1 ja, 0 nein · pr_status: ok, no_clock, no_time oder implausible", profile)
 
         lines += HEADER.joinToString(profile.delimiter.toString())
 
@@ -68,12 +67,22 @@ object MeasurementCsv {
             val biasNanos = clock?.biasNanos?.takeIf { !it.isNaN() }
             val driftNsPerSec = clock?.driftNsPerSec?.takeIf { !it.isNaN() }
             val leapSecond = clock?.leapSecond?.takeIf { it != Int.MIN_VALUE }
-            val weekOffsetNanos: Long? = fullBiasNanos
-                ?.let { floor(-it.toDouble() / WEEK_NANOS) * WEEK_NANOS }
-                ?.toLong()
+            // Empfangszeit in GNSS-Zeit; Grundlage der Sendezeit-Umrechnung.
+            val tRxNanos: Long? = fullBiasNanos?.let { bias -> clock?.timeNanos?.minus(bias) }
+            val leapSecondForTimeBase = clock?.leapSecond ?: 0
 
             epoch.rows.forEach { m ->
-                val tTxNanos = m.tTxRawNanos?.let { raw -> weekOffsetNanos?.let { raw + it } }
+                val tTxNanos: Long? = m.tTxRawNanos?.let { raw ->
+                    tRxNanos?.let { tRx ->
+                        Pseudorange.absoluteTransmitNanos(m.constellation, raw, tRx, leapSecondForTimeBase)
+                    }
+                }
+                // Versatz, der tatsächlich angewandt wurde (volle Epoche + Zeitbasis).
+                val appliedOffsetNanos: Long? = if (tTxNanos != null && m.tTxRawNanos != null) {
+                    tTxNanos - m.tTxRawNanos
+                } else {
+                    null
+                }
 
                 val cells = listOf(
                     epochIndex.toString(),
@@ -87,7 +96,7 @@ object MeasurementCsv {
                     fmtDouble(biasNanos, "%.6f", profile),
                     fmtDouble(driftNsPerSec, "%.6f", profile),
                     leapSecond?.toString() ?: "",
-                    fmtLong(weekOffsetNanos),
+                    fmtLong(appliedOffsetNanos),
                     fmtLong(m.tTxRawNanos),
                     fmtLong(tTxNanos),
                     fmtLong(m.svTimeUncertaintyNanos),
@@ -103,7 +112,8 @@ object MeasurementCsv {
                     bool01(m.codeLock),
                     bool01(m.towKnown),
                     bool01(m.msecAmbiguous),
-                    multipathToken(m.multipath)
+                    multipathToken(m.multipath),
+                    m.pseudorangeStatus.token
                 )
                 lines += cells.joinToString(profile.delimiter.toString())
             }

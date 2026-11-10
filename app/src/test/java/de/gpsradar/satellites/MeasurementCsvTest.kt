@@ -5,6 +5,8 @@ import de.gpsradar.satellites.model.CsvMeta
 import de.gpsradar.satellites.model.CsvProfile
 import de.gpsradar.satellites.model.MeasurementCsv
 import de.gpsradar.satellites.model.MultipathState
+import de.gpsradar.satellites.model.Pseudorange
+import de.gpsradar.satellites.model.PseudorangeStatus
 import de.gpsradar.satellites.model.RawClockSnapshot
 import de.gpsradar.satellites.model.RawEpoch
 import de.gpsradar.satellites.model.RawMeasurement
@@ -41,7 +43,8 @@ class MeasurementCsvTest {
         towKnown: Boolean = true,
         msecAmbiguous: Boolean = false,
         tTxRawNanos: Long? = 123456789L,
-        svTimeUncertaintyNanos: Long? = 12L
+        svTimeUncertaintyNanos: Long? = 12L,
+        pseudorangeStatus: PseudorangeStatus = PseudorangeStatus.OK
     ) = RawMeasurement(
         svid = svid,
         constellation = constellation,
@@ -62,7 +65,8 @@ class MeasurementCsvTest {
         carrierPhaseUncertaintyMeters = carrierPhaseUncertaintyMeters,
         tTxRawNanos = tTxRawNanos,
         svTimeUncertaintyNanos = svTimeUncertaintyNanos,
-        adrState = 5
+        adrState = 5,
+        pseudorangeStatus = pseudorangeStatus
     )
 
     private fun epoch(vararg rows: RawMeasurement, atMillis: Long = 1L) =
@@ -121,7 +125,7 @@ class MeasurementCsvTest {
             val fieldCount = header.split(delim).size
             val dataRows = lines.filter { it.firstOrNull()?.isDigit() == true }
 
-            assertEquals(25, fieldCount)
+            assertEquals(26, fieldCount)
             assertEquals(3, dataRows.size)
             dataRows.forEach { assertEquals(fieldCount, it.split(delim).size) }
         }
@@ -137,7 +141,8 @@ class MeasurementCsvTest {
                         carrierPhaseMeters = null,
                         carrierPhaseUncertaintyMeters = null,
                         tTxRawNanos = null,
-                        svTimeUncertaintyNanos = null
+                        svTimeUncertaintyNanos = null,
+                        pseudorangeStatus = PseudorangeStatus.NO_TIME
                     )
                 )
             ),
@@ -146,6 +151,8 @@ class MeasurementCsvTest {
 
         val row = csv.lines().first { it.startsWith("1,7,") }
         assertFalse(row.contains("null"))
+        // Der Grund fuer die fehlende Pseudorange steht in der letzten Spalte.
+        assertTrue(row.endsWith(",no_time"))
     }
 
     @Test
@@ -162,7 +169,7 @@ class MeasurementCsvTest {
     }
 
     @Test
-    fun tTxNanosIsRawPlusWeekOffset() {
+    fun tTxNanosIstRohwertPlusAngewandtemVersatz() {
         val csv = MeasurementCsv.toCsv(
             listOf(epoch(measurement(tTxRawNanos = 123456789L))),
             meta, CsvProfile.UNIVERSAL
@@ -181,6 +188,51 @@ class MeasurementCsvTest {
      * stehen. Mit nur einer Nachkommastelle wären es 0,1 m, also gut eine
      * halbe Wellenlänge -- eine Phasenauswertung wäre damit unmöglich.
      */
+    @Test
+    fun prStatusWirdGeschrieben() {
+        val csv = MeasurementCsv.toCsv(
+            listOf(
+                epoch(
+                    measurement(svid = 7),
+                    measurement(
+                        svid = 8,
+                        constellation = Constellation.BEIDOU,
+                        pseudorangeMeters = null,
+                        pseudorangeStatus = PseudorangeStatus.IMPLAUSIBLE
+                    )
+                )
+            ),
+            meta, CsvProfile.UNIVERSAL
+        )
+
+        val rows = csv.lines().filter { it.firstOrNull()?.isDigit() == true }
+        assertTrue(rows[0].endsWith(",ok"))
+        assertTrue(rows[1].endsWith(",implausible"))
+    }
+
+    @Test
+    fun beidouSendezeitWirdMitZeitbasisUmgerechnet() {
+        // Rohwert 21 s vor der Empfangszeit -> nach 14 s Zeitbasis bleiben 7 s,
+        // also unplausibel; ohne die Umrechnung waere es eine Woche zu weit weg.
+        val csv = MeasurementCsv.toCsv(
+            listOf(
+                epoch(
+                    measurement(
+                        constellation = Constellation.BEIDOU,
+                        tTxRawNanos = clock.timeNanos - clock.fullBiasNanos - 21_000_000_000L
+                    )
+                )
+            ),
+            meta, CsvProfile.UNIVERSAL
+        )
+
+        val cells = csv.lines().first { it.startsWith("1,7,") }.split(',')
+        val raw = cells[12].toLong()
+        val adjusted = cells[13].toLong()
+        // Angewandter Versatz = volle Epoche (hier eine Woche) + 14 s Zeitbasisversatz.
+        assertEquals(Pseudorange.BEIDOU_OFFSET_NANOS, (adjusted - raw) % Pseudorange.WEEK_NANOS)
+    }
+
     @Test
     fun carrierPhaseKeepsSubMillimetreResolution() {
         val phase = -88213456.4321
