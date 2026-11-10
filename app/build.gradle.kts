@@ -5,7 +5,7 @@ plugins {
 
 android {
   namespace = "de.gpsradar.satellites"
-  compileSdk { version = release(36) { minorApiLevel = 1 } }
+  compileSdk { version = release(37) }
 
   defaultConfig {
     applicationId = "de.gpsradar.satellites"

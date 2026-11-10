@@ -10,18 +10,17 @@ lifecycleRuntimeCompose = "2.8.7"
 activityCompose = "1.10.1"
 documentfile = "1.0.1"
 kotlin = "2.2.10"
-# Bewusst auf 2024.09.00 gepinnt (Entscheidung 09.11.2026): Der BOM legt nur die
-# Laufzeit-Versionen von ui/foundation/material3 (1.7.x / 1.3.0) fest, nicht den
-# Compose-Compiler - der kommt mit Kotlin. Neuester BOM ist 2026.09.00. Ein Sprung
-# ändert Material-3-Standards (Typografie, Abstände, Dialogmaße) und damit das
-# Erscheinungsbild samt Screenshots in README und fastlane. Deshalb erst vor dem
-# nächsten UI-Feature, als eigener Commit mit Geräteblick.
-# Randbedingung dabei: Die App muss ab Android 7.0 laufen (minSdk 24) - das ist die
-# Untergrenze, mehr Spielraum nach unten gibt es nicht. Zieht ein Artefakt seine
-# Mindestversion nach oben, bricht der Build beim Zusammenführen des Manifests ab;
-# dann muss der Sprung gestoppt werden, nicht das minSdk. activity-compose und
-# lifecycle hängen NICHT am BOM und wandern nur mit, wenn sie es müssen.
-composeBom = "2024.09.00"
+# Compose-BOM 2026.09.00 (Sprung am 10.11.2026, vorher 2024.09.00). Der BOM legt
+# nur die Laufzeit-Versionen von ui/foundation/material3 fest, nicht den
+# Compose-Compiler - der kommt mit Kotlin. Der Sprung ist ein eigener Commit,
+# weil Material-3-Standards (Typografie, Abstände, Dialogmaße) das Erscheinen
+# ändern können: danach Geräteblick und Screenshots in README/fastlane prüfen.
+# Randbedingung: Die App muss ab Android 7.0 laufen (minSdk 24) - das ist die
+# Untergrenze. Hebt ein Artefakt seine Mindestversion an, bricht der Build beim
+# Zusammenführen des Manifests ab; dann den Sprung zurücknehmen, nicht minSdk
+# heben. activity-compose und lifecycle hängen NICHT am BOM und wandern nur mit,
+# wenn sie es müssen.
+composeBom = "2026.09.00"
 kotlinxCoroutinesTest = "1.10.2"
 core = "1.6.1"
 runner = "1.6.2"
