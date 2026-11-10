@@ -6,6 +6,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -47,6 +48,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import de.gpsradar.satellites.R
@@ -94,7 +96,13 @@ fun SatelliteListScreen(
                 ),
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold,
-                color = Color.White
+                color = Color.White,
+                // Der Sortierknopf behält seine volle Breite; die Zählung weicht
+                // aus, wenn beides zusammen nicht passt (z. B. bei zweistelligen
+                // Fix-Zahlen). Vorher wurde stattdessen der Knopftext abgeschnitten.
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f, fill = false)
             )
 
             // Sort Menu Button
@@ -102,6 +110,9 @@ fun SatelliteListScreen(
                 OutlinedActionButton(
                     onClick = { sortMenuExpanded = true },
                     shape = RoundedCornerShape(12.dp),
+                    // Schmaler als der Standard (24 dp), sonst passen Zählung und
+                    // Sortier-Label in der Kopfzeile nicht nebeneinander.
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                     modifier = Modifier.testTag("sort_menu_btn")
                 ) {
                     Icon(
