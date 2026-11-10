@@ -240,7 +240,7 @@ German Excel separates lists with `;` and decimal numbers with `,`; an RFC file 
 epoch,svid,constellation,band,freq_hz,cn0_dbhz,time_ns,full_bias_ns,bias_ns,drift_nsps,leap_s,week_offset_ns,t_tx_raw_ns,t_tx_ns,sv_time_unc_ns,pseudorange_m,doppler_mps,adr_m,adr_state,phase_unc_m,state_flags,code_lock,tow_known,msec_ambiguous,multipath
 ```
 
-`epoch` numbers the measurement sets (1 = the oldest in the export); gaps mean the chip delivered nothing at that moment. `adr_m` is the **accumulated delta range** – relative to the start time, not an absolute carrier phase. `time_ns` is the receiver time, `t_tx_ns` the satellite's transmission time; `full_bias_ns`, `bias_ns`, `drift_nsps` and `leap_s` are the receiver clock.
+`epoch` numbers the measurement sets (1 = the oldest in the export); gaps mean the chip delivered nothing at that moment. `adr_m` is the **accumulated delta range** – accumulated carrier phase in metres since the last loss of lock (each satellite starts from its own zero point), not an absolute carrier phase. `time_ns` is the receiver time, `t_tx_ns` the satellite's transmission time; `full_bias_ns`, `bias_ns`, `drift_nsps` and `leap_s` are the receiver clock.
 
 **Reading it in:**
 

@@ -55,7 +55,7 @@ object MeasurementCsv {
         lines += comment("app", meta.app, profile)
         lines += comment("aufzeichnung", "${epochs.size} Epochen · $totalRows Zeilen · 1 Epoche = ein GnssMeasurementsEvent", profile)
         lines += comment("zeitbasis", "export_utc ist die Geräteuhr · time_ns ist GNSS-Zeit · alle *_ns sind Nanosekunden · Epochen können Lücken haben", profile)
-        lines += comment("hinweis", "adr_m ist accumulated delta range (relativ zur Epoche und keine absolute Trägerphase) · adr_state Bit 1 gesetzt bedeutet gültig", profile)
+        lines += comment("hinweis", "adr_m ist die aufsummierte Trägerphase in Metern seit dem letzten Lock-Verlust (kumulativ, jeder Satellit ab eigenem Nullpunkt, keine absolute Phase) · adr_state Bit 1 gesetzt bedeutet gültig", profile)
         lines += comment("flags", "state_flags: GnssMeasurement.getState() · adr_state: accumulatedDeltaRangeState · code_lock/tow_known/msec_ambiguous: 1 ja, 0 nein", profile)
 
         lines += HEADER.joinToString(profile.delimiter.toString())
