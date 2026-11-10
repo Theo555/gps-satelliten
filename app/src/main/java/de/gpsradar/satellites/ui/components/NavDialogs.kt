@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
@@ -77,7 +78,7 @@ internal fun AddWaypointDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = { onConfirm(name, code) }) {
+            Button(onClick = { onConfirm(name, code) }) {
                 Text(stringResource(R.string.btn_save))
             }
         },
@@ -165,7 +166,7 @@ internal fun ManualWaypointDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = {
+            Button(onClick = {
                 val parsed = Coordinates.parse(coords)
                 if (parsed == null) {
                     error = errorCoordinates
@@ -312,7 +313,7 @@ internal fun EditWaypointDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = {
+            Button(onClick = {
                 val parsed = Coordinates.parse(coords)
                 if (parsed == null) {
                     error = errorCoordinates
@@ -405,7 +406,7 @@ internal fun ProjectionDialog(
             }
         },
         confirmButton = {
-            TextButton(
+            Button(
                 enabled = baseName != null,
                 onClick = {
                     val b = bearing.toDoubleOrNull()

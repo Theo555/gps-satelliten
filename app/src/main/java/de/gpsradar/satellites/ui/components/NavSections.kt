@@ -186,7 +186,7 @@ internal fun FilesSection(
                 }
             },
             confirmButton = {
-                TextButton(onClick = { importReport = null }) {
+                Button(onClick = { importReport = null }) {
                     Text(stringResource(R.string.btn_close))
                 }
             }
@@ -385,7 +385,7 @@ internal fun TracksSection(
                 }
             },
             confirmButton = {
-                TextButton(
+                Button(
                     onClick = {
                         val msg = onStopRecording(trackName)
                         Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
@@ -430,7 +430,7 @@ internal fun TracksSection(
                 )
             },
             confirmButton = {
-                TextButton(
+                Button(
                     onClick = {
                         onDeleteTrack(track.id)
                         pendingDeleteTrack = null

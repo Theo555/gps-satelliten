@@ -314,7 +314,7 @@ fun NavigationScreen(
             title = { Text(stringResource(R.string.dlg_delete_waypoint_title)) },
             text = { Text(stringResource(R.string.dlg_delete_waypoint_text, wp.name)) },
             confirmButton = {
-                TextButton(
+                Button(
                     onClick = {
                         onDeleteWaypoint(wp.id)
                         pendingDeleteWaypointId = null
