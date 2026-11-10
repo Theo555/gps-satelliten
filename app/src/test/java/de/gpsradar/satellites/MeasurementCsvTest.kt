@@ -176,6 +176,30 @@ class MeasurementCsvTest {
         assertEquals(raw + weekOffset, adjusted)
     }
 
+    /**
+     * Die Trägerphase muss feiner als eine Wellenlänge (L1: 19,03 cm) im CSV
+     * stehen. Mit nur einer Nachkommastelle wären es 0,1 m, also gut eine
+     * halbe Wellenlänge -- eine Phasenauswertung wäre damit unmöglich.
+     */
+    @Test
+    fun carrierPhaseKeepsSubMillimetreResolution() {
+        val phase = -88213456.4321
+
+        val universal = MeasurementCsv.toCsv(
+            listOf(epoch(measurement(carrierPhaseMeters = phase))),
+            meta, CsvProfile.UNIVERSAL
+        )
+        val universalRow = universal.lines().first { it.startsWith("1,7,") }.split(',')
+        assertEquals("-88213456.4321", universalRow[17])
+
+        val excel = MeasurementCsv.toCsv(
+            listOf(epoch(measurement(carrierPhaseMeters = phase))),
+            meta, CsvProfile.EXCEL_DE
+        )
+        val excelRow = excel.lines().first { it.startsWith("1;7;") }.split(';')
+        assertEquals("-88213456,4321", excelRow[17])
+    }
+
     @Test
     fun commentValueWithCommaIsQuoted() {
         val csv = MeasurementCsv.toCsv(

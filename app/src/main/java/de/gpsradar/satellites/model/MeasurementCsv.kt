@@ -55,7 +55,7 @@ object MeasurementCsv {
         lines += comment("app", meta.app, profile)
         lines += comment("aufzeichnung", "${epochs.size} Epochen · $totalRows Zeilen · 1 Epoche = ein GnssMeasurementsEvent", profile)
         lines += comment("zeitbasis", "export_utc ist die Geräteuhr · time_ns ist GNSS-Zeit · alle *_ns sind Nanosekunden · Epochen können Lücken haben", profile)
-        lines += comment("hinweis", "adr_m ist die aufsummierte Trägerphase in Metern seit dem letzten Lock-Verlust (kumulativ, jeder Satellit ab eigenem Nullpunkt, keine absolute Phase) · adr_state Bit 1 gesetzt bedeutet gültig", profile)
+        lines += comment("hinweis", "adr_m ist die aufsummierte Trägerphase in Metern seit dem letzten Lock-Verlust (kumulativ, jeder Satellit ab eigenem Nullpunkt, keine absolute Phase) · vier Nachkommastellen = 0,1 mm · adr_state Bit 1 gesetzt bedeutet gültig", profile)
         lines += comment("flags", "state_flags: GnssMeasurement.getState() · adr_state: accumulatedDeltaRangeState · code_lock/tow_known/msec_ambiguous: 1 ja, 0 nein", profile)
 
         lines += HEADER.joinToString(profile.delimiter.toString())
@@ -93,7 +93,10 @@ object MeasurementCsv {
                     fmtLong(m.svTimeUncertaintyNanos),
                     fmtDouble(m.pseudorangeMeters, "%.3f", profile),
                     fmtDouble(m.dopplerMetersPerSec, "%.1f", profile),
-                    fmtDouble(m.carrierPhaseMeters, "%.1f", profile),
+                    // Trägerphase mit 0,1 mm. Mit einer Nachkommastelle wären es 0,1 m,
+                    // bei L1 also gut eine halbe Wellenlänge -- damit ließe sich keine
+                    // Phase auswerten. Der Sensor liefert den Wert vollauflösend.
+                    fmtDouble(m.carrierPhaseMeters, "%.4f", profile),
                     m.adrState.toString(),
                     fmtDouble(m.carrierPhaseUncertaintyMeters, "%.3f", profile),
                     m.stateFlags.toString(),
