@@ -29,7 +29,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -117,7 +116,7 @@ internal fun FilesSection(
         onToggle = onToggle
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(
+            OutlinedActionButton(
                 onClick = {
                     importLauncher.launch(
                         arrayOf(
@@ -139,13 +138,13 @@ internal fun FilesSection(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                OutlinedButton(
+                OutlinedActionButton(
                     onClick = { exportGpxLauncher.launch(null) },
                     modifier = Modifier.weight(1f).testTag("export_gpx_btn")
                 ) {
                     Text(stringResource(R.string.btn_export_gpx), fontSize = 12.sp)
                 }
-                OutlinedButton(
+                OutlinedActionButton(
                     onClick = { exportJsonLauncher.launch("gps_zielpunkte.json") },
                     modifier = Modifier.weight(1f).testTag("export_json_btn")
                 ) {
@@ -310,7 +309,7 @@ internal fun TracksSection(
                         }
                         Spacer(modifier = Modifier.height(8.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedButton(
+                            OutlinedActionButton(
                                 onClick = {
                                     if (isRecordingPaused) onResumeRecording() else onPauseRecording()
                                 },
@@ -331,7 +330,7 @@ internal fun TracksSection(
                     }
                 }
             } else {
-                OutlinedButton(
+                OutlinedActionButton(
                     onClick = onStartRecording,
                     modifier = Modifier.fillMaxWidth().testTag("start_recording_btn")
                 ) {

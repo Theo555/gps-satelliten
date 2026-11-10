@@ -25,7 +25,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -137,7 +136,7 @@ fun PermissionAndStatusBanner(
                         )
                     }
                     Spacer(modifier = Modifier.width(8.dp))
-                    OutlinedButton(
+                    OutlinedActionButton(
                         onClick = {
                             context.startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
                         },
@@ -179,7 +178,7 @@ fun PermissionAndStatusBanner(
                         color = CardNavy
                     )
                     Spacer(modifier = Modifier.height(6.dp))
-                    OutlinedButton(
+                    OutlinedActionButton(
                         onClick = onToggleDemoMode,
                         modifier = Modifier.height(32.dp).testTag("switch_to_real_gps_btn"),
                         contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 2.dp)

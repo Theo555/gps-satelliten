@@ -15,7 +15,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -274,7 +273,7 @@ internal fun EditWaypointDialog(
                 Text(stringResource(R.string.dlg_cache_type), fontSize = 12.sp, color = Color(0xFFCBD5E1))
                 Spacer(modifier = Modifier.height(8.dp))
                 Box {
-                    OutlinedButton(
+                    OutlinedActionButton(
                         onClick = { typeMenuExpanded = true },
                         modifier = Modifier.fillMaxWidth()
                     ) {

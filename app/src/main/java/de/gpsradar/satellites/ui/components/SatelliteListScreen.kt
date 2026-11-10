@@ -32,7 +32,6 @@ import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -100,7 +99,7 @@ fun SatelliteListScreen(
 
             // Sort Menu Button
             Box {
-                OutlinedButton(
+                OutlinedActionButton(
                     onClick = { sortMenuExpanded = true },
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.testTag("sort_menu_btn")

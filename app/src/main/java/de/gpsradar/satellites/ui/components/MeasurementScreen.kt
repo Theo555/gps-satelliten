@@ -27,7 +27,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -382,7 +381,7 @@ private fun ExportDialog(
                             color = Color(0xFFF59E0B)
                         )
                         Spacer(modifier = Modifier.height(8.dp))
-                        OutlinedButton(onClick = onCancelCapture, modifier = Modifier.fillMaxWidth()) {
+                        OutlinedActionButton(onClick = onCancelCapture, modifier = Modifier.fillMaxWidth()) {
                             Text(stringResource(R.string.btn_cancel_record))
                         }
                     }
@@ -394,7 +393,7 @@ private fun ExportDialog(
                             modifier = Modifier.fillMaxWidth()
                         ) { Text(stringResource(R.string.btn_export)) }
                         Spacer(modifier = Modifier.height(6.dp))
-                        OutlinedButton(onClick = onDiscardCapture, modifier = Modifier.fillMaxWidth()) {
+                        OutlinedActionButton(onClick = onDiscardCapture, modifier = Modifier.fillMaxWidth()) {
                             Text(stringResource(R.string.btn_discard))
                         }
                     }
@@ -406,7 +405,7 @@ private fun ExportDialog(
                             modifier = Modifier.fillMaxWidth()
                         ) { Text(stringResource(R.string.btn_export)) }
                         Spacer(modifier = Modifier.height(6.dp))
-                        OutlinedButton(onClick = onStartCapture, modifier = Modifier.fillMaxWidth()) {
+                        OutlinedActionButton(onClick = onStartCapture, modifier = Modifier.fillMaxWidth()) {
                             Text(stringResource(R.string.btn_record_5min))
                         }
                     }
