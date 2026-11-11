@@ -5,6 +5,7 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,6 +19,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FileDownload
@@ -78,12 +80,26 @@ fun MeasurementScreen(
     onCancelCapture: () -> Unit,
     onDiscardCapture: () -> Unit
 ) {
-    var bandFilter by remember { mutableStateOf<String?>(null) }
+    var constellationFilter by remember { mutableStateOf<Constellation?>(null) }
     var showExportDialog by remember { mutableStateOf(false) }
     var showQualityDetails by remember { mutableStateOf(false) }
 
+    // Filter nach Konstellation, nicht nach Band: gnssBandShort() liefert je
+    // System einen eigenen Namen (L1/E1/B1/G1). Ein Knopf "L1" traf daher nur
+    // GPS, "L5" praktisch nie etwas. Die Knoepfe entstehen jetzt aus den
+    // tatsaechlich empfangenen Systemen -- kein Knopf ohne Inhalt.
+    val presentConstellations = remember(measurements) {
+        measurements.map { it.constellation }.distinct().sortedBy { it.ordinal }
+    }
+    val chosen = constellationFilter
+    val filterChips = if (chosen != null && chosen !in presentConstellations) {
+        presentConstellations + chosen
+    } else {
+        presentConstellations
+    }
+
     val filtered = measurements.filter { m ->
-        bandFilter == null || m.bandShort == bandFilter
+        chosen == null || m.constellation == chosen
     }
 
     Column(
@@ -112,7 +128,7 @@ fun MeasurementScreen(
 
         Spacer(modifier = Modifier.height(4.dp))
 
-        BandFilterRow(selected = bandFilter, onSelect = { bandFilter = it })
+        BandFilterRow(selected = chosen, constellations = filterChips, onSelect = { constellationFilter = it })
 
         Spacer(modifier = Modifier.height(6.dp))
 
@@ -491,14 +507,23 @@ private fun statusText(res: Resources, phase: CapturePhase, stats: BufferStats, 
     }
 
 @Composable
-private fun BandFilterRow(selected: String?, onSelect: (String?) -> Unit) {
+private fun BandFilterRow(
+    selected: Constellation?,
+    constellations: List<Constellation>,
+    onSelect: (Constellation?) -> Unit
+) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState()),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         BandChip(label = stringResource(R.string.filter_all_short), active = selected == null) { onSelect(null) }
-        BandChip(label = "L1", active = selected == "L1") { onSelect("L1") }
-        BandChip(label = "L5", active = selected == "L5") { onSelect("L5") }
+        constellations.forEach { constellation ->
+            BandChip(label = constellation.shortName, active = selected == constellation) {
+                onSelect(constellation)
+            }
+        }
     }
 }
 
