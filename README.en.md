@@ -34,7 +34,7 @@ No desire to build it yourself? Just download the ready-made APK and install it 
 ### 📡 GNSS raw data & measurement
 
 - **Navigation messages** – ephemeris/almanac raw data per satellite as a hex view (in the satellite details)
-- **Measurement tab** – per satellite and frequency band (**L1/L5/L2/E1/E5a/E5b**): C/N₀, **pseudorange**, Doppler, carrier phase and multipath detection
+- **Measurement tab** – per satellite and frequency band (**L1/L5/L2/E1/E5a/E5b**): C/N₀, **pseudorange**, Doppler, carrier phase and multipath detection; filterable by satellite system
 - **Honest display** – values the device does not deliver (e.g. pseudorange or clock drift) appear as "–" or "unknown" instead of an invented number
 - **Raw data quality** – one line with code lock, TOW, ms ambiguity and carrier phase; tap to expand the details
 - **CSV export** – the raw measurements as a **time series** (last 60 s, optionally a 5-minute recording), either RFC-compliant or for German Excel (details under [raw data export](#raw-data-export-csv))
@@ -240,7 +240,7 @@ German Excel separates lists with `;` and decimal numbers with `,`; an RFC file 
 epoch,svid,constellation,band,freq_hz,cn0_dbhz,time_ns,full_bias_ns,bias_ns,drift_nsps,leap_s,week_offset_ns,t_tx_raw_ns,t_tx_ns,sv_time_unc_ns,pseudorange_m,doppler_mps,adr_m,adr_state,phase_unc_m,state_flags,code_lock,tow_known,msec_ambiguous,multipath,pr_status
 ```
 
-`epoch` numbers the measurement sets (1 = the oldest in the export); gaps mean the chip delivered nothing at that moment. `adr_m` is the **accumulated delta range** – accumulated carrier phase in metres since the last loss of lock (each satellite starts from its own zero point), not an absolute carrier phase. `time_ns` is the receiver time, `t_tx_raw_ns` the satellite's transmission time **as the device reports it – each constellation in its own time base**, GLONASS additionally counting from the system day instead of the week. `t_tx_ns` is the same transmission time converted to GPS time (BeiDou runs 14 s behind, GLONASS is 3 h ahead of UTC plus leap seconds); `week_offset_ns` is exactly the offset applied for that. `pr_status` says why a pseudorange is missing: `ok`, `no_clock`, `no_time` or `implausible`. `full_bias_ns`, `bias_ns`, `drift_nsps` and `leap_s` are the receiver clock.
+`epoch` numbers the measurement sets (1 = the oldest in the export); gaps mean the chip delivered nothing at that moment. `adr_m` is the **accumulated delta range** – accumulated carrier phase in metres since the last loss of lock (each satellite starts from its own zero point), not an absolute carrier phase, resolved to 0.1 mm. `time_ns` is the receiver time, `t_tx_raw_ns` the satellite's transmission time **as the device reports it – each constellation in its own time base**, GLONASS additionally counting from the system day instead of the week. `t_tx_ns` is the same transmission time converted to GPS time (BeiDou runs 14 s behind, GLONASS is 3 h ahead of UTC plus leap seconds); `week_offset_ns` is exactly the offset applied for that. `pr_status` says why a pseudorange is missing: `ok`, `no_clock`, `no_time` or `implausible`. `full_bias_ns`, `bias_ns`, `drift_nsps` and `leap_s` are the receiver clock.
 
 **Reading it in:**
 

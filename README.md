@@ -34,7 +34,7 @@ Keine Lust, selbst zu kompilieren? Lade einfach die fertige APK herunter und ins
 ### 📡 GNSS-Rohdaten & Messung
 
 - **Navigationsnachrichten** – Ephemeriden-/Almanach-Rohdaten je Satellit als Hex-Ansicht (im Satelliten-Detail)
-- **Messung-Tab** – pro Satellit und Frequenzband (**L1/L5/L2/E1/E5a/E5b**): C/N₀, **Pseudorange**, Doppler, Trägerphase und Multipfad-Erkennung
+- **Messung-Tab** – pro Satellit und Frequenzband (**L1/L5/L2/E1/E5a/E5b**): C/N₀, **Pseudorange**, Doppler, Trägerphase und Multipfad-Erkennung; filterbar nach Satellitensystem
 - **Ehrliche Anzeige** – Werte, die das Gerät nicht liefert (z. B. Pseudorange oder Uhr-Drift), erscheinen als „–“ bzw. „unbekannt“ statt als Fantasiezahl
 - **Rohdaten-Qualität** – eine Zeile mit Code-Lock, TOW, ms-Mehrdeutigkeit und Trägerphase; antippen klappt Details auf
 - **CSV-Export** – die Roh-Messungen als **Zeitreihe** (letzte 60 s, optional 5 Minuten Aufzeichnung), wahlweise RFC-konform oder für deutsches Excel (Details unter [Rohdaten-Export](#rohdaten-export-csv))
@@ -240,7 +240,7 @@ Deutsches Excel trennt Listen mit `;` und Dezimalzahlen mit `,`; eine RFC-Datei 
 epoch,svid,constellation,band,freq_hz,cn0_dbhz,time_ns,full_bias_ns,bias_ns,drift_nsps,leap_s,week_offset_ns,t_tx_raw_ns,t_tx_ns,sv_time_unc_ns,pseudorange_m,doppler_mps,adr_m,adr_state,phase_unc_m,state_flags,code_lock,tow_known,msec_ambiguous,multipath,pr_status
 ```
 
-`epoch` nummeriert die Messsätze (1 = der älteste im Export); Lücken bedeuten, dass der Chip in dem Moment nichts geliefert hat. `adr_m` ist die **accumulated delta range** – die aufsummierte Trägerphase in Metern seit dem letzten Lock-Verlust (jeder Satellit ab eigenem Nullpunkt), keine absolute Trägerphase. `time_ns` ist die Empfängerzeit, `t_tx_raw_ns` die Sendezeit des Satelliten so, wie das Gerät sie meldet – **jede Konstellation in ihrer eigenen Zeitbasis**, GLONASS zusätzlich ab dem Systemtag statt ab der Woche. `t_tx_ns` ist dieselbe Sendezeit auf GPS-Zeit umgerechnet (BeiDou liegt 14 s zurück, GLONASS 3 h vor UTC plus Schaltsekunden); `week_offset_ns` ist genau der dafür angewandte Versatz. `pr_status` sagt, warum eine Pseudorange fehlt: `ok`, `no_clock`, `no_time` oder `implausible`. `full_bias_ns`, `bias_ns`, `drift_nsps` und `leap_s` sind die Empfängeruhr.
+`epoch` nummeriert die Messsätze (1 = der älteste im Export); Lücken bedeuten, dass der Chip in dem Moment nichts geliefert hat. `adr_m` ist die **accumulated delta range** – die aufsummierte Trägerphase in Metern seit dem letzten Lock-Verlust (jeder Satellit ab eigenem Nullpunkt), keine absolute Trägerphase, aufgelöst auf 0,1 mm. `time_ns` ist die Empfängerzeit, `t_tx_raw_ns` die Sendezeit des Satelliten so, wie das Gerät sie meldet – **jede Konstellation in ihrer eigenen Zeitbasis**, GLONASS zusätzlich ab dem Systemtag statt ab der Woche. `t_tx_ns` ist dieselbe Sendezeit auf GPS-Zeit umgerechnet (BeiDou liegt 14 s zurück, GLONASS 3 h vor UTC plus Schaltsekunden); `week_offset_ns` ist genau der dafür angewandte Versatz. `pr_status` sagt, warum eine Pseudorange fehlt: `ok`, `no_clock`, `no_time` oder `implausible`. `full_bias_ns`, `bias_ns`, `drift_nsps` und `leap_s` sind die Empfängeruhr.
 
 **Einlesen:**
 
