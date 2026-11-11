@@ -78,12 +78,10 @@ object MeasurementCsv {
                         Pseudorange.absoluteTransmitNanos(m.constellation, raw, tRx, leapSecondForTimeBase)
                     }
                 }
+                val rawTxNanos = m.tTxRawNanos
                 // Versatz, der tatsächlich angewandt wurde (volle Epoche + Zeitbasis).
-                val appliedOffsetNanos: Long? = if (tTxNanos != null && m.tTxRawNanos != null) {
-                    tTxNanos - m.tTxRawNanos
-                } else {
-                    null
-                }
+                val appliedOffsetNanos: Long? =
+                    if (rawTxNanos != null && tTxNanos != null) tTxNanos - rawTxNanos else null
 
                 val cells = listOf(
                     epochIndex.toString(),

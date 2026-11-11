@@ -24,6 +24,7 @@ import de.gpsradar.satellites.model.RawEpoch
 import de.gpsradar.satellites.model.RawMeasurement
 import de.gpsradar.satellites.model.gnssBandLabel
 import de.gpsradar.satellites.model.gnssBandShort
+import java.util.concurrent.Executor
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -49,6 +50,10 @@ class RawGnssManager(context: Context) {
     private val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as? LocationManager
 
     private val handler = Handler(Looper.getMainLooper())
+
+    // Ab Android 11 verlangt die Registrierung einen Executor. Wir geben ihr den
+    // Haupt-Thread, damit die Rueckrufe wie bisher dort ankommen.
+    private val mainExecutor = Executor { handler.post(it) }
 
     /** true, solange ein Mess-Callback registriert ist. */
     private var registered = false
@@ -149,7 +154,12 @@ class RawGnssManager(context: Context) {
         if (registered) return
         val lm = locationManager ?: return
         val ok = try {
-            lm.registerGnssMeasurementsCallback(callback)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                lm.registerGnssMeasurementsCallback(mainExecutor, callback)
+            } else {
+                @Suppress("DEPRECATION")
+                lm.registerGnssMeasurementsCallback(callback)
+            }
         } catch (e: Exception) {
             Log.w(TAG, "Rohdaten-Callback abgelehnt", e)
             false

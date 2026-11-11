@@ -12,6 +12,7 @@ import androidx.documentfile.provider.DocumentFile
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import de.gpsradar.satellites.R
+import de.gpsradar.satellites.readAppVersion
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -771,11 +772,9 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
         rawGnssManager.discardCapture()
     }
 
-    @Suppress("DEPRECATION")
     private fun appVersionName(): String {
         return try {
-            val app = getApplication<Application>()
-            app.packageManager.getPackageInfo(app.packageName, 0).versionName ?: "?"
+            readAppVersion(getApplication()).name
         } catch (e: Exception) {
             "?"
         }

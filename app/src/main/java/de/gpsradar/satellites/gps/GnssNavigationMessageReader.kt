@@ -11,6 +11,7 @@ import de.gpsradar.satellites.R
 import de.gpsradar.satellites.model.Constellation
 import de.gpsradar.satellites.model.GnssNavMessage
 import java.util.Locale
+import java.util.concurrent.Executor
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -45,6 +46,10 @@ class GnssNavigationMessageReader(
     private var registered = false
     private var attempts = 0
     private val retry = Runnable { registerIfPossible() }
+
+    // Ab Android 11 verlangt die Registrierung einen Executor; wie bisher der
+    // Haupt-Thread.
+    private val mainExecutor = Executor { mainHandler.post(it) }
 
     private val callback = object : GnssNavigationMessage.Callback() {
         override fun onGnssNavigationMessageReceived(event: GnssNavigationMessage) {
@@ -109,7 +114,12 @@ class GnssNavigationMessageReader(
         if (registered) return
         val lm = locationManager ?: return
         val ok = try {
-            lm.registerGnssNavigationMessageCallback(callback)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                lm.registerGnssNavigationMessageCallback(mainExecutor, callback)
+            } else {
+                @Suppress("DEPRECATION")
+                lm.registerGnssNavigationMessageCallback(callback)
+            }
         } catch (e: Exception) {
             Log.w(TAG, "Navigationsnachrichten nicht registriert", e)
             false

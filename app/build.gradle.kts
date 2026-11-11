@@ -65,6 +65,16 @@ android {
   }
 }
 
+kotlin {
+  compilerOptions {
+    // Kotlin 2.2 aendert den Standard fuer Annotationen an Konstruktor-
+    // Eigenschaften: Sie galten bisher nur fuer den Parameter, kuenftig auch
+    // fuer das Feld. Wir nehmen die kuenftige Regel schon jetzt, damit
+    // @StringRes an den Eigenschaften greift und die Warnung verschwindet.
+    freeCompilerArgs.add("-Xannotation-default-target=param-property")
+  }
+}
+
 dependencies {
   implementation(platform(libs.androidx.compose.bom))
 

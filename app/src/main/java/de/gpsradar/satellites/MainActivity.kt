@@ -6,7 +6,6 @@ import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.net.Uri
-import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -117,24 +116,9 @@ fun GpsAppMainScreen(
     viewModel: GpsViewModel = viewModel()
 ) {
     val context = LocalContext.current
-    val versionName = remember {
-        @Suppress("DEPRECATION")
-        try {
-            context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "?"
-        } catch (e: Exception) {
-            "?"
-        }
-    }
-    val versionCode = remember {
-        @Suppress("DEPRECATION")
-        try {
-            val info = context.packageManager.getPackageInfo(context.packageName, 0)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) info.longVersionCode
-            else info.versionCode.toLong()
-        } catch (e: Exception) {
-            0L
-        }
-    }
+    val appVersion = remember { readAppVersion(context) }
+    val versionName = appVersion.name
+    val versionCode = appVersion.code
     val gpsState by viewModel.rawGpsState.collectAsState()
     val compassSpin by viewModel.compassSpinState.collectAsState()
     val compassWalk by viewModel.compassWalkState.collectAsState()
