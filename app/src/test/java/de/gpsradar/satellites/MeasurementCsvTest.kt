@@ -48,7 +48,9 @@ class MeasurementCsvTest {
         agcDb: Double? = null,
         snrInDb: Double? = null,
         basebandCn0DbHz: Double? = null,
-        codeType: String? = null
+        codeType: String? = null,
+        elevationDegrees: Double? = null,
+        azimuthDegrees: Double? = null
     ) = RawMeasurement(
         svid = svid,
         constellation = constellation,
@@ -74,7 +76,9 @@ class MeasurementCsvTest {
         agcDb = agcDb,
         snrInDb = snrInDb,
         basebandCn0DbHz = basebandCn0DbHz,
-        codeType = codeType
+        codeType = codeType,
+        elevationDegrees = elevationDegrees,
+        azimuthDegrees = azimuthDegrees
     )
 
     private fun epoch(vararg rows: RawMeasurement, atMillis: Long = 1L) =
@@ -133,7 +137,7 @@ class MeasurementCsvTest {
             val fieldCount = header.split(delim).size
             val dataRows = lines.filter { it.firstOrNull()?.isDigit() == true }
 
-            assertEquals(34, fieldCount)
+            assertEquals(36, fieldCount)
             assertEquals(3, dataRows.size)
             dataRows.forEach { assertEquals(fieldCount, it.split(delim).size) }
         }
@@ -175,8 +179,8 @@ class MeasurementCsvTest {
         )
 
         val cells = csv.lines().first { it.startsWith("1,7,") }.split(',')
-        assertEquals(34, cells.size)
-        for (i in 26..33) {
+        assertEquals(36, cells.size)
+        for (i in 26..35) {
             assertEquals("Spalte $i muss leer sein", "", cells[i])
         }
         assertFalse(csv.contains("NaN"))
@@ -205,7 +209,9 @@ class MeasurementCsvTest {
                             agcDb = -12.34,
                             snrInDb = 21.5,
                             basebandCn0DbHz = 36.75,
-                            codeType = "C"
+                            codeType = "C",
+                            elevationDegrees = 34.56,
+                            azimuthDegrees = 271.44
                         )
                     )
                 )
@@ -222,12 +228,32 @@ class MeasurementCsvTest {
         assertEquals("0.000250", cells[31]) // drift_unc_nsps
         assertEquals("987654321", cells[32]) // elapsed_realtime_ns
         assertEquals("2", cells[33]) // hw_clock_disc
+        assertEquals("34.6", cells[34]) // elev_deg – eine Nachkommastelle genuegt
+        assertEquals("271.4", cells[35]) // azim_deg
         assertTrue(
             csv.contains(
                 "# geliefert = agc=ja · snr_in=ja · basisband_cn0=ja · code_type=ja" +
-                    " · uhr_unsicherheit=ja · uhrspruenge=ja"
+                    " · uhr_unsicherheit=ja · uhrspruenge=ja · elev_azim=ja"
             )
         )
+    }
+
+    /**
+     * Ohne Satellitenstatus gibt es keine Lage – dann bleiben beide Spalten leer,
+     * und die Kopfzeile sagt "nein". Eine 0 wäre hier falsch: Sie läse sich wie
+     * "Satellit im Horizont, Norden".
+     */
+    @Test
+    fun ohneLageBleibenHoeheUndAzimutLeer() {
+        val csv = MeasurementCsv.toCsv(
+            listOf(epoch(measurement())),
+            meta, CsvProfile.UNIVERSAL
+        )
+
+        val cells = csv.lines().first { it.startsWith("1,7,") }.split(',')
+        assertEquals("", cells[34])
+        assertEquals("", cells[35])
+        assertTrue(csv.contains("elev_azim=nein"))
     }
 
     @Test

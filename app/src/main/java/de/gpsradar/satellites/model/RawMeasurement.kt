@@ -55,7 +55,12 @@ data class RawMeasurement(
     /** C/N₀ nach der Basisbandverarbeitung (API 30); null = nicht geliefert. */
     val basebandCn0DbHz: Double? = null,
     /** Signalcode des Geräts, z. B. "C", "W", "L" (API 24); null = nicht geliefert. */
-    val codeType: String? = null
+    val codeType: String? = null,
+    // --- Lage am Himmel – stammt aus dem Satellitenstatus, nicht aus der Messung ---
+    /** Höhenwinkel über dem Horizont in Grad; null = keine brauchbare Lage. */
+    val elevationDegrees: Double? = null,
+    /** Azimut von Nord über Ost in Grad; null = keine brauchbare Lage. */
+    val azimuthDegrees: Double? = null
 )
 
 /** Empfänger-Uhr (GnssClock) zum Zeitpunkt der letzten Messung. */

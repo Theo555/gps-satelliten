@@ -116,7 +116,11 @@ private const val TAG_RAW = "RawChannel"
 class GpsViewModel(application: Application) : AndroidViewModel(application) {
 
     private val gpsDataManager = GpsDataManager(application.applicationContext)
-    private val rawGnssManager = RawGnssManager(application.applicationContext)
+    // Die Messungen selbst enthalten keine Lage am Himmel – die kommt aus dem
+    // Satellitenstatus und nur, solange er frisch ist.
+    private val rawGnssManager = RawGnssManager(application.applicationContext) {
+        gpsDataManager.satellitesForExport()
+    }
 
     /** Kurzform für übersetzte Meldungen. */
     private fun str(@StringRes id: Int, vararg args: Any): String =

@@ -23,6 +23,7 @@ import de.gpsradar.satellites.model.PseudorangeStatus
 import de.gpsradar.satellites.model.RawClockSnapshot
 import de.gpsradar.satellites.model.RawEpoch
 import de.gpsradar.satellites.model.RawMeasurement
+import de.gpsradar.satellites.model.SatelliteInfo
 import de.gpsradar.satellites.model.gnssBandLabel
 import de.gpsradar.satellites.model.gnssBandShort
 import java.util.concurrent.Executor
@@ -45,8 +46,15 @@ private const val RECOVER_CHECK_MS = 15_000L
 
 /**
  * Sammelt GNSS-Roh-Messungen (GnssMeasurements) — ein Eintrag pro Satellit × Frequenzband.
+ *
+ * @param satellites Satellitenlage (Höhenwinkel, Azimut) aus dem Satellitenstatus;
+ *   die Messungen selbst enthalten sie nicht. Leere Liste = keine brauchbare
+ *   Lage – dann bleiben die Spalten im Export leer.
  */
-class RawGnssManager(context: Context) {
+class RawGnssManager(
+    context: Context,
+    private val satellites: () -> List<SatelliteInfo>
+) {
 
     private val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as? LocationManager
 
@@ -58,8 +66,9 @@ class RawGnssManager(context: Context) {
 
     /** true, solange ein Mess-Callback registriert ist. */
     private var registered = false
-    /** Protokoll der gelieferten Rohfelder nur einmal je Registrierung schreiben. */
-    private var fieldsLogged = false
+    /** Sammelt die gelieferten Rohfelder über die ganze Sitzung. */
+    private var delivery = MeasurementCsv.DeliveryTracker()
+    private var lastDeliverySummary: String? = null
     private var registerAttempts = 0
 
     /** Zeitpunkt des letzten Mess-Ereignisses (elapsedRealtime); 0 = noch keins. */
@@ -174,7 +183,8 @@ class RawGnssManager(context: Context) {
         registered = ok
         if (ok) {
             registerAttempts = 0
-            fieldsLogged = false
+            delivery = MeasurementCsv.DeliveryTracker()
+            lastDeliverySummary = null
             Log.i(TAG, "Rohdaten-Callback registriert")
         } else if (registerAttempts < MAX_REGISTER_ATTEMPTS) {
             registerAttempts++
@@ -317,16 +327,25 @@ class RawGnssManager(context: Context) {
         // Schaltsekunden braucht nur GLONASS; das Gerät meldet sie nicht, siehe Pseudorange.
         val leapSecond = clock.leapSecond
 
+        // Höhenwinkel und Azimut stehen nur im Satellitenstatus, nicht in der
+        // Messung selbst. Einmal je Epoche zuordnen (SVID + System); fehlt ein
+        // Satellit dort, bleiben die Spalten leer.
+        val geometry = satellites().associateBy { it.svid to it.constellation }
+
         val list = event.measurements.mapNotNull { measurement ->
-            measurement.toRawMeasurement(tRxNanos, biasNanos, leapSecond, clockUsable)
+            measurement.toRawMeasurement(tRxNanos, biasNanos, leapSecond, clockUsable, geometry)
         }
 
         // Einmal je Registrierung protokollieren, welche optionalen Felder dieses
         // Gerät wirklich liefert – sonst sieht man im CSV nur leere Zellen und
         // weiss nicht, ob das Gerät sie nicht kann oder ob gerade kein Wert kam.
-        if (!fieldsLogged && list.isNotEmpty()) {
-            fieldsLogged = true
-            Log.i(TAG, "Rohdatenfelder: " + MeasurementCsv.deliverySummary(list, listOf(snapshot)))
+        // Gesammelt über alle Messsätze: der erste kann Felder vermissen, die
+        // erst mit dem Satellitenstatus kommen. Gemeldet wird nur eine Änderung.
+        delivery.add(list, snapshot)
+        val summary = delivery.summary()
+        if (summary != lastDeliverySummary) {
+            lastDeliverySummary = summary
+            Log.i(TAG, "Rohdatenfelder: $summary")
         }
 
         // Pro (SVID, Band) nur den letzten Wert behalten.
@@ -346,7 +365,8 @@ class RawGnssManager(context: Context) {
         tRxNanos: Long,
         biasNanos: Double,
         leapSecond: Int,
-        clockUsable: Boolean
+        clockUsable: Boolean,
+        geometry: Map<Pair<Int, Constellation>, SatelliteInfo>
     ): RawMeasurement? {
         val freq = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && hasCarrierFrequencyHz()) {
             carrierFrequencyHz
@@ -437,6 +457,8 @@ class RawGnssManager(context: Context) {
         }
         val code = codeType.takeIf { it.isNotEmpty() }
 
+        val satInfo = geometry[svid to constellation]
+
         return RawMeasurement(
             svid = svid,
             constellation = constellation,
@@ -465,7 +487,13 @@ class RawGnssManager(context: Context) {
             agcDb = agc,
             snrInDb = snrIn,
             basebandCn0DbHz = basebandCn0,
-            codeType = code
+            codeType = code,
+            // Lage aus dem Satellitenstatus; null, wenn der Satellit dort fehlt
+            // oder die Werte unbrauchbar sind.
+            elevationDegrees = satInfo?.elevationDegrees?.toDouble()
+                ?.takeIf { it in -90.0..90.0 },
+            azimuthDegrees = satInfo?.azimuthDegrees?.toDouble()
+                ?.takeIf { it in 0.0..360.0 }
         )
     }
 

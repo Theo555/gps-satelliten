@@ -36,7 +36,9 @@ object MeasurementCsv {
         "pr_status",
         // Signalqualität und Uhrgüte – leer, wenn das Gerät sie nicht liefert.
         "agc_db", "snr_in_db", "baseband_cn0_dbhz", "code_type",
-        "bias_unc_ns", "drift_unc_nsps", "elapsed_realtime_ns", "hw_clock_disc"
+        "bias_unc_ns", "drift_unc_nsps", "elapsed_realtime_ns", "hw_clock_disc",
+        // Lage am Himmel – aus dem Satellitenstatus, nicht aus der Messung.
+        "elev_deg", "azim_deg"
     )
 
     fun toCsv(
@@ -126,7 +128,9 @@ object MeasurementCsv {
                     fmtDouble(clock?.biasUncertaintyNanos, "%.3f", profile),
                     fmtDouble(clock?.driftUncertaintyNsPerSec, "%.6f", profile),
                     fmtLong(clock?.elapsedRealtimeNanos),
-                    fmtLong(clock?.hardwareClockDiscontinuityCount?.toLong())
+                    fmtLong(clock?.hardwareClockDiscontinuityCount?.toLong()),
+                    fmtDouble(m.elevationDegrees, "%.1f", profile),
+                    fmtDouble(m.azimuthDegrees, "%.1f", profile)
                 )
                 lines += cells.joinToString(profile.delimiter.toString())
             }
@@ -140,29 +144,51 @@ object MeasurementCsv {
         "# $key = " + csvField(value, profile)
 
     /**
-     * Was dieses Gerät in dieser Aufzeichnung tatsächlich liefert – als Text für
-     * die Kopfzeilen. Damit ist eine leere Zelle eindeutig: "nein" heisst, das
-     * Gerät kann das Feld gar nicht liefern, im Unterschied zu "in dieser Sekunde
-     * kein Wert". Ohne diese Zeile sähe beides gleich aus.
+     * Sammelt, welche optionalen Felder vorkommen – über mehrere Epochen hinweg.
+     *
+     * Ein einzelner Messsatz kann ein Feld vermissen lassen, das das Gerät sehr
+     * wohl kann: Die Satellitenlage etwa steht nur im Satellitenstatus, und der
+     * kann beim allerersten Messsatz noch fehlen. Erst die Summe über eine
+     * Aufzeichnung sagt, was das Gerät wirklich liefert.
      */
-    internal fun deliverySummary(epochs: List<RawEpoch>): String =
-        deliverySummary(epochs.flatMap { it.rows }, epochs.mapNotNull { it.clock })
+    internal class DeliveryTracker {
+        private var agc = false
+        private var snrIn = false
+        private var basebandCn0 = false
+        private var codeType = false
+        private var clockUncertainty = false
+        private var clockResets = false
+        private var geometry = false
 
-    /** Wie oben, aber direkt aus einer Messreihe – auch für die Protokollzeile. */
-    internal fun deliverySummary(
-        rows: List<RawMeasurement>,
-        clocks: List<RawClockSnapshot>
-    ): String {
-        fun yesNo(present: Boolean) = if (present) "ja" else "nein"
-        val parts = listOf(
-            "agc=" + yesNo(rows.any { it.agcDb != null }),
-            "snr_in=" + yesNo(rows.any { it.snrInDb != null }),
-            "basisband_cn0=" + yesNo(rows.any { it.basebandCn0DbHz != null }),
-            "code_type=" + yesNo(rows.any { it.codeType != null }),
-            "uhr_unsicherheit=" + yesNo(clocks.any { it.biasUncertaintyNanos != null }),
-            "uhrspruenge=" + yesNo(clocks.any { it.hardwareClockDiscontinuityCount != null })
-        )
-        return if (rows.isEmpty()) "keine Messwerte · " + parts.joinToString(" · ") else parts.joinToString(" · ")
+        fun add(rows: List<RawMeasurement>, clock: RawClockSnapshot?) {
+            if (rows.any { it.agcDb != null }) agc = true
+            if (rows.any { it.snrInDb != null }) snrIn = true
+            if (rows.any { it.basebandCn0DbHz != null }) basebandCn0 = true
+            if (rows.any { it.codeType != null }) codeType = true
+            if (clock?.biasUncertaintyNanos != null) clockUncertainty = true
+            if (clock?.hardwareClockDiscontinuityCount != null) clockResets = true
+            if (rows.any { it.elevationDegrees != null && it.azimuthDegrees != null }) geometry = true
+        }
+
+        fun summary(): String {
+            fun yesNo(present: Boolean) = if (present) "ja" else "nein"
+            return listOf(
+                "agc=" + yesNo(agc),
+                "snr_in=" + yesNo(snrIn),
+                "basisband_cn0=" + yesNo(basebandCn0),
+                "code_type=" + yesNo(codeType),
+                "uhr_unsicherheit=" + yesNo(clockUncertainty),
+                "uhrspruenge=" + yesNo(clockResets),
+                "elev_azim=" + yesNo(geometry)
+            ).joinToString(" · ")
+        }
+    }
+
+    /** Was dieses Gerät in dieser Aufzeichnung tatsächlich liefert – für die Kopfzeilen. */
+    internal fun deliverySummary(epochs: List<RawEpoch>): String {
+        val tracker = DeliveryTracker()
+        epochs.forEach { tracker.add(it.rows, it.clock) }
+        return tracker.summary()
     }
 
     private fun csvField(value: String, profile: CsvProfile): String {

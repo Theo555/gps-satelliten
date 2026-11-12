@@ -9,6 +9,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import androidx.core.location.GnssStatusCompat
 import androidx.core.location.LocationManagerCompat
 import de.gpsradar.satellites.model.CompassSpinState
@@ -26,6 +27,14 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+
+/**
+ * Wie alt der Satellitenstatus höchstens sein darf, um noch zu einer Messzeile
+ * zu passen. Der Status kommt im Sekundentakt; fünf Sekunden decken einen
+ * ausgelassenen Satz ab, ohne dass eine alte Lage unbemerkt in neue Messwerte
+ * rutscht.
+ */
+private const val SAT_STATUS_MAX_AGE_MS = 5_000L
 
 /**
  * Verbindet die Ortung mit der Oberfläche: Satellitenstatus, Position und
@@ -78,6 +87,9 @@ class GpsDataManager(private val context: Context) {
 
     private var isTracking = false
     private var isSimulated = false
+
+    /** Zeitpunkt des letzten Satellitenstatus (elapsedRealtime); 0 = keiner. */
+    private var lastSatelliteStatusAt = 0L
 
     private val gnssStatusCallback = object : GnssStatusCompat.Callback() {
         override fun onStarted() {
@@ -146,6 +158,7 @@ class GpsDataManager(private val context: Context) {
                     lastUpdateTime = System.currentTimeMillis()
                 )
             }
+            lastSatelliteStatusAt = SystemClock.elapsedRealtime()
         }
     }
 
@@ -266,6 +279,21 @@ class GpsDataManager(private val context: Context) {
                 // Safe ignore
             }
         }
+    }
+
+    /**
+     * Satellitenlage (Höhenwinkel, Azimut) für den Rohdatenexport.
+     *
+     * Die Lage stammt aus dem Satellitenstatus, die Messwerte aus einem eigenen
+     * Datenstrom. Beide laufen nur, solange der Empfänger arbeitet – wird der
+     * Status aber alt, gehört er zu einer anderen Situation und darf nicht in
+     * eine Messzeile wandern. Dann lieber leer lassen.
+     */
+    fun satellitesForExport(maxAgeMillis: Long = SAT_STATUS_MAX_AGE_MS): List<SatelliteInfo> {
+        if (!isTracking) return emptyList()
+        if (lastSatelliteStatusAt == 0L) return emptyList()
+        if (SystemClock.elapsedRealtime() - lastSatelliteStatusAt > maxAgeMillis) return emptyList()
+        return _gpsState.value.satellites
     }
 
     fun checkGpsEnabled() {
