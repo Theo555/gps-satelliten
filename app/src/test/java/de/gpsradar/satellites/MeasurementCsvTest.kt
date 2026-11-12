@@ -44,7 +44,11 @@ class MeasurementCsvTest {
         msecAmbiguous: Boolean = false,
         tTxRawNanos: Long? = 123456789L,
         svTimeUncertaintyNanos: Long? = 12L,
-        pseudorangeStatus: PseudorangeStatus = PseudorangeStatus.OK
+        pseudorangeStatus: PseudorangeStatus = PseudorangeStatus.OK,
+        agcDb: Double? = null,
+        snrInDb: Double? = null,
+        basebandCn0DbHz: Double? = null,
+        codeType: String? = null
     ) = RawMeasurement(
         svid = svid,
         constellation = constellation,
@@ -66,7 +70,11 @@ class MeasurementCsvTest {
         tTxRawNanos = tTxRawNanos,
         svTimeUncertaintyNanos = svTimeUncertaintyNanos,
         adrState = 5,
-        pseudorangeStatus = pseudorangeStatus
+        pseudorangeStatus = pseudorangeStatus,
+        agcDb = agcDb,
+        snrInDb = snrInDb,
+        basebandCn0DbHz = basebandCn0DbHz,
+        codeType = codeType
     )
 
     private fun epoch(vararg rows: RawMeasurement, atMillis: Long = 1L) =
@@ -125,7 +133,7 @@ class MeasurementCsvTest {
             val fieldCount = header.split(delim).size
             val dataRows = lines.filter { it.firstOrNull()?.isDigit() == true }
 
-            assertEquals(26, fieldCount)
+            assertEquals(34, fieldCount)
             assertEquals(3, dataRows.size)
             dataRows.forEach { assertEquals(fieldCount, it.split(delim).size) }
         }
@@ -151,8 +159,75 @@ class MeasurementCsvTest {
 
         val row = csv.lines().first { it.startsWith("1,7,") }
         assertFalse(row.contains("null"))
-        // Der Grund fuer die fehlende Pseudorange steht in der letzten Spalte.
-        assertTrue(row.endsWith(",no_time"))
+        // Der Grund fuer die fehlende Pseudorange steht in der Spalte pr_status.
+        assertTrue(row.split(',')[25] == "no_time")
+    }
+
+    /**
+     * Ein Geraet, das AGC, SNR und Uhrgüte nicht liefert, darf keine Nullen und
+     * keine NaN schreiben -- leere Zellen, und die Kopfzeile sagt warum.
+     */
+    @Test
+    fun fehlendeSignalUndUhrgueteBleibenLeer() {
+        val csv = MeasurementCsv.toCsv(
+            listOf(epoch(measurement())),
+            meta, CsvProfile.UNIVERSAL
+        )
+
+        val cells = csv.lines().first { it.startsWith("1,7,") }.split(',')
+        assertEquals(34, cells.size)
+        for (i in 26..33) {
+            assertEquals("Spalte $i muss leer sein", "", cells[i])
+        }
+        assertFalse(csv.contains("NaN"))
+        assertTrue(csv.contains("# geliefert = agc=nein · snr_in=nein · basisband_cn0=nein"))
+    }
+
+    /**
+     * Gegenprobe: Liefert das Geraet die Felder, stehen sie an der erwarteten
+     * Stelle -- und die Kopfzeile meldet sie als geliefert.
+     */
+    @Test
+    fun gelieferteSignalUndUhrgueteStehenInDenSpalten() {
+        val mitUhrguete = clock.copy(
+            biasUncertaintyNanos = 4.5,
+            driftUncertaintyNsPerSec = 0.00025,
+            elapsedRealtimeNanos = 987654321L,
+            hardwareClockDiscontinuityCount = 2
+        )
+        val csv = MeasurementCsv.toCsv(
+            listOf(
+                RawEpoch(
+                    receivedAtMillis = 1L,
+                    clock = mitUhrguete,
+                    rows = listOf(
+                        measurement(
+                            agcDb = -12.34,
+                            snrInDb = 21.5,
+                            basebandCn0DbHz = 36.75,
+                            codeType = "C"
+                        )
+                    )
+                )
+            ),
+            meta, CsvProfile.UNIVERSAL
+        )
+
+        val cells = csv.lines().first { it.startsWith("1,7,") }.split(',')
+        assertEquals("-12.34", cells[26]) // agc_db
+        assertEquals("21.50", cells[27]) // snr_in_db
+        assertEquals("36.75", cells[28]) // baseband_cn0_dbhz
+        assertEquals("C", cells[29]) // code_type
+        assertEquals("4.500", cells[30]) // bias_unc_ns
+        assertEquals("0.000250", cells[31]) // drift_unc_nsps
+        assertEquals("987654321", cells[32]) // elapsed_realtime_ns
+        assertEquals("2", cells[33]) // hw_clock_disc
+        assertTrue(
+            csv.contains(
+                "# geliefert = agc=ja · snr_in=ja · basisband_cn0=ja · code_type=ja" +
+                    " · uhr_unsicherheit=ja · uhrspruenge=ja"
+            )
+        )
     }
 
     @Test
@@ -183,11 +258,6 @@ class MeasurementCsvTest {
         assertEquals(raw + weekOffset, adjusted)
     }
 
-    /**
-     * Die Trägerphase muss feiner als eine Wellenlänge (L1: 19,03 cm) im CSV
-     * stehen. Mit nur einer Nachkommastelle wären es 0,1 m, also gut eine
-     * halbe Wellenlänge -- eine Phasenauswertung wäre damit unmöglich.
-     */
     @Test
     fun prStatusWirdGeschrieben() {
         val csv = MeasurementCsv.toCsv(
@@ -206,8 +276,8 @@ class MeasurementCsvTest {
         )
 
         val rows = csv.lines().filter { it.firstOrNull()?.isDigit() == true }
-        assertTrue(rows[0].endsWith(",ok"))
-        assertTrue(rows[1].endsWith(",implausible"))
+        assertEquals("ok", rows[0].split(',')[25])
+        assertEquals("implausible", rows[1].split(',')[25])
     }
 
     @Test
@@ -233,6 +303,11 @@ class MeasurementCsvTest {
         assertEquals(Pseudorange.BEIDOU_OFFSET_NANOS, (adjusted - raw) % Pseudorange.WEEK_NANOS)
     }
 
+    /**
+     * Die Trägerphase muss feiner als eine Wellenlänge (L1: 19,03 cm) im CSV
+     * stehen. Mit nur einer Nachkommastelle wären es 0,1 m, also gut eine
+     * halbe Wellenlänge -- eine Phasenauswertung wäre damit unmöglich.
+     */
     @Test
     fun carrierPhaseKeepsSubMillimetreResolution() {
         val phase = -88213456.4321

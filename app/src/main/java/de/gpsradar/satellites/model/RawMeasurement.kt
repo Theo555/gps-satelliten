@@ -46,7 +46,16 @@ data class RawMeasurement(
     /** Rohwert von accumulatedDeltaRangeState; 0 = nicht geliefert. */
     val adrState: Int = 0,
     /** Warum die Pseudorange fehlt (oder dass sie brauchbar ist) – landet im CSV. */
-    val pseudorangeStatus: PseudorangeStatus = PseudorangeStatus.OK
+    val pseudorangeStatus: PseudorangeStatus = PseudorangeStatus.OK,
+    // --- Signalqualität – nur auf Geräten, die diese Felder liefern ---
+    /** AGC-Regelpegel in dB (API 29); null = Gerät liefert ihn nicht. Steigt bei Störsendern. */
+    val agcDb: Double? = null,
+    /** Rauschmaß am Korrelatoreingang in dB (API 30); null = nicht geliefert. */
+    val snrInDb: Double? = null,
+    /** C/N₀ nach der Basisbandverarbeitung (API 30); null = nicht geliefert. */
+    val basebandCn0DbHz: Double? = null,
+    /** Signalcode des Geräts, z. B. "C", "W", "L" (API 24); null = nicht geliefert. */
+    val codeType: String? = null
 )
 
 /** Empfänger-Uhr (GnssClock) zum Zeitpunkt der letzten Messung. */
@@ -56,7 +65,16 @@ data class RawClockSnapshot(
     val biasNanos: Double,
     val driftNsPerSec: Double,
     val leapSecond: Int,
-    val receivedAtMillis: Long
+    val receivedAtMillis: Long,
+    // --- Uhrgüte – nur auf Geräten, die diese Felder liefern (API 29) ---
+    /** Unsicherheit des Uhrversatzes in ns; null = nicht geliefert. */
+    val biasUncertaintyNanos: Double? = null,
+    /** Unsicherheit des Uhrgangs in ns/s; null = nicht geliefert. */
+    val driftUncertaintyNsPerSec: Double? = null,
+    /** Monotone Empfängerzeit in ns; null = nicht geliefert. */
+    val elapsedRealtimeNanos: Long? = null,
+    /** Zähler der Hardwareuhr-Sprünge; null = nicht geliefert. */
+    val hardwareClockDiscontinuityCount: Int? = null
 )
 
 /** Vollständiges Band-Label, z. B. "L5 (1176.45 MHz)". */

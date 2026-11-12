@@ -32,8 +32,11 @@ object MeasurementCsv {
         "week_offset_ns", "t_tx_raw_ns", "t_tx_ns", "sv_time_unc_ns",
         "pseudorange_m", "doppler_mps", "adr_m", "adr_state", "phase_unc_m",
         "state_flags", "code_lock", "tow_known", "msec_ambiguous", "multipath",
-        // Neue Spalte am Ende, damit Leser nach Spaltennamen weiter funktionieren.
-        "pr_status"
+        // Neue Spalten am Ende, damit Leser nach Spaltennamen weiter funktionieren.
+        "pr_status",
+        // Signalqualität und Uhrgüte – leer, wenn das Gerät sie nicht liefert.
+        "agc_db", "snr_in_db", "baseband_cn0_dbhz", "code_type",
+        "bias_unc_ns", "drift_unc_nsps", "elapsed_realtime_ns", "hw_clock_disc"
     )
 
     fun toCsv(
@@ -57,6 +60,7 @@ object MeasurementCsv {
         lines += comment("hinweis", "adr_m ist die aufsummierte Trägerphase in Metern seit dem letzten Lock-Verlust (kumulativ, jeder Satellit ab eigenem Nullpunkt, keine absolute Phase) · vier Nachkommastellen = 0,1 mm · adr_state Bit 1 gesetzt bedeutet gültig", profile)
         lines += comment("oszillator", "adr_m und doppler_mps werden gegen den Empfängeroszillator gemessen und tragen dessen Frequenzversatz · beim S20 FE rund 500 ns/s (0,5 ppm, das sind etwa 150 m/s) · Korrektur: Phase minus c · Summe(drift_nsps · 1e-9 · Epochenabstand), Doppler minus c · drift_nsps · 1e-9 · pseudorange_m ist nicht betroffen, sie kommt aus full_bias_ns · ohne diese Korrektur läuft die Phase schneller als der Code und ist für Auswertungen nicht brauchbar", profile)
         lines += comment("flags", "state_flags: GnssMeasurement.getState() · adr_state: accumulatedDeltaRangeState · code_lock/tow_known/msec_ambiguous: 1 ja, 0 nein · pr_status: ok, no_clock, no_time oder implausible", profile)
+        lines += comment("geliefert", deliverySummary(epochs), profile)
 
         lines += HEADER.joinToString(profile.delimiter.toString())
 
@@ -112,7 +116,17 @@ object MeasurementCsv {
                     bool01(m.towKnown),
                     bool01(m.msecAmbiguous),
                     multipathToken(m.multipath),
-                    m.pseudorangeStatus.token
+                    m.pseudorangeStatus.token,
+                    // Signalqualität und Uhrgüte. Leer heisst: dieses Gerät liefert
+                    // das Feld nicht – die Kommentarzeile "geliefert" sagt, welche.
+                    fmtDouble(m.agcDb, "%.2f", profile),
+                    fmtDouble(m.snrInDb, "%.2f", profile),
+                    fmtDouble(m.basebandCn0DbHz, "%.2f", profile),
+                    m.codeType ?: "",
+                    fmtDouble(clock?.biasUncertaintyNanos, "%.3f", profile),
+                    fmtDouble(clock?.driftUncertaintyNsPerSec, "%.6f", profile),
+                    fmtLong(clock?.elapsedRealtimeNanos),
+                    fmtLong(clock?.hardwareClockDiscontinuityCount?.toLong())
                 )
                 lines += cells.joinToString(profile.delimiter.toString())
             }
@@ -124,6 +138,32 @@ object MeasurementCsv {
 
     private fun comment(key: String, value: String, profile: CsvProfile): String =
         "# $key = " + csvField(value, profile)
+
+    /**
+     * Was dieses Gerät in dieser Aufzeichnung tatsächlich liefert – als Text für
+     * die Kopfzeilen. Damit ist eine leere Zelle eindeutig: "nein" heisst, das
+     * Gerät kann das Feld gar nicht liefern, im Unterschied zu "in dieser Sekunde
+     * kein Wert". Ohne diese Zeile sähe beides gleich aus.
+     */
+    internal fun deliverySummary(epochs: List<RawEpoch>): String =
+        deliverySummary(epochs.flatMap { it.rows }, epochs.mapNotNull { it.clock })
+
+    /** Wie oben, aber direkt aus einer Messreihe – auch für die Protokollzeile. */
+    internal fun deliverySummary(
+        rows: List<RawMeasurement>,
+        clocks: List<RawClockSnapshot>
+    ): String {
+        fun yesNo(present: Boolean) = if (present) "ja" else "nein"
+        val parts = listOf(
+            "agc=" + yesNo(rows.any { it.agcDb != null }),
+            "snr_in=" + yesNo(rows.any { it.snrInDb != null }),
+            "basisband_cn0=" + yesNo(rows.any { it.basebandCn0DbHz != null }),
+            "code_type=" + yesNo(rows.any { it.codeType != null }),
+            "uhr_unsicherheit=" + yesNo(clocks.any { it.biasUncertaintyNanos != null }),
+            "uhrspruenge=" + yesNo(clocks.any { it.hardwareClockDiscontinuityCount != null })
+        )
+        return if (rows.isEmpty()) "keine Messwerte · " + parts.joinToString(" · ") else parts.joinToString(" · ")
+    }
 
     private fun csvField(value: String, profile: CsvProfile): String {
         val needsQuote = value.any { it == profile.delimiter || it == '"' || it == '\n' || it == '\r' }

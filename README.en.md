@@ -237,10 +237,13 @@ German Excel separates lists with `;` and decimal numbers with `,`; an RFC file 
 # geraet = samsung SM-N960F · hardware qcom · board msm8998
 # aufzeichnung = 60 Epochen · 2140 Zeilen · 1 Epoche = ein GnssMeasurementsEvent
 # flags = state_flags: GnssMeasurement.getState() · code_lock/tow_known/msec_ambiguous: 1 yes, 0 no · pr_status: ok, no_clock, no_time or implausible
-epoch,svid,constellation,band,freq_hz,cn0_dbhz,time_ns,full_bias_ns,bias_ns,drift_nsps,leap_s,week_offset_ns,t_tx_raw_ns,t_tx_ns,sv_time_unc_ns,pseudorange_m,doppler_mps,adr_m,adr_state,phase_unc_m,state_flags,code_lock,tow_known,msec_ambiguous,multipath,pr_status
+# geliefert = agc=yes · snr_in=yes · basisband_cn0=yes · code_type=yes · uhr_unsicherheit=yes · uhrspruenge=yes
+epoch,svid,constellation,band,freq_hz,cn0_dbhz,time_ns,full_bias_ns,bias_ns,drift_nsps,leap_s,week_offset_ns,t_tx_raw_ns,t_tx_ns,sv_time_unc_ns,pseudorange_m,doppler_mps,adr_m,adr_state,phase_unc_m,state_flags,code_lock,tow_known,msec_ambiguous,multipath,pr_status,agc_db,snr_in_db,baseband_cn0_dbhz,code_type,bias_unc_ns,drift_unc_nsps,elapsed_realtime_ns,hw_clock_disc
 ```
 
 `epoch` numbers the measurement sets (1 = the oldest in the export); gaps mean the chip delivered nothing at that moment. `adr_m` is the **accumulated delta range** – accumulated carrier phase in metres since the last loss of lock (each satellite starts from its own zero point), not an absolute carrier phase, resolved to 0.1 mm. `time_ns` is the receiver time, `t_tx_raw_ns` the satellite's transmission time **as the device reports it – each constellation in its own time base**, GLONASS additionally counting from the system day instead of the week. `t_tx_ns` is the same transmission time converted to GPS time (BeiDou runs 14 s behind, GLONASS is 3 h ahead of UTC plus leap seconds); `week_offset_ns` is exactly the offset applied for that. `pr_status` says why a pseudorange is missing: `ok`, `no_clock`, `no_time` or `implausible`. `full_bias_ns`, `bias_ns`, `drift_nsps` and `leap_s` are the receiver clock.
+
+`agc_db` (automatic gain control level), `snr_in_db` (noise figure at the correlator input) and `baseband_cn0_dbhz` (C/N₀ after baseband processing) reveal an interferer: the gain goes up, the noise figure rises, the C/N₀ drops – usually before navigation degrades. `code_type` names the signal code (`C` = C/A, per system also `L`, `W`, `Q` …). `bias_unc_ns` and `drift_unc_nsps` are the uncertainties of clock bias and drift, `elapsed_realtime_ns` the monotonic receiver time, and `hw_clock_disc` a counter that increments whenever the hardware clock is re-set – phases across such a jump are not comparable. Not every device delivers these eight columns: an empty cell here means *not delivered*, and the `delivered` comment line states which fields the device supports at all. Values a device only fills with a placeholder are exported as they come – the app adds nothing.
 
 **Reading it in:**
 

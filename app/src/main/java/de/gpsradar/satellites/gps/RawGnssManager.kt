@@ -16,6 +16,7 @@ import de.gpsradar.satellites.model.CapturePhase
 import de.gpsradar.satellites.model.Constellation
 import de.gpsradar.satellites.model.EpochBuffer
 import de.gpsradar.satellites.model.MultipathState
+import de.gpsradar.satellites.model.MeasurementCsv
 import de.gpsradar.satellites.model.Pseudorange
 import de.gpsradar.satellites.model.PseudorangeResult
 import de.gpsradar.satellites.model.PseudorangeStatus
@@ -57,6 +58,8 @@ class RawGnssManager(context: Context) {
 
     /** true, solange ein Mess-Callback registriert ist. */
     private var registered = false
+    /** Protokoll der gelieferten Rohfelder nur einmal je Registrierung schreiben. */
+    private var fieldsLogged = false
     private var registerAttempts = 0
 
     /** Zeitpunkt des letzten Mess-Ereignisses (elapsedRealtime); 0 = noch keins. */
@@ -167,6 +170,7 @@ class RawGnssManager(context: Context) {
         registered = ok
         if (ok) {
             registerAttempts = 0
+            fieldsLogged = false
             Log.i(TAG, "Rohdaten-Callback registriert")
         } else if (registerAttempts < MAX_REGISTER_ATTEMPTS) {
             registerAttempts++
@@ -295,6 +299,14 @@ class RawGnssManager(context: Context) {
             measurement.toRawMeasurement(tRxNanos, biasNanos, leapSecond, clockUsable)
         }
 
+        // Einmal je Registrierung protokollieren, welche optionalen Felder dieses
+        // Gerät wirklich liefert – sonst sieht man im CSV nur leere Zellen und
+        // weiss nicht, ob das Gerät sie nicht kann oder ob gerade kein Wert kam.
+        if (!fieldsLogged && list.isNotEmpty()) {
+            fieldsLogged = true
+            Log.i(TAG, "Rohdatenfelder: " + MeasurementCsv.deliverySummary(list, listOf(snapshot)))
+        }
+
         // Pro (SVID, Band) nur den letzten Wert behalten.
         val latest = list
             .groupBy { it.svid to it.carrierFrequencyHz }
@@ -381,6 +393,25 @@ class RawGnssManager(context: Context) {
         val tTxRawNanos = if (receivedSvTimeNanos != Long.MIN_VALUE) receivedSvTimeNanos else null
         val svTimeUncertaintyNanos = if (receivedSvTimeUncertaintyNanos > 0) receivedSvTimeUncertaintyNanos else null
 
+        // Signalqualitaet, die nur ein Teil der Geraete liefert. Alle drei
+        // Kenngroessen melden NaN, wenn sie fehlen -- daraus wird null.
+        val agc = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            automaticGainControlLevelDb.takeIf { !it.isNaN() }
+        } else {
+            null
+        }
+        val snrIn = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            snrInDb.takeIf { !it.isNaN() }
+        } else {
+            null
+        }
+        val basebandCn0 = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            basebandCn0DbHz.takeIf { !it.isNaN() }
+        } else {
+            null
+        }
+        val code = codeType.takeIf { it.isNotEmpty() }
+
         return RawMeasurement(
             svid = svid,
             constellation = constellation,
@@ -404,7 +435,12 @@ class RawGnssManager(context: Context) {
             tTxRawNanos = tTxRawNanos,
             svTimeUncertaintyNanos = svTimeUncertaintyNanos,
             adrState = adrState,
-            pseudorangeStatus = pseudorange.status
+            pseudorangeStatus = pseudorange.status,
+            // Signalqualitaet -- null, wenn das Geraet sie nicht liefert.
+            agcDb = agc,
+            snrInDb = snrIn,
+            basebandCn0DbHz = basebandCn0,
+            codeType = code
         )
     }
 
@@ -414,7 +450,29 @@ class RawGnssManager(context: Context) {
         biasNanos = biasNanos,
         driftNsPerSec = driftNanosPerSecond,
         leapSecond = leapSecond,
-        receivedAtMillis = System.currentTimeMillis()
+        receivedAtMillis = System.currentTimeMillis(),
+        // Ab API 29. Nicht geliefert heisst hier NaN bzw. Long.MIN_VALUE --
+        // daraus wird null, nie eine 0, sonst saehe eine Luecke wie ein Messwert aus.
+        biasUncertaintyNanos = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            biasUncertaintyNanos.takeIf { !it.isNaN() }
+        } else {
+            null
+        },
+        driftUncertaintyNsPerSec = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            driftUncertaintyNanosPerSecond.takeIf { !it.isNaN() }
+        } else {
+            null
+        },
+        elapsedRealtimeNanos = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            elapsedRealtimeNanos.takeIf { it != Long.MIN_VALUE }
+        } else {
+            null
+        },
+        hardwareClockDiscontinuityCount = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            hardwareClockDiscontinuityCount.takeIf { it >= 0 }
+        } else {
+            null
+        }
     )
 
     /** Grobe Konstellations-Zuordnung über die Trägerfrequenz (nur für API < 34). */
