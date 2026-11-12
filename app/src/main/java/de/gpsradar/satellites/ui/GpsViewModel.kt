@@ -101,14 +101,19 @@ private const val RAW_CAPTURE_DURATION_MS = 5 * 60 * 1000L
 private const val RAW_RESTART_WAIT_S = 60
 
 /**
- * Ab dieser Stille gilt der Kanal als tot.
+ * Ab dieser Stille gilt der Kanal als tot – aber **nur**, wenn seit dem Start
+ * noch kein einziger Messsatz kam.
  *
- * Der erste Messsatz kommt 2–10 s nach der Registrierung; nach einem Kaltstart
- * braucht der Empfänger bis zu 50 s bis zum vollen Bild. 20 s liegen dazwischen:
- * lang genug, um einen langsamen Empfänger nicht zu verurteilen, kurz genug, um
- * nicht eine Minute lang auf einen toten Kanal zu schauen.
+ * Der erste Messsatz kommt 2–10 s nach der Registrierung. Bleibt er aus, hat
+ * der Messkanal den Empfänger nicht erreicht (bekannter Gerätefehler), und
+ * Warten hilft nicht. Kommt dagegen mitten im Betrieb nichts mehr, kann eine
+ * kurze Funkloch-Phase dahinterstecken – dort bleibt der Wächter zuständig, der
+ * deutlich geduldiger ist.
  */
 private const val RAW_SILENT_LIMIT_MS = 20_000L
+
+/** Abstand der Prüfung, solange der Mess-Tab offen ist. */
+private const val RAW_SILENT_CHECK_MS = 5_000L
 
 /** Eigener Log-Tag: Der Neustart des Rohdatenkanals ist sonst nicht nachvollziehbar. */
 private const val TAG_RAW = "RawChannel"
@@ -146,6 +151,8 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
     private var rawRestartJob: Job? = null
     /** Der Mess-Tab ist sichtbar – nur dort wird von selbst neu angefahren. */
     private var measurementTabVisible = false
+    /** Läuft, solange der Mess-Tab offen ist und prüft, ob der Kanal noch liefert. */
+    private var autoCheckJob: Job? = null
     /** Ein automatischer Neustart wurde bereits versucht; wird zurückgesetzt, sobald Daten fließen. */
     private var autoRestartUsed = false
 
@@ -297,6 +304,10 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
 
     fun stopTracking() {
         cancelRawRestartJob()
+        // Die Beobachtung des Mess-Tabs gehoert zur sichtbaren App – im
+        // Hintergrund darf kein Neustart anlaufen.
+        autoCheckJob?.cancel()
+        autoCheckJob = null
         gpsDataManager.stopTracking()
         rawGnssManager.stop()
     }
@@ -353,8 +364,21 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
     /** Der Mess-Tab wird angezeigt (oder verlassen). */
     fun setMeasurementTabVisible(visible: Boolean) {
         measurementTabVisible = visible
+        autoCheckJob?.cancel()
+        autoCheckJob = null
         if (visible) {
             autoRestartRawIfSilent()
+            if (rawRestartJob != null) return
+            // Weiter beobachten: Der Kanal kann auch erst später stumm werden,
+            // und der Wächter in RawGnssManager meldet erst nach seinen
+            // Wiederholungen – zu spät für jemanden, der davor sitzt.
+            autoCheckJob = viewModelScope.launch {
+                while (true) {
+                    delay(RAW_SILENT_CHECK_MS)
+                    autoRestartRawIfSilent()
+                    if (rawRestartJob != null) break
+                }
+            }
         } else if (rawRestartJob != null) {
             // Die Wartezeit ist nur hier vertretbar – wer die Seite verlässt,
             // will die Position offenbar zurück (Abbrechen-Knopf ist dann weg).
@@ -371,8 +395,12 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
         if (!measurementTabVisible) return
         if (rawRestartJob != null || autoRestartUsed) return
         if (!supportsRawMeasurements.value) return
+        // Schneller Fall nur, wenn noch nie etwas kam: dann liegt der bekannte
+        // Gerätefehler vor und Warten bringt nichts. Nach einem Aussetzer im
+        // Betrieb entscheidet der geduldige Wächter.
+        val neverDelivered = !rawGnssManager.hasDelivered()
         val silent = rawStreamStalled.value ||
-            rawGnssManager.silentMillis() >= RAW_SILENT_LIMIT_MS
+            (neverDelivered && rawGnssManager.silentMillis() >= RAW_SILENT_LIMIT_MS)
         if (!silent) return
         autoRestartUsed = true
         Log.i(TAG_RAW, "Kanal still – automatischer Neustart")

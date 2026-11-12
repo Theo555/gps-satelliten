@@ -225,8 +225,13 @@ fun GpsAppMainScreen(
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
-                Lifecycle.Event.ON_START ->
+                Lifecycle.Event.ON_START -> {
                     if (hasLocationPermission(context)) viewModel.startTracking(true)
+                    // Nach der Rueckkehr neu anmelden: Die Beobachtung des
+                    // Mess-Tabs endet mit stopTracking(), und ein Tabwechsel hat
+                    // nicht stattgefunden.
+                    viewModel.setMeasurementTabVisible(currentTab == AppTab.MESSUNG)
+                }
                 Lifecycle.Event.ON_STOP -> viewModel.stopTracking()
                 else -> Unit
             }
