@@ -22,6 +22,9 @@ private const val NAV_REGISTER_ATTEMPTS = 5
 private const val NAV_REGISTER_RETRY_MS = 2000L
 private const val MAX_STORED_MESSAGES = 20
 
+/** Abstand der Übersichtszeile im Protokoll (siehe [GnssNavigationMessageReader.logSummary]). */
+private const val SUMMARY_INTERVAL_MS = 60_000L
+
 /**
  * Liest die Navigationsnachrichten (Ephemeriden-Bits) des Empfängers für die
  * Anzeige im Tab „Signale".
@@ -57,6 +60,7 @@ class GnssNavigationMessageReader(
             _messages.update { current ->
                 (current + navMessageFrom(event)).takeLast(MAX_STORED_MESSAGES)
             }
+            countForSummary(event)
         }
 
         override fun onStatusChanged(status: Int) {
@@ -83,6 +87,8 @@ class GnssNavigationMessageReader(
 
     fun unregister() {
         mainHandler.removeCallbacks(retry)
+        mainHandler.removeCallbacks(summaryTick)
+        summaryRunning = false
         attempts = 0
         if (registered) {
             try {
@@ -132,6 +138,50 @@ class GnssNavigationMessageReader(
             Log.w(TAG, "Navigationsnachrichten noch nicht möglich (Versuch $attempts)")
             mainHandler.postDelayed(retry, NAV_REGISTER_RETRY_MS)
         }
+    }
+
+    // ---- Übersicht für Protokoll und Diagnose ----
+
+    private val summarySvids = mutableMapOf<Int, MutableSet<Int>>()
+    private val summarySub = mutableMapOf<Int, MutableSet<Int>>()
+    private val summaryCount = mutableMapOf<Int, Int>()
+    private var summaryRunning = false
+    // Eigener Typ nötig: Der Runnable nimmt sich selbst wieder in den Handler.
+    private val summaryTick: Runnable = Runnable {
+        logSummary()
+        if (summaryRunning) mainHandler.postDelayed(summaryTick, SUMMARY_INTERVAL_MS)
+    }
+
+    private fun countForSummary(event: GnssNavigationMessage) {
+        summarySvids.getOrPut(event.type) { mutableSetOf() }.add(event.svid)
+        summarySub.getOrPut(event.type) { mutableSetOf() }.add(event.submessageId)
+        summaryCount[event.type] = (summaryCount[event.type] ?: 0) + 1
+        if (!summaryRunning) {
+            summaryRunning = true
+            mainHandler.postDelayed(summaryTick, SUMMARY_INTERVAL_MS)
+        }
+    }
+
+    /**
+     * Was dieses Gerät an Navigationsnachrichten liefert – eine Zeile je Minute.
+     *
+     * Für die Anzeige genügt die Liste der letzten 20 Meldungen. Für die Frage
+     * „kann man daraus eine vollständige Ephemeride bauen?“ nicht: Ein
+     * GPS-Satellit braucht die Unterrahmen 1–5, Galileo die Wörter 1–10, GLONASS
+     * die Strings 1–4. Diese Übersicht zählt deshalb mit, welche Unterrahmen je
+     * System und Satellit tatsächlich ankommen.
+     */
+    private fun logSummary() {
+        if (summaryCount.isEmpty()) {
+            Log.i(TAG, "Navigationsnachrichten: keine empfangen")
+            return
+        }
+        val parts = summaryCount.keys.sorted().map { type ->
+            val svids = summarySvids[type].orEmpty().size
+            val sub = summarySub[type].orEmpty().sorted().joinToString(",")
+            "${navTypeLabel(type)}: $svids Sats, Unterrahmen [$sub], ${summaryCount[type]} Meldungen"
+        }
+        Log.i(TAG, "Navigationsnachrichten: " + parts.joinToString(" · "))
     }
 
     private fun navMessageFrom(event: GnssNavigationMessage): GnssNavMessage {
