@@ -29,12 +29,14 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
 /**
- * Wie alt der Satellitenstatus höchstens sein darf, um noch zu einer Messzeile
- * zu passen. Der Status kommt im Sekundentakt; fünf Sekunden decken einen
- * ausgelassenen Satz ab, ohne dass eine alte Lage unbemerkt in neue Messwerte
- * rutscht.
+ * Notbremse gegen eine Lage, die erkennbar nicht mehr zum Betrieb gehört.
+ *
+ * Normalerweise wird die Lage über [GpsDataManager.satellitesForExport] beim
+ * Beenden der Ortung ungültig – eine Frist braucht es dafür nicht. Diese Grenze
+ * fängt nur den unwahrscheinlichen Fall ab, dass der Status jahrelang stumm
+ * bleibt, die Messungen aber weiterlaufen.
  */
-private const val SAT_STATUS_MAX_AGE_MS = 5_000L
+private const val SAT_STATUS_MAX_AGE_MS = 30 * 60 * 1000L
 
 /**
  * Verbindet die Ortung mit der Oberfläche: Satellitenstatus, Position und
@@ -91,12 +93,16 @@ class GpsDataManager(private val context: Context) {
     /** Zeitpunkt des letzten Satellitenstatus (elapsedRealtime); 0 = keiner. */
     private var lastSatelliteStatusAt = 0L
 
+    /** true, solange die zuletzt gemeldete Satellitenlage zum laufenden Betrieb gehört. */
+    private var satelliteGeometryValid = false
+
     private val gnssStatusCallback = object : GnssStatusCompat.Callback() {
         override fun onStarted() {
             // GNSS engine started
         }
 
         override fun onStopped() {
+            satelliteGeometryValid = false
             _gpsState.update { it.copy(satellites = emptyList(), fixType = FixType.NO_FIX) }
         }
 
@@ -159,6 +165,7 @@ class GpsDataManager(private val context: Context) {
                 )
             }
             lastSatelliteStatusAt = SystemClock.elapsedRealtime()
+            satelliteGeometryValid = true
         }
     }
 
@@ -263,6 +270,7 @@ class GpsDataManager(private val context: Context) {
 
     fun stopTracking() {
         isTracking = false
+        satelliteGeometryValid = false
         compass.stop()
         demo.stop()
 
@@ -285,12 +293,20 @@ class GpsDataManager(private val context: Context) {
      * Satellitenlage (Höhenwinkel, Azimut) für den Rohdatenexport.
      *
      * Die Lage stammt aus dem Satellitenstatus, die Messwerte aus einem eigenen
-     * Datenstrom. Beide laufen nur, solange der Empfänger arbeitet – wird der
-     * Status aber alt, gehört er zu einer anderen Situation und darf nicht in
-     * eine Messzeile wandern. Dann lieber leer lassen.
+     * Datenstrom. Beide laufen nur, solange der Empfänger arbeitet.
+     *
+     * **Nicht** über das Alter des letzten Status entscheiden: Der Status kommt
+     * nur, wenn sich die Satellitenliste ändert. Steht das Gerät still, meldet
+     * sich der Empfänger minutenlang nicht – am 12.11. auf freiem Feld gemessen:
+     * nach 128 Sekunden kam kein Status mehr, obwohl die Messungen weiterliefen.
+     * Eine Frist von 5 s hat dadurch 172 von 300 Epochen die Lage gekostet, ohne
+     * dass die Werte schlechter waren (C/N₀ der betroffenen Zeilen 39,1 gegen
+     * 40,4 dBHz – kein Signalproblem). Eine stabile Satellitenliste bedeutet
+     * zugleich, dass sich die Winkel kaum ändern. Ungültig wird die Lage deshalb
+     * beim Beenden der Ortung; die Frist ist nur eine Notbremse.
      */
     fun satellitesForExport(maxAgeMillis: Long = SAT_STATUS_MAX_AGE_MS): List<SatelliteInfo> {
-        if (!isTracking) return emptyList()
+        if (!isTracking || !satelliteGeometryValid) return emptyList()
         if (lastSatelliteStatusAt == 0L) return emptyList()
         if (SystemClock.elapsedRealtime() - lastSatelliteStatusAt > maxAgeMillis) return emptyList()
         return _gpsState.value.satellites
