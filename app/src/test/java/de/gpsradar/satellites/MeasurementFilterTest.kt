@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.core.app.ApplicationProvider
@@ -66,7 +67,11 @@ class MeasurementFilterTest {
     private val gps = messung(7, Constellation.GPS, "L1", 20_000.0)
     private val gal = messung(11, Constellation.GALILEO, "E1", 30_000.0)
 
-    private fun render(measurements: List<RawMeasurement>) {
+    private fun render(
+        measurements: List<RawMeasurement>,
+        rawStreamStalled: Boolean = false,
+        restartCountdown: Int = 0
+    ) {
         compose.setContent {
             GpsRadarTheme {
                 MeasurementScreen(
@@ -75,7 +80,10 @@ class MeasurementFilterTest {
                     capturePhase = CapturePhase.IDLE,
                     bufferStats = BufferStats(epochs = 1, rows = measurements.size),
                     captureEndsAtMillis = 0L,
-                    rawStreamStalled = false,
+                    rawStreamStalled = rawStreamStalled,
+                    restartCountdown = restartCountdown,
+                    onRestartRaw = {},
+                    onCancelRestart = {},
                     onExportCsv = { _: Uri, _: CsvProfile -> true },
                     onStartCapture = {},
                     onCancelCapture = {},
@@ -132,5 +140,33 @@ class MeasurementFilterTest {
 
         compose.onNodeWithText(context.getString(R.string.filter_all_short)).assertIsDisplayed()
         compose.onNodeWithText(Constellation.GPS.shortName).assertDoesNotExist()
+    }
+
+    /**
+     * Bei stummem Rohdatenkanal muss der Knopf da sein, mit dem die App den
+     * Empfänger selbst neu anfährt – sonst bleibt nur der Weg über die
+     * Systemeinstellungen.
+     */
+    @Test
+    fun aussetzerZeigtKnopfZumNeuanfahren() {
+        render(emptyList(), rawStreamStalled = true)
+
+        compose.onNodeWithText(context.getString(R.string.meas_stalled_title)).assertIsDisplayed()
+        compose.onNodeWithTag("restart_raw_data").assertIsDisplayed()
+        compose.onNodeWithTag("cancel_raw_restart").assertDoesNotExist()
+    }
+
+    /**
+     * Läuft der Neustart, steht die Restzeit im Klartext. Währenddessen gibt es
+     * nur „Abbrechen" – ein zweiter Neustart wäre sinnlos.
+     */
+    @Test
+    fun laufenderNeustartZeigtRestzeitUndAbbruch() {
+        render(emptyList(), rawStreamStalled = true, restartCountdown = 42)
+
+        compose.onNodeWithText(context.getString(R.string.meas_restart_title)).assertIsDisplayed()
+        compose.onNodeWithText(context.getString(R.string.meas_restart_countdown, 42)).assertIsDisplayed()
+        compose.onNodeWithTag("cancel_raw_restart").assertIsDisplayed()
+        compose.onNodeWithTag("restart_raw_data").assertDoesNotExist()
     }
 }

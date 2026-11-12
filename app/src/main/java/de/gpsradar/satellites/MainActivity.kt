@@ -156,12 +156,20 @@ fun GpsAppMainScreen(
     val rawBufferStats by viewModel.rawBufferStats.collectAsState()
     val rawCaptureEndsAt by viewModel.rawCaptureEndsAtMillis.collectAsState()
     val rawStreamStalled by viewModel.rawStreamStalled.collectAsState()
+    val rawRestartCountdown by viewModel.rawRestartCountdown.collectAsState()
     val hintR13Map by viewModel.hintR13ByKey.collectAsState()
 
     // rememberSaveable: sonst springt die App nach jeder Activity-Neuerstellung
     // (z. B. Rückkehr aus dem Hintergrund) zurück auf "Radar".
     var currentTab by rememberSaveable { mutableStateOf(AppTab.RADAR) }
     var showAbout by rememberSaveable { mutableStateOf(false) }
+
+    // Nur im Mess-Tab darf der Rohdatenkanal von selbst neu angefahren werden:
+    // dort kostet die Minute ohne Position nichts, beim Navigieren würde sie
+    // den Pfeil einfrieren.
+    LaunchedEffect(currentTab) {
+        viewModel.setMeasurementTabVisible(currentTab == AppTab.MESSUNG)
+    }
 
     // Bildschirm wach halten, solange ein Ziel/Track aktiv ist, aufgezeichnet
     // wird oder die Messungs-Ansicht offen ist — dort liest man laufend mit.
@@ -482,6 +490,9 @@ fun GpsAppMainScreen(
                             bufferStats = rawBufferStats,
                             captureEndsAtMillis = rawCaptureEndsAt,
                             rawStreamStalled = rawStreamStalled && gpsState.satellitesInView > 0,
+                            restartCountdown = rawRestartCountdown,
+                            onRestartRaw = { viewModel.restartRawChannel() },
+                            onCancelRestart = { viewModel.cancelRawRestart() },
                             onExportCsv = { uri, profile -> viewModel.exportRawCsv(uri, profile) },
                             onStartCapture = { viewModel.startRawCapture() },
                             onCancelCapture = { viewModel.cancelRawCapture() },

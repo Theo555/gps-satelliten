@@ -43,6 +43,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import android.content.res.Resources
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -59,6 +60,7 @@ import de.gpsradar.satellites.model.CsvProfile
 import de.gpsradar.satellites.model.MultipathState
 import de.gpsradar.satellites.model.RawClockSnapshot
 import de.gpsradar.satellites.model.RawMeasurement
+import de.gpsradar.satellites.ui.theme.AccentCyan
 import de.gpsradar.satellites.ui.theme.CardNavy
 import de.gpsradar.satellites.ui.theme.SignalGreen
 import de.gpsradar.satellites.ui.theme.SignalOrange
@@ -75,6 +77,9 @@ fun MeasurementScreen(
     bufferStats: BufferStats,
     captureEndsAtMillis: Long,
     rawStreamStalled: Boolean,
+    restartCountdown: Int,
+    onRestartRaw: () -> Unit,
+    onCancelRestart: () -> Unit,
     onExportCsv: (Uri, CsvProfile) -> Boolean,
     onStartCapture: () -> Unit,
     onCancelCapture: () -> Unit,
@@ -143,7 +148,38 @@ fun MeasurementScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier.padding(horizontal = 20.dp)
                 ) {
-                    if (rawStreamStalled) {
+                    if (restartCountdown > 0) {
+                        // Läuft gerade: Restzeit statt Rätselraten.
+                        Text(
+                            text = stringResource(R.string.meas_restart_title),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = AccentCyan,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = stringResource(R.string.meas_restart_body),
+                            fontSize = 12.sp,
+                            color = Color(0xFF94A3B8),
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = stringResource(R.string.meas_restart_countdown, restartCountdown),
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFE2E8F0),
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(10.dp))
+                        OutlinedActionButton(
+                            onClick = onCancelRestart,
+                            modifier = Modifier.testTag("cancel_raw_restart")
+                        ) {
+                            Text(stringResource(R.string.meas_restart_cancel))
+                        }
+                    } else if (rawStreamStalled) {
                         Text(
                             text = stringResource(R.string.meas_stalled_title),
                             fontSize = 13.sp,
@@ -165,6 +201,13 @@ fun MeasurementScreen(
                             color = Color(0xFFE2E8F0),
                             textAlign = TextAlign.Center
                         )
+                        Spacer(modifier = Modifier.height(10.dp))
+                        OutlinedActionButton(
+                            onClick = onRestartRaw,
+                            modifier = Modifier.testTag("restart_raw_data")
+                        ) {
+                            Text(stringResource(R.string.meas_restart_btn))
+                        }
                     } else {
                         Text(
                             text = stringResource(R.string.meas_empty),

@@ -216,7 +216,12 @@
     <string name="meas_empty">No raw measurements. Waiting for GNSS signals …</string>
     <string name="meas_stalled_title">The receiver is not delivering raw data</string>
     <string name="meas_stalled_body">Satellites are visible and the position keeps working – only the raw-data channel stays silent. This happens when the app restarts while the GNSS receiver is still running.</string>
-    <string name="meas_stalled_help">Remedy: turn location off for a minute and on again – or close the app and wait about 90 seconds.</string>
+    <string name="meas_stalled_help">Remedy: restart the raw data – or turn location off for a minute and on again.</string>
+    <string name="meas_restart_btn">Restart raw data</string>
+    <string name="meas_restart_title">Restarting the receiver</string>
+    <string name="meas_restart_body">The app requests no position for one minute so the receiver lets go. The position stands still during that time; leaving this page cancels the restart.</string>
+    <string name="meas_restart_countdown">%1$d s left</string>
+    <string name="meas_restart_cancel">Cancel</string>
     <string name="meas_title">Raw measurements</string>
     <plurals name="meas_paths">
         <item quantity="one">%1$d signal path</item>

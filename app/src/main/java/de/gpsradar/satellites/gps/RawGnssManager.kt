@@ -64,6 +64,9 @@ class RawGnssManager(context: Context) {
 
     /** Zeitpunkt des letzten Mess-Ereignisses (elapsedRealtime); 0 = noch keins. */
     private var lastEventAt = 0L
+
+    /** Wann [start] zuletzt lief – Bezugspunkt für "noch nie etwas geliefert". */
+    private var startedAt = 0L
     private var stallAttempts = 0
     private val stallWatchdog = Runnable { checkStall() }
 
@@ -118,6 +121,7 @@ class RawGnssManager(context: Context) {
             registerAttempts = 0
             registerIfPossible()
         }
+        startedAt = SystemClock.elapsedRealtime()
 
         // Ab Android 10 sagt die Plattform die Fähigkeit direkt. Der Rückgabewert
         // der Registrierung ist unzuverlässig: kurz nach dem Prozessstart oder
@@ -201,6 +205,24 @@ class RawGnssManager(context: Context) {
         if (_capturePhase.value == CapturePhase.CAPTURING) {
             finishCapture()
         }
+    }
+
+    /**
+     * true, wenn seit dem letzten [start] mindestens ein Messsatz ankam.
+     *
+     * Nach dem Start dauert es je nach Empfänger 2–10 s bis zum ersten Satz;
+     * bleibt es dabei, hat der Messkanal den Empfänger nicht erreicht.
+     */
+    fun hasDelivered(): Boolean = lastEventAt != 0L
+
+    /**
+     * Wie lange der Messkanal schon still ist – seit dem letzten Satz oder, wenn
+     * noch keiner kam, seit dem Start.
+     */
+    fun silentMillis(): Long {
+        val now = SystemClock.elapsedRealtime()
+        val since = if (lastEventAt == 0L) startedAt else lastEventAt
+        return if (since == 0L) 0L else now - since
     }
 
     /** Aufzeichnung starten: ab jetzt bleibt alles stehen, bis sie endet. */
@@ -395,6 +417,9 @@ class RawGnssManager(context: Context) {
 
         // Signalqualitaet, die nur ein Teil der Geraete liefert. Alle drei
         // Kenngroessen melden NaN, wenn sie fehlen -- daraus wird null.
+        @Suppress("DEPRECATION") // Nachfolger verlangt einen Signaltyp je Messung;
+        // aus dem Band laesst der sich nicht sicher ableiten, und fuer die
+        // Stoerungserkennung genuegt der Wert des Empfaengers.
         val agc = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             automaticGainControlLevelDb.takeIf { !it.isNaN() }
         } else {

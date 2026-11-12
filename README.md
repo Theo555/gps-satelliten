@@ -267,6 +267,8 @@ Doppler: dop    − c · drift_nsps · 1e-9
 
 **Grenzen, ehrlich:** `export_utc` ist die Geräteuhr, nicht die GNSS-Zeit. Meldet der Chipsatz keine Qualitätsmerkmale, bleiben die Flag-Spalten bei 0 – die App schätzt nichts dazu.
 
+**Wenn der Kanal stumm bleibt:** Manche Geräte (am S20 FE beobachtet) liefern keine Rohdaten mehr, wenn sich die App anmeldet, während der Empfänger noch läuft – die Position arbeitet weiter, nur der Rohdaten-Kanal schweigt. Der Empfänger muss dafür einmal ganz loslassen. Im Messung-Tab fährt die App ihn deshalb von selbst neu an: Sie fordert eine Minute lang keine Position an – in dieser Zeit steht auch die Position still – und meldet sich danach neu an. Die Restzeit steht mit einem Abbrechen-Knopf auf dem Schirm; wer die Seite verlässt, bricht ab. Hilft auch das nicht, bleibt der Standortschalter für eine Minute.
+
 **Mehr Rohdaten aus dem Gerät:** In den Android-**Entwickleroptionen** gibt es den Schalter „Vollst. GNSS-Messung erzwingen“. Damit trackt der Chip dauerhaft vollständig statt im Stromsparmodus – das bringt mehr Signale und häufiger gesetzte Status-Bits. Der Preis ist ein **höherer Akkuverbrauch**, deshalb ist die Option standardmäßig aus; für einen Export lohnt es sich, sie vorübergehend einzuschalten. Wie stark sie wirkt, hängt vom Chipsatz ab. Die App kann diese Systemeinstellung nicht selbst umschalten.
 
 ## Projektstruktur

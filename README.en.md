@@ -267,6 +267,8 @@ Doppler: dop    − c · drift_nsps · 1e-9
 
 **Limits, honestly:** `export_utc` is the device clock, not GNSS time. If the chipset reports no quality attributes, the flag columns stay at 0 – the app does not guess anything.
 
+**If the channel stays silent:** Some devices (observed on the S20 FE) stop delivering raw data when the app registers while the receiver is still running – the position keeps working, only the raw-data channel falls silent. The receiver has to let go once for that. In the measurement tab the app therefore restarts it on its own: it requests no position for one minute – the position stands still during that time – and then registers again. The remaining time is shown with a cancel button; leaving the page cancels. If that does not help either, turn location off for a minute.
+
 **More raw data from the device:** Android's **developer options** contain the switch "Force full GNSS measurements". With it the chip tracks fully all the time instead of going into power-saving mode – that yields more signals and more frequently set status bits. The price is **higher battery drain**, which is why the option is off by default; for an export it is worth enabling temporarily. How much it helps depends on the chipset. The app cannot toggle this system setting itself.
 
 ## Project structure

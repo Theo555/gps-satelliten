@@ -87,8 +87,31 @@ private const val TAG_ARRIVAL = "ArrivalAlert"
 /** So lange bleibt die Meldung „Angekommen – Umkreis x m" auf dem Schirm. */
 private const val ARRIVAL_NOTICE_MS = 6_000L
 
-/** Dauer einer Rohdaten-Aufzeichnung; danach endet sie selbst und bietet den Export an. */
+/** So lange bleibt eine Rohdaten-Aufzeichnung laufen; danach endet sie selbst und bietet den Export an. */
 private const val RAW_CAPTURE_DURATION_MS = 5 * 60 * 1000L
+
+/**
+ * So lange fordert die App beim Neustart des Rohdatenkanals keine Position an.
+ *
+ * Der Empfänger lässt erst los, wenn eine Weile niemand etwas von ihm will –
+ * genau das bewirkt auch „App schließen und warten". Eine Minute deckt sich mit
+ * dem, was die App dem Nutzer ohnehin rät; kürzere Versuche (bis 25 s) haben am
+ * S20 FE nicht zuverlässig gewirkt.
+ */
+private const val RAW_RESTART_WAIT_S = 60
+
+/**
+ * Ab dieser Stille gilt der Kanal als tot.
+ *
+ * Der erste Messsatz kommt 2–10 s nach der Registrierung; nach einem Kaltstart
+ * braucht der Empfänger bis zu 50 s bis zum vollen Bild. 20 s liegen dazwischen:
+ * lang genug, um einen langsamen Empfänger nicht zu verurteilen, kurz genug, um
+ * nicht eine Minute lang auf einen toten Kanal zu schauen.
+ */
+private const val RAW_SILENT_LIMIT_MS = 20_000L
+
+/** Eigener Log-Tag: Der Neustart des Rohdatenkanals ist sonst nicht nachvollziehbar. */
+private const val TAG_RAW = "RawChannel"
 
 class GpsViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -113,6 +136,14 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
     /** Ende der laufenden Aufzeichnung (Gerätezeit); 0 = keine Aufzeichnung. */
     val rawCaptureEndsAtMillis = MutableStateFlow(0L)
     private var rawCaptureJob: Job? = null
+
+    /** Restzeit eines laufenden Kanal-Neustarts in Sekunden; 0 = er läuft nicht. */
+    val rawRestartCountdown = MutableStateFlow(0)
+    private var rawRestartJob: Job? = null
+    /** Der Mess-Tab ist sichtbar – nur dort wird von selbst neu angefahren. */
+    private var measurementTabVisible = false
+    /** Ein automatischer Neustart wurde bereits versucht; wird zurückgesetzt, sobald Daten fließen. */
+    private var autoRestartUsed = false
 
     val selectedFilter = MutableStateFlow<Constellation?>(null)
     val selectedSort = MutableStateFlow(SatelliteSort.SIGNAL_DESC)
@@ -141,6 +172,21 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
         // passiert: Nach mehreren Neuinstallationen kam das Ziel aus den
         // Einstellungen, `setActiveWaypoint()` wurde nie aufgerufen.
         activeWaypointId.value?.let { startArrivalMonitoring(it) }
+
+        // Rohdatenkanal überwachen: Kommen Messungen an, ist der Kanal gesund –
+        // ein späterer Aussetzer darf dann wieder von selbst angefahren werden.
+        // Meldet der Wächter einen Aussetzer, während der Mess-Tab offen ist,
+        // wird sofort neu angefahren.
+        viewModelScope.launch {
+            rawMeasurements.collect { list ->
+                if (list.isNotEmpty()) autoRestartUsed = false
+            }
+        }
+        viewModelScope.launch {
+            rawStreamStalled.collect { stalled ->
+                if (stalled) autoRestartRawIfSilent()
+            }
+        }
     }
 
     /**
@@ -246,8 +292,87 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun stopTracking() {
+        cancelRawRestartJob()
         gpsDataManager.stopTracking()
         rawGnssManager.stop()
+    }
+
+    /**
+     * Fährt den Rohdatenkanal neu an.
+     *
+     * Bekannter Gerätefehler: Registriert sich die App, während der Empfänger
+     * noch läuft, bleibt der Messkanal stumm, obwohl die Position weiterläuft.
+     * Der Empfänger muss dafür einmal ganz loslassen – die App fordert deshalb
+     * eine Minute lang nichts an und meldet sich danach neu an. Preis: so lange
+     * steht auch die Position still, deshalb nur auf Anforderung oder im Mess-Tab.
+     */
+    fun restartRawChannel() {
+        if (rawRestartJob != null) return
+        if (!supportsRawMeasurements.value) return
+        val permission = rawGpsState.value.hasPermission
+        if (!permission) return
+        Log.i(TAG_RAW, "Kanal wird neu angefahren (${RAW_RESTART_WAIT_S}s ohne Anforderung)")
+        rawRestartJob = viewModelScope.launch {
+            try {
+                // Nicht über stopTracking(): das würde diesen Auftrag selbst abbrechen.
+                gpsDataManager.stopTracking()
+                rawGnssManager.stop()
+                for (second in RAW_RESTART_WAIT_S downTo 1) {
+                    rawRestartCountdown.value = second
+                    delay(1_000L)
+                }
+                startTracking(permission)
+                Log.i(TAG_RAW, "Kanal neu angefordert")
+            } finally {
+                rawRestartCountdown.value = 0
+                rawRestartJob = null
+            }
+        }
+    }
+
+    /** Neustart abbrechen: Die Position kommt sofort zurück, die Rohdaten bleiben stumm. */
+    fun cancelRawRestart() {
+        if (rawRestartJob == null) return
+        Log.i(TAG_RAW, "Neustart abgebrochen")
+        cancelRawRestartJob()
+        startTracking(rawGpsState.value.hasPermission)
+    }
+
+    private fun cancelRawRestartJob() {
+        rawRestartJob?.let { job ->
+            rawRestartJob = null
+            job.cancel()
+        }
+        rawRestartCountdown.value = 0
+    }
+
+    /** Der Mess-Tab wird angezeigt (oder verlassen). */
+    fun setMeasurementTabVisible(visible: Boolean) {
+        measurementTabVisible = visible
+        if (visible) {
+            autoRestartRawIfSilent()
+        } else if (rawRestartJob != null) {
+            // Die Wartezeit ist nur hier vertretbar – wer die Seite verlässt,
+            // will die Position offenbar zurück (Abbrechen-Knopf ist dann weg).
+            Log.i(TAG_RAW, "Mess-Tab verlassen – Neustart abgebrochen")
+            cancelRawRestart()
+        }
+    }
+
+    /**
+     * Fährt den Kanal von selbst an – aber nur im Mess-Tab: dort kostet die
+     * Minute ohne Position nichts, während sie beim Navigieren stören würde.
+     */
+    private fun autoRestartRawIfSilent() {
+        if (!measurementTabVisible) return
+        if (rawRestartJob != null || autoRestartUsed) return
+        if (!supportsRawMeasurements.value) return
+        val silent = rawStreamStalled.value ||
+            rawGnssManager.silentMillis() >= RAW_SILENT_LIMIT_MS
+        if (!silent) return
+        autoRestartUsed = true
+        Log.i(TAG_RAW, "Kanal still – automatischer Neustart")
+        restartRawChannel()
     }
 
     fun onPermissionResult(granted: Boolean) {
