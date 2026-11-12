@@ -245,13 +245,13 @@ epoch,svid,constellation,band,freq_hz,cn0_dbhz,time_ns,full_bias_ns,bias_ns,drif
 
 Mit `agc_db` (Regelpegel der Empfängerverstärkung), `snr_in_db` (Rauschmaß am Korrelatoreingang) und `baseband_cn0_dbhz` (C/N₀ nach der Basisbandverarbeitung) lässt sich ein Störsender erkennen: die Verstärkung regelt hoch, das Rauschmaß steigt, das C/N₀ fällt – meist bevor die Navigation schlechter wird. `code_type` nennt den Signalcode (`C` = C/A, je System auch `L`, `W`, `Q` …). `bias_unc_ns` und `drift_unc_nsps` sind die Unsicherheiten von Uhrversatz und Uhrgang, `elapsed_realtime_ns` die monotone Empfängerzeit und `hw_clock_disc` ein Zähler, der bei jedem Neusetzen der Hardwareuhr hochzählt – Phasen über einen Sprung hinweg sind nicht vergleichbar. Diese Spalten am Ende liefert nicht jedes Gerät: eine leere Zelle heißt hier *nicht geliefert*, und die Kommentarzeile `geliefert` sagt, welche Felder dieses Gerät überhaupt kann. Werte, die ein Gerät nur als Platzhalter füllt, stehen so im Export, wie sie kommen – die App erfindet nichts dazu.
 
-`elev_deg` und `azim_deg` sind Höhenwinkel und Azimut des Satelliten: 90° steht im Zenit, 0° am Horizont, das Azimut zählt von Nord über Ost. Sie stehen nicht in der Messung selbst, sondern stammen aus dem Satellitenstatus; fehlt der Satellit dort oder ist der Status älter als fünf Sekunden, bleiben beide Zellen leer – eine alte Lage zu einer neuen Messung wäre falsch. Für Auswertungen am Rechner sind die beiden Spalten die Grundlage für Maskenwinkel und Gewichtung: ein Satellit bei 12° ist mehr als doppelt so anfällig für Mehrwegeempfang wie einer bei 60°.
+`elev_deg` und `azim_deg` sind Höhenwinkel und Azimut des Satelliten: 90° steht im Zenit, 0° am Horizont, das Azimut zählt von Nord über Ost. Sie stehen nicht in der Messung selbst, sondern stammen aus dem Satellitenstatus; fehlt der Satellit dort, bleiben beide Zellen leer – eine alte Lage zu einer neuen Messung wäre falsch. Der Status wird nur ungültig, wenn die Ortung endet: Der Empfänger meldet Änderungen der Satellitenliste, nicht jede Sekunde einen neuen Satz, und bei stillem Gerät bleibt die Lage gültig. Für Auswertungen am Rechner sind die beiden Spalten die Grundlage für Maskenwinkel und Gewichtung: ein Satellit bei 12° ist mehr als doppelt so anfällig für Mehrwegeempfang wie einer bei 60°.
 
 **Einlesen:**
 
 ```python
 import pandas as pd
-df = pd.read_csv("rohdaten_universal.csv", comment="#")
+df = pd.read_csv("rohdaten_20261112_1057_universal.csv", comment="#")
 ```
 
 In Excel das Profil **„Excel (deutsch)“** wählen und die Datei direkt öffnen – oder die universelle Datei über *Daten → Aus Text/CSV* importieren.

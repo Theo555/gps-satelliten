@@ -50,6 +50,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import de.gpsradar.satellites.R
+import de.gpsradar.satellites.model.ExportNames
 import de.gpsradar.satellites.model.ImportResult
 import de.gpsradar.satellites.model.Navigation
 import de.gpsradar.satellites.model.Track
@@ -139,13 +140,15 @@ internal fun FilesSection(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 OutlinedActionButton(
+                    // Kein Dateiname: Der GPX-Export schreibt mehrere Dateien in
+                    // einen gewählten Ordner (cache_…, position_…, track_…).
                     onClick = { exportGpxLauncher.launch(null) },
                     modifier = Modifier.weight(1f).testTag("export_gpx_btn")
                 ) {
                     Text(stringResource(R.string.btn_export_gpx), fontSize = 12.sp)
                 }
                 OutlinedActionButton(
-                    onClick = { exportJsonLauncher.launch("gps_zielpunkte.json") },
+                    onClick = { exportJsonLauncher.launch("gps_zielpunkte_${ExportNames.timestamp()}.json") },
                     modifier = Modifier.weight(1f).testTag("export_json_btn")
                 ) {
                     Text(stringResource(R.string.btn_export_json), fontSize = 12.sp)

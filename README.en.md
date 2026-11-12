@@ -245,13 +245,13 @@ epoch,svid,constellation,band,freq_hz,cn0_dbhz,time_ns,full_bias_ns,bias_ns,drif
 
 `agc_db` (automatic gain control level), `snr_in_db` (noise figure at the correlator input) and `baseband_cn0_dbhz` (C/N₀ after baseband processing) reveal an interferer: the gain goes up, the noise figure rises, the C/N₀ drops – usually before navigation degrades. `code_type` names the signal code (`C` = C/A, per system also `L`, `W`, `Q` …). `bias_unc_ns` and `drift_unc_nsps` are the uncertainties of clock bias and drift, `elapsed_realtime_ns` the monotonic receiver time, and `hw_clock_disc` a counter that increments whenever the hardware clock is re-set – phases across such a jump are not comparable. Not every device delivers these trailing columns: an empty cell here means *not delivered*, and the `delivered` comment line states which fields the device supports at all. Values a device only fills with a placeholder are exported as they come – the app adds nothing.
 
-`elev_deg` and `azim_deg` are the satellite's elevation and azimuth: 90° is the zenith, 0° the horizon, azimuth counts from north through east. They are not part of the measurement itself but come from the satellite status; if the satellite is missing there or the status is older than five seconds, both cells stay empty – an old position angle next to a new measurement would be wrong. For desktop analysis these two columns are the basis for elevation masks and weighting: a satellite at 12° is more than twice as susceptible to multipath as one at 60°.
+They are not part of the measurement itself but come from the satellite status; if the satellite is missing there, both cells stay empty – an old position angle next to a new measurement would be wrong. The status only becomes invalid when tracking ends: the receiver reports changes to the satellite list, not a new set every second, and while the device is silent the angles remain valid. For desktop analysis these two columns are the basis for elevation masks and weighting: a satellite at 12° is more than twice as susceptible to multipath as one at 60°.
 
 **Reading it in:**
 
 ```python
 import pandas as pd
-df = pd.read_csv("rawdata_universal.csv", comment="#")
+df = pd.read_csv("rohdaten_20261112_1057_universal.csv", comment="#")
 ```
 
 In Excel choose the **"Excel (German)"** profile and open the file directly – or import the universal file via *Data → From Text/CSV*.

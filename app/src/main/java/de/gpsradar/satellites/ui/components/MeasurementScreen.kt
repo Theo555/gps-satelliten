@@ -57,6 +57,7 @@ import de.gpsradar.satellites.model.BufferStats
 import de.gpsradar.satellites.model.CapturePhase
 import de.gpsradar.satellites.model.Constellation
 import de.gpsradar.satellites.model.CsvProfile
+import de.gpsradar.satellites.model.ExportNames
 import de.gpsradar.satellites.model.MultipathState
 import de.gpsradar.satellites.model.RawClockSnapshot
 import de.gpsradar.satellites.model.RawMeasurement
@@ -404,7 +405,9 @@ private fun ExportDialog(
 
     fun launchExport() {
         val suffix = if (profile == CsvProfile.UNIVERSAL) "universal" else "excel"
-        launcher.launch("rohdaten_$suffix.csv")
+        // Datum und Uhrzeit in den Namen: Sonst heisst jede Datei gleich und der
+        // Dateidialog haengt ein "(1)", "(2)" an, das nichts ueber den Inhalt sagt.
+        launcher.launch("rohdaten_${ExportNames.timestamp()}_$suffix.csv")
     }
 
     Dialog(onDismissRequest = onDismiss) {
