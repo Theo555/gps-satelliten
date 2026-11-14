@@ -222,6 +222,10 @@
     <string name="meas_restart_body">The app requests no position for one minute so the receiver lets go. The position stands still during that time; leaving this page cancels the restart.</string>
     <string name="meas_restart_countdown">%1$d s left</string>
     <string name="meas_restart_cancel">Cancel</string>
+    <string name="receiver_stalled_title">Receiver stalled</string>
+    <string name="receiver_stalled_body">Measurements are arriving, but no position is computed. Restarting the receiver helps – positioning pauses for about a minute.</string>
+    <string name="receiver_stalled_restarting">Restarting the receiver – positioning pauses for about a minute (%1$d s).</string>
+    <string name="btn_restart_receiver">Restart receiver</string>
     <string name="meas_title">Raw measurements</string>
     <plurals name="meas_paths">
         <item quantity="one">%1$d signal path</item>

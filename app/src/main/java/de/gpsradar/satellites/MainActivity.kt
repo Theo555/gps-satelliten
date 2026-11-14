@@ -166,6 +166,7 @@ fun GpsAppMainScreen(
     val rawCaptureEndsAt by viewModel.rawCaptureEndsAtMillis.collectAsState()
     val rawStreamStalled by viewModel.rawStreamStalled.collectAsState()
     val rawRestartCountdown by viewModel.rawRestartCountdown.collectAsState()
+    val fixStalled by viewModel.fixStalled.collectAsState()
     val hintR13Map by viewModel.hintR13ByKey.collectAsState()
 
     // rememberSaveable: sonst springt die App nach jeder Activity-Neuerstellung
@@ -403,7 +404,10 @@ fun GpsAppMainScreen(
                         )
                     )
                 },
-                onToggleDemoMode = { viewModel.toggleDemoMode() }
+                onToggleDemoMode = { viewModel.toggleDemoMode() },
+                fixStalled = fixStalled,
+                restartCountdown = rawRestartCountdown,
+                onRestartReceiver = { viewModel.restartRawChannel() }
             )
 
             // Main Content by Active Tab

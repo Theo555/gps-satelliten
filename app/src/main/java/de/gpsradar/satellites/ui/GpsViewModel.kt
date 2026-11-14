@@ -33,6 +33,7 @@ import de.gpsradar.satellites.model.CsvProfile
 import de.gpsradar.satellites.model.ArrivalAlert
 import de.gpsradar.satellites.model.ArrivalNotice
 import de.gpsradar.satellites.model.Constellation
+import de.gpsradar.satellites.model.FixType
 import de.gpsradar.satellites.model.GpsLocationState
 import de.gpsradar.satellites.model.GnssNavMessage
 import de.gpsradar.satellites.model.ImportResult
@@ -40,6 +41,7 @@ import de.gpsradar.satellites.model.MeasurementCsv
 import de.gpsradar.satellites.model.Navigation
 import de.gpsradar.satellites.model.RawClockSnapshot
 import de.gpsradar.satellites.model.RawMeasurement
+import de.gpsradar.satellites.model.ReceiverHealth
 import de.gpsradar.satellites.model.RinexNav
 import de.gpsradar.satellites.model.SatelliteInfo
 import de.gpsradar.satellites.model.SkipReason
@@ -117,6 +119,13 @@ private const val RAW_SILENT_LIMIT_MS = 20_000L
 /** Abstand der Prüfung, solange der Mess-Tab offen ist. */
 private const val RAW_SILENT_CHECK_MS = 5_000L
 
+/**
+ * Abstand der Prüfung, ob die Ortung hängt (Messungen laufen, Position nicht).
+ * Fünf Sekunden genügen: Die Entscheidung selbst hängt an einer Zwei-Minuten-
+ * Frist, nicht an der Taktung der Prüfung.
+ */
+private const val FIX_WATCH_INTERVAL_MS = 5_000L
+
 /** Eigener Log-Tag: Der Neustart des Rohdatenkanals ist sonst nicht nachvollziehbar. */
 private const val TAG_RAW = "RawChannel"
 
@@ -152,6 +161,16 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
     /** Restzeit eines laufenden Kanal-Neustarts in Sekunden; 0 = er läuft nicht. */
     val rawRestartCountdown = MutableStateFlow(0)
     private var rawRestartJob: Job? = null
+
+    /**
+     * Ortung hängt: Es kommen Messungen, aber keine Position (Gerätefehler,
+     * siehe [ReceiverHealth]). Der Hinweis erscheint in allen Reitern; neu
+     * angefahren wird von selbst nur, wenn niemand navigiert.
+     */
+    val fixStalled = MutableStateFlow(false)
+    private var fixWatchJob: Job? = null
+    /** In diesem Ausfall wurde bereits neu angefahren; wird mit dem Fix zurückgesetzt. */
+    private var autoFixRestartUsed = false
     /** Der Mess-Tab ist sichtbar – nur dort wird von selbst neu angefahren. */
     private var measurementTabVisible = false
     /** Läuft, solange der Mess-Tab offen ist und prüft, ob der Kanal noch liefert. */
@@ -303,6 +322,7 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
     fun startTracking(hasPermission: Boolean) {
         gpsDataManager.startTracking(hasPermission)
         rawGnssManager.start(hasPermission)
+        startFixWatch()
     }
 
     fun stopTracking() {
@@ -311,8 +331,64 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
         // Hintergrund darf kein Neustart anlaufen.
         autoCheckJob?.cancel()
         autoCheckJob = null
+        stopFixWatch()
         gpsDataManager.stopTracking()
         rawGnssManager.stop()
+    }
+
+    /**
+     * Beobachtet, ob die Ortung hängt: keine Position, aber laufende Messungen.
+     *
+     * Läuft nur, solange die App im Vordergrund ist (startTracking/stopTracking).
+     * Ohne aktives Ziel oder Track wird nach zwei Minuten von selbst neu
+     * angefahren; beim Navigieren bleibt es beim Hinweis, denn der Neustart
+     * kostet eine Minute Position ([ReceiverHealth.mayRestartAutomatically]).
+     */
+    private fun startFixWatch() {
+        if (fixWatchJob != null) return
+        fixWatchJob = viewModelScope.launch {
+            var ohneFixSeit = 0L
+            var gemeldet = false
+            while (true) {
+                delay(FIX_WATCH_INTERVAL_MS)
+                val stellung = rawGpsState.value
+                val empfaengt = stellung.hasPermission && stellung.isGpsEnabled &&
+                    !stellung.isDemoMode
+                if (!empfaengt || stellung.fixType != FixType.NO_FIX) {
+                    // Fix da (oder Ortung gar nicht gewollt): alles zurücksetzen.
+                    ohneFixSeit = 0L
+                    gemeldet = false
+                    fixStalled.value = false
+                    autoFixRestartUsed = false
+                    continue
+                }
+                if (ohneFixSeit == 0L) ohneFixSeit = System.currentTimeMillis()
+                val dauer = System.currentTimeMillis() - ohneFixSeit
+                val haengt = supportsRawMeasurements.value &&
+                    ReceiverHealth.fixStalled(dauer, rawGnssManager.silentMillis())
+                if (haengt && !gemeldet) {
+                    gemeldet = true
+                    Log.i(
+                        TAG_RAW,
+                        "Ortung hängt: seit ${dauer / 1000}s kein Fix, Messungen laufen"
+                    )
+                }
+                fixStalled.value = haengt
+                if (!haengt) continue
+
+                val navigiert = activeWaypointId.value != null || activeTrackId.value != null
+                if (!ReceiverHealth.mayRestartAutomatically(navigiert, autoFixRestartUsed)) continue
+                autoFixRestartUsed = true
+                Log.i(TAG_RAW, "Kein Fix seit ${dauer / 1000}s trotz Messungen – Neustart")
+                restartRawChannel()
+            }
+        }
+    }
+
+    private fun stopFixWatch() {
+        fixWatchJob?.cancel()
+        fixWatchJob = null
+        fixStalled.value = false
     }
 
     /**

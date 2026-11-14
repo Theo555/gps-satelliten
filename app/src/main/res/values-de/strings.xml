@@ -222,6 +222,10 @@
     <string name="meas_restart_body">Die App fordert eine Minute lang keine Position an, damit der Empfänger loslässt. In dieser Zeit steht auch die Position still; wer diese Seite verlässt, bricht den Neustart ab.</string>
     <string name="meas_restart_countdown">noch %1$d s</string>
     <string name="meas_restart_cancel">Abbrechen</string>
+    <string name="receiver_stalled_title">Empfang hängt</string>
+    <string name="receiver_stalled_body">Es kommen Messungen an, aber keine Position. Ein Neustart des Empfangs hilft – die Ortung setzt dafür etwa eine Minute aus.</string>
+    <string name="receiver_stalled_restarting">Empfang wird neu angefahren – die Ortung setzt etwa eine Minute aus (noch %1$d s).</string>
+    <string name="btn_restart_receiver">Empfang neu anfahren</string>
     <string name="meas_title">Roh-Messungen</string>
     <plurals name="meas_paths">
         <item quantity="one">%1$d Signalpfad</item>

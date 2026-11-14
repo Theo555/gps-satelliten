@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.GpsOff
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Science
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -52,6 +53,9 @@ fun PermissionAndStatusBanner(
     state: GpsLocationState,
     onRequestPermission: () -> Unit,
     onToggleDemoMode: () -> Unit,
+    fixStalled: Boolean = false,
+    restartCountdown: Int = 0,
+    onRestartReceiver: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -148,9 +152,60 @@ fun PermissionAndStatusBanner(
             }
         }
 
+        // Empfang hängt: Es kommen Messungen an, aber keine Position entsteht.
+        // Bekannter Gerätefehler (siehe ReceiverHealth) – der einzige Ausweg ist
+        // ein Neustart des Empfangs, und der kostet eine Minute Ortung. Beim
+        // Navigieren entscheidet deshalb der Nutzer über den Knopf.
+        if (fixStalled && state.hasPermission && state.isGpsEnabled && !state.isDemoMode) {
+            Card(
+                colors = CardDefaults.cardColors(containerColor = CardNavy),
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier.fillMaxWidth().testTag("receiver_stalled_card")
+            ) {
+                Row(
+                    modifier = Modifier.padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Warning,
+                        contentDescription = null,
+                        tint = SignalOrange,
+                        modifier = Modifier.size(28.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.receiver_stalled_title),
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                        Text(
+                            text = if (restartCountdown > 0) {
+                                stringResource(R.string.receiver_stalled_restarting, restartCountdown)
+                            } else {
+                                stringResource(R.string.receiver_stalled_body)
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color(0xFFCBD5E1),
+                            maxLines = 3
+                        )
+                    }
+                    if (restartCountdown == 0) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        OutlinedActionButton(
+                            onClick = onRestartReceiver,
+                            modifier = Modifier.testTag("restart_receiver_btn")
+                        ) {
+                            Text(stringResource(R.string.btn_restart_receiver), fontSize = 12.sp)
+                        }
+                    }
+                }
+            }
+        }
+
         // Demo Mode Banner – bewusst auffällig: hier sind keine echten Daten
-        if (state.isDemoMode) {
-            Surface(
+        if (state.isDemoMode) {            Surface(
                 color = SignalOrange,
                 shape = RoundedCornerShape(10.dp),
                 modifier = Modifier.fillMaxWidth().testTag("demo_mode_banner")
