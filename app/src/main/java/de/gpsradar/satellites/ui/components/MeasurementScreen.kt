@@ -61,6 +61,7 @@ import de.gpsradar.satellites.model.ExportNames
 import de.gpsradar.satellites.model.MultipathState
 import de.gpsradar.satellites.model.RawClockSnapshot
 import de.gpsradar.satellites.model.RawMeasurement
+import de.gpsradar.satellites.ui.ExportFolder
 import de.gpsradar.satellites.ui.theme.AccentCyan
 import de.gpsradar.satellites.ui.theme.CardNavy
 import de.gpsradar.satellites.ui.theme.SignalGreen
@@ -386,25 +387,42 @@ private fun ExportDialog(
 ) {
     var profile by remember { mutableStateOf(CsvProfile.UNIVERSAL) }
     val context = LocalContext.current
-    // Ordner statt Einzeldatei: In denselben Ordner wandert neben die CSV auch
-    // die Navigationsdatei, damit beide aus demselben Zeitfenster stammen.
+    // Einmal gewaehlter Ordner wird gemerkt – sonst fragt Android bei jedem
+    // Export erneut "Zugriff auf Ordner erlauben?".
+    var zielOrdner by remember { mutableStateOf(ExportFolder.gespeichert(context)) }
+    var zielName by remember { mutableStateOf(ExportFolder.name(context)) }
+
+    /** CSV und – falls vorhanden – die Navigationsdatei in den Ordner schreiben. */
+    fun schreibe(ordner: Uri) {
+        val stempel = ExportNames.timestamp()
+        val suffix = if (profile == CsvProfile.UNIVERSAL) "universal" else "excel"
+        val ok = onExportCsv(ordner, "rohdaten_${stempel}_$suffix.csv", profile)
+        val navOk = onExportNav?.invoke(ordner, "navigation_$stempel.rnx") == true
+        if (!ok) {
+            // Ordner geloescht oder Freigabe entzogen: vergessen, naechstes Mal
+            // wird wieder gefragt.
+            ExportFolder.vergessen(context)
+            zielOrdner = null
+            zielName = null
+        }
+        Toast.makeText(
+            context,
+            when {
+                !ok -> "CSV-Export fehlgeschlagen"
+                navOk -> "CSV und Navigationsdatei geschrieben"
+                else -> "CSV exportiert"
+            },
+            Toast.LENGTH_SHORT
+        ).show()
+        if (ok) onDismiss()
+    }
+
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { ordner ->
         if (ordner != null) {
-            val stempel = ExportNames.timestamp()
-            val suffix = if (profile == CsvProfile.UNIVERSAL) "universal" else "excel"
-            val csvName = "rohdaten_${stempel}_$suffix.csv"
-            val ok = onExportCsv(ordner, csvName, profile)
-            val navOk = onExportNav?.invoke(ordner, "navigation_$stempel.rnx") == true
-            Toast.makeText(
-                context,
-                when {
-                    !ok -> "CSV-Export fehlgeschlagen"
-                    navOk -> "CSV und Navigationsdatei geschrieben"
-                    else -> "CSV exportiert"
-                },
-                Toast.LENGTH_SHORT
-            ).show()
-            onDismiss()
+            ExportFolder.merken(context, ordner)
+            zielOrdner = ordner
+            zielName = ExportFolder.name(context)
+            schreibe(ordner)
         }
     }
 
@@ -417,9 +435,15 @@ private fun ExportDialog(
     }
 
     fun launchExport() {
-        // Der Ordnername der Datei entsteht nach der Auswahl im Rückruf oben;
-        // hier wird nur der Ordner gewaehlt.
-        launcher.launch(null)
+        val ziel = zielOrdner
+        if (ziel != null && ExportFolder.schreibbar(context, ziel)) {
+            // Gemerkter Ordner ist noch da: ohne Dialog direkt hineinschreiben.
+            schreibe(ziel)
+        } else {
+            ExportFolder.vergessen(context)
+            zielOrdner = null
+            launcher.launch(null)
+        }
     }
 
     Dialog(onDismissRequest = onDismiss) {
@@ -485,6 +509,23 @@ private fun ExportDialog(
                     }
                 }
                 Spacer(modifier = Modifier.height(4.dp))
+                if (zielName != null) {
+                    Text(
+                        text = stringResource(R.string.meas_export_folder, zielName!!),
+                        fontSize = 10.sp,
+                        color = Color(0xFF94A3B8)
+                    )
+                }
+                TextButton(
+                    onClick = {
+                        ExportFolder.vergessen(context)
+                        zielOrdner = null
+                        launcher.launch(null)
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(stringResource(R.string.meas_export_choose_folder), fontSize = 11.sp)
+                }
                 TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) {
                     Text(stringResource(R.string.btn_close), fontSize = 12.sp)
                 }
