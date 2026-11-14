@@ -15,6 +15,7 @@ import androidx.core.location.LocationManagerCompat
 import de.gpsradar.satellites.model.CompassSpinState
 import de.gpsradar.satellites.model.CompassWalkState
 import de.gpsradar.satellites.model.Constellation
+import de.gpsradar.satellites.model.ExportGeometry
 import de.gpsradar.satellites.model.FixType
 import de.gpsradar.satellites.model.GnssNavMessage
 import de.gpsradar.satellites.model.GpsEphemeris
@@ -94,11 +95,16 @@ class GpsDataManager(private val context: Context) {
     private var isTracking = false
     private var isSimulated = false
 
-    /** Zeitpunkt des letzten Satellitenstatus (elapsedRealtime); 0 = keiner. */
-    private var lastSatelliteStatusAt = 0L
+    /**
+     * Zuletzt gemeldete Satellitenlage – nur für den Rohdatenexport.
+     *
+     * Getrennt vom Anzeigezustand, weil ein gemeldeter Stopp dessen Liste leert,
+     * die Winkel aber weiter gelten (siehe [ExportGeometry] und [onStopped]).
+     */
+    private var exportGeometry: List<SatelliteInfo> = emptyList()
 
-    /** true, solange die zuletzt gemeldete Satellitenlage zum laufenden Betrieb gehört. */
-    private var satelliteGeometryValid = false
+    /** Zeitpunkt der zuletzt gemeldeten Lage (elapsedRealtime); 0 = noch keine. */
+    private var exportGeometryAt = 0L
 
     private val gnssStatusCallback = object : GnssStatusCompat.Callback() {
         override fun onStarted() {
@@ -106,7 +112,13 @@ class GpsDataManager(private val context: Context) {
         }
 
         override fun onStopped() {
-            satelliteGeometryValid = false
+            // Für die Anzeige aufräumen – die exportierte Lage bleibt stehen.
+            // Am 14.11.2026 auf dem Sportplatz meldete der Empfänger mitten in
+            // einer Aufnahme „gestoppt", obwohl Messungen mit unverändertem
+            // C/N₀ weiterliefen. Danach kam kein neuer Status mehr, weil sich
+            // die Satellitenliste nicht änderte – 109 von 300 Epochen gingen
+            // ohne Höhenwinkel raus. Die Altersgrenze in [satellitesForExport]
+            // ist die Notbremse gegen wirklich alte Winkel.
             _gpsState.update { it.copy(satellites = emptyList(), fixType = FixType.NO_FIX) }
         }
 
@@ -168,8 +180,8 @@ class GpsDataManager(private val context: Context) {
                     lastUpdateTime = System.currentTimeMillis()
                 )
             }
-            lastSatelliteStatusAt = SystemClock.elapsedRealtime()
-            satelliteGeometryValid = true
+            exportGeometry = satList
+            exportGeometryAt = SystemClock.elapsedRealtime()
         }
     }
 
@@ -274,7 +286,6 @@ class GpsDataManager(private val context: Context) {
 
     fun stopTracking() {
         isTracking = false
-        satelliteGeometryValid = false
         compass.stop()
         demo.stop()
 
@@ -306,14 +317,28 @@ class GpsDataManager(private val context: Context) {
      * Eine Frist von 5 s hat dadurch 172 von 300 Epochen die Lage gekostet, ohne
      * dass die Werte schlechter waren (C/N₀ der betroffenen Zeilen 39,1 gegen
      * 40,4 dBHz – kein Signalproblem). Eine stabile Satellitenliste bedeutet
-     * zugleich, dass sich die Winkel kaum ändern. Ungültig wird die Lage deshalb
-     * beim Beenden der Ortung; die Frist ist nur eine Notbremse.
+     * zugleich, dass sich die Winkel kaum ändern.
+     *
+     * Am 14.11.2026 kam ein zweiter Fall dazu: Der Empfänger meldete mitten in
+     * der Aufnahme „gestoppt", während er weiterlief. Deshalb entscheidet die
+     * zuletzt gemeldete Lage und die Frist – nicht ein Kennzeichen, das ein
+     * solcher Fehlalarm löschen könnte. Geliefert wird [exportGeometry], nicht
+     * die Anzeigeliste (die räumt ein Stopp absichtlich auf).
      */
     fun satellitesForExport(maxAgeMillis: Long = SAT_STATUS_MAX_AGE_MS): List<SatelliteInfo> {
-        if (!isTracking || !satelliteGeometryValid) return emptyList()
-        if (lastSatelliteStatusAt == 0L) return emptyList()
-        if (SystemClock.elapsedRealtime() - lastSatelliteStatusAt > maxAgeMillis) return emptyList()
-        return _gpsState.value.satellites
+        val alter = if (exportGeometryAt == 0L) {
+            Long.MAX_VALUE
+        } else {
+            SystemClock.elapsedRealtime() - exportGeometryAt
+        }
+        val nutzbar = ExportGeometry.usable(
+            isTracking = isTracking,
+            isSimulated = isSimulated,
+            hasGeometry = exportGeometry.isNotEmpty(),
+            ageMillis = alter,
+            maxAgeMillis = maxAgeMillis
+        )
+        return if (nutzbar) exportGeometry else emptyList()
     }
 
     fun checkGpsEnabled() {
