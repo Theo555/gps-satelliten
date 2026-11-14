@@ -233,9 +233,6 @@
     <string name="meas_phase_unc">Carrier phase uncertainty Ø %1$s m</string>
     <string name="meas_phase_note">Carrier phase (adr_m) is relative; only valid with adr_state bit 1</string>
     <string name="meas_csv_export">CSV export</string>
-    <string name="meas_write_nav">Write navigation file</string>
-    <string name="meas_nav_written_fmt">Written: %1$s</string>
-    <string name="meas_nav_empty">No complete data set yet</string>
     <string name="profile_universal">universal (RFC)</string>
     <string name="profile_excel_de">Excel (German)</string>
     <string name="btn_cancel_record">Cancel recording</string>

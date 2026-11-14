@@ -131,6 +131,14 @@ fun GpsAppMainScreen(
         (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
     }
     val showWalkTest = isDebuggable
+
+    // Die Navigationsdatei entsteht zusammen mit der CSV im selben Ordner, aber
+    // nur im Debug-Build: Sie ist ein Laborergebnis, keine Nutzerfunktion.
+    val navExport: ((Uri, String) -> Boolean)? = if (isDebuggable) {
+        { ordner, name -> viewModel.exportNavRinex(ordner, name) }
+    } else {
+        null
+    }
     var showCompassCheck by rememberSaveable { mutableStateOf(false) }
     val displayedSatellites by viewModel.displayedSatellites.collectAsState()
     val selectedFilter by viewModel.selectedFilter.collectAsState()
@@ -499,11 +507,13 @@ fun GpsAppMainScreen(
                             restartCountdown = rawRestartCountdown,
                             onRestartRaw = { viewModel.restartRawChannel() },
                             onCancelRestart = { viewModel.cancelRawRestart() },
-                            onExportCsv = { uri, profile -> viewModel.exportRawCsv(uri, profile) },
+                            onExportCsv = { ordner, name, profile ->
+                                viewModel.exportRawCsv(ordner, name, profile)
+                            },
                             onStartCapture = { viewModel.startRawCapture() },
                             onCancelCapture = { viewModel.cancelRawCapture() },
                             onDiscardCapture = { viewModel.discardRawCapture() },
-                            onWriteNav = if (isDebuggable) ({ viewModel.writeNavRinex() }) else null
+                            onExportNav = navExport
                         )
                     }
                 }

@@ -81,11 +81,11 @@ fun MeasurementScreen(
     restartCountdown: Int,
     onRestartRaw: () -> Unit,
     onCancelRestart: () -> Unit,
-    onExportCsv: (Uri, CsvProfile) -> Boolean,
+    onExportCsv: (Uri, String, CsvProfile) -> Boolean,
     onStartCapture: () -> Unit,
     onCancelCapture: () -> Unit,
     onDiscardCapture: () -> Unit,
-    onWriteNav: (() -> String?)? = null
+    onExportNav: ((Uri, String) -> Boolean)? = null
 ) {
     var constellationFilter by remember { mutableStateOf<Constellation?>(null) }
     var showExportDialog by remember { mutableStateOf(false) }
@@ -243,7 +243,7 @@ fun MeasurementScreen(
             onStartCapture = onStartCapture,
             onCancelCapture = onCancelCapture,
             onDiscardCapture = onDiscardCapture,
-            onWriteNav = onWriteNav,
+            onExportNav = onExportNav,
             onDismiss = { showExportDialog = false }
         )
     }
@@ -377,22 +377,31 @@ private fun ExportDialog(
     phase: CapturePhase,
     stats: BufferStats,
     captureEndsAtMillis: Long,
-    onExportCsv: (Uri, CsvProfile) -> Boolean,
+    onExportCsv: (Uri, String, CsvProfile) -> Boolean,
     onStartCapture: () -> Unit,
     onCancelCapture: () -> Unit,
     onDiscardCapture: () -> Unit,
-    onWriteNav: (() -> String?)? = null,
+    onExportNav: ((Uri, String) -> Boolean)? = null,
     onDismiss: () -> Unit
 ) {
     var profile by remember { mutableStateOf(CsvProfile.UNIVERSAL) }
-    var navFile by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
-    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
-        if (uri != null) {
-            val ok = onExportCsv(uri, profile)
+    // Ordner statt Einzeldatei: In denselben Ordner wandert neben die CSV auch
+    // die Navigationsdatei, damit beide aus demselben Zeitfenster stammen.
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { ordner ->
+        if (ordner != null) {
+            val stempel = ExportNames.timestamp()
+            val suffix = if (profile == CsvProfile.UNIVERSAL) "universal" else "excel"
+            val csvName = "rohdaten_${stempel}_$suffix.csv"
+            val ok = onExportCsv(ordner, csvName, profile)
+            val navOk = onExportNav?.invoke(ordner, "navigation_$stempel.rnx") == true
             Toast.makeText(
                 context,
-                if (ok) "CSV exportiert" else "CSV-Export fehlgeschlagen",
+                when {
+                    !ok -> "CSV-Export fehlgeschlagen"
+                    navOk -> "CSV und Navigationsdatei geschrieben"
+                    else -> "CSV exportiert"
+                },
                 Toast.LENGTH_SHORT
             ).show()
             onDismiss()
@@ -408,10 +417,9 @@ private fun ExportDialog(
     }
 
     fun launchExport() {
-        val suffix = if (profile == CsvProfile.UNIVERSAL) "universal" else "excel"
-        // Datum und Uhrzeit in den Namen: Sonst heisst jede Datei gleich und der
-        // Dateidialog haengt ein "(1)", "(2)" an, das nichts ueber den Inhalt sagt.
-        launcher.launch("rohdaten_${ExportNames.timestamp()}_$suffix.csv")
+        // Der Ordnername der Datei entsteht nach der Auswahl im Rückruf oben;
+        // hier wird nur der Ordner gewaehlt.
+        launcher.launch(null)
     }
 
     Dialog(onDismissRequest = onDismiss) {
@@ -477,26 +485,6 @@ private fun ExportDialog(
                     }
                 }
                 Spacer(modifier = Modifier.height(4.dp))
-                // Nur im Debug-Build: Die Datei landet im privaten Verzeichnis und
-                // ist ein Laborergebnis, keine Nutzerfunktion.
-                if (onWriteNav != null) {
-                    OutlinedActionButton(
-                        onClick = { navFile = onWriteNav() },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("write_nav_rinex")
-                    ) {
-                        Text(stringResource(R.string.meas_write_nav), fontSize = 12.sp)
-                    }
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = navFile?.let { stringResource(R.string.meas_nav_written_fmt, it) }
-                            ?: stringResource(R.string.meas_nav_empty),
-                        fontSize = 10.sp,
-                        color = if (navFile != null) SignalGreen else Color(0xFF94A3B8)
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                }
                 TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) {
                     Text(stringResource(R.string.btn_close), fontSize = 12.sp)
                 }

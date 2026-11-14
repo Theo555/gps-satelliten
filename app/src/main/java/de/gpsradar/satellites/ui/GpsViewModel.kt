@@ -32,7 +32,6 @@ import de.gpsradar.satellites.model.CsvProfile
 import de.gpsradar.satellites.model.ArrivalAlert
 import de.gpsradar.satellites.model.ArrivalNotice
 import de.gpsradar.satellites.model.Constellation
-import de.gpsradar.satellites.model.ExportNames
 import de.gpsradar.satellites.model.GpsEphemeris
 import de.gpsradar.satellites.model.GpsLocationState
 import de.gpsradar.satellites.model.GnssNavMessage
@@ -889,46 +888,56 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
      * Satellit × Band × Epoche. `profile` koppelt Trennzeichen, Dezimalzeichen
      * und BOM.
      */
-    fun exportRawCsv(uri: Uri, profile: CsvProfile): Boolean {
-        return try {
-            val app = getApplication<Application>()
-            val meta = CsvMeta(
-                device = "${Build.MANUFACTURER} ${Build.MODEL} · hardware ${Build.HARDWARE} · board ${Build.BOARD}",
-                android = "${Build.VERSION.RELEASE} (SDK ${Build.VERSION.SDK_INT})",
-                app = appVersionName(),
-                exportedAtUtc = utcNow()
-            )
-            val content = MeasurementCsv.toCsv(rawGnssManager.epochSnapshot(), meta, profile)
-            app.contentResolver.openOutputStream(uri)?.use {
-                it.write(content.toByteArray(Charsets.UTF_8))
-            } != null
-        } catch (e: Exception) {
-            false
-        }
+    /**
+     * Schreibt den Pufferinhalt als CSV in den gewählten Ordner.
+     *
+     * Ordner statt Einzeldatei, damit daneben auch die Navigationsdatei aus
+     * demselben Zeitfenster landet (siehe [exportNavRinex]) – Bahndaten gelten
+     * nur für die Satelliten, die in ihnen stehen.
+     */
+    fun exportRawCsv(ordner: Uri, dateiName: String, profile: CsvProfile): Boolean {
+        val app = getApplication<Application>()
+        val meta = CsvMeta(
+            device = "${Build.MANUFACTURER} ${Build.MODEL} · hardware ${Build.HARDWARE} · board ${Build.BOARD}",
+            android = "${Build.VERSION.RELEASE} (SDK ${Build.VERSION.SDK_INT})",
+            app = appVersionName(),
+            exportedAtUtc = utcNow()
+        )
+        val content = MeasurementCsv.toCsv(rawGnssManager.epochSnapshot(), meta, profile)
+        return schreibeInOrdner(ordner, dateiName, "text/csv", content)
     }
 
     /**
-     * Schreibt die bisher gesammelten GPS-Ephemeriden als RINEX-Navigationsdatei
-     * ins private Verzeichnis der App.
-     *
-     * Bewusst ohne Dateiauswahl-Dialog: Die Datei ist ein Laborergebnis, keine
-     * Nutzerfunktion. Der Name steht im Protokoll, abholbar per `run-as`.
-     *
-     * @return Dateiname bei Erfolg, null wenn kein vollständiger Satz vorliegt.
+     * Schreibt die gesammelten GPS-Ephemeriden als RINEX-Navigationsdatei in
+     * denselben Ordner. Liefert false, wenn noch kein vollständiger Satz vorliegt
+     * oder das Schreiben scheitert – dann bleibt es bei der CSV.
      */
-    fun writeNavRinex(): String? {
+    fun exportNavRinex(ordner: Uri, dateiName: String): Boolean {
         val ephemericen = gpsDataManager.navEphemerides.value
-        if (ephemericen.none { it.hasConsistentIode }) return null
+        if (ephemericen.none { it.hasConsistentIode }) return false
+        // Eigener MIME-Typ statt "text/plain": Android haengt sonst die Endung
+        // des MIME-Typs an (.txt) und aus navigation_….rnx wuerde .rnx.txt.
+        return schreibeInOrdner(ordner, dateiName, "application/rnx", RinexNav.write(ephemericen))
+    }
+
+    /** Eine Datei in einem vom Nutzer freigegebenen Ordner anlegen und füllen. */
+    private fun schreibeInOrdner(
+        ordner: Uri,
+        dateiName: String,
+        mimeType: String,
+        inhalt: String
+    ): Boolean {
         return try {
-            val name = "nav_${ExportNames.timestamp()}.rnx"
-            val file = java.io.File(getApplication<Application>().filesDir, name)
-            file.writeText(RinexNav.write(ephemericen), Charsets.US_ASCII)
-            Log.i("NavRinex", "geschrieben: ${file.absolutePath} " +
-                "(${ephemericen.count { it.hasConsistentIode }} Sätze)")
-            name
+            val app = getApplication<Application>()
+            val ziel = DocumentFile.fromTreeUri(app, ordner) ?: return false
+            val datei = ziel.findFile(dateiName) ?: ziel.createFile(mimeType, dateiName)
+            if (datei == null) return false
+            app.contentResolver.openOutputStream(datei.uri)?.use {
+                it.write(inhalt.toByteArray(Charsets.UTF_8))
+            } != null
         } catch (e: Exception) {
-            Log.w("NavRinex", "Schreiben fehlgeschlagen", e)
-            null
+            Log.w(TAG_RAW, "Schreiben von $dateiName fehlgeschlagen", e)
+            false
         }
     }
 

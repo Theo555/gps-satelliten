@@ -84,7 +84,7 @@ class MeasurementFilterTest {
                     restartCountdown = restartCountdown,
                     onRestartRaw = {},
                     onCancelRestart = {},
-                    onExportCsv = { _: Uri, _: CsvProfile -> true },
+                    onExportCsv = { _: Uri, _: String, _: CsvProfile -> true },
                     onStartCapture = {},
                     onCancelCapture = {},
                     onDiscardCapture = {}
