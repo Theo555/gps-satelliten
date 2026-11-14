@@ -127,9 +127,10 @@ fun GpsAppMainScreen(
     // in einer CSV-Datei im privaten Verzeichnis, an die im Release niemand
     // herankommt. Für Nutzer wäre die nackte Gradzahl irreführend, weil die
     // Handhaltung darin steckt. Deshalb nur im Debug-Build sichtbar.
-    val showWalkTest = remember {
+    val isDebuggable = remember {
         (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
     }
+    val showWalkTest = isDebuggable
     var showCompassCheck by rememberSaveable { mutableStateOf(false) }
     val displayedSatellites by viewModel.displayedSatellites.collectAsState()
     val selectedFilter by viewModel.selectedFilter.collectAsState()
@@ -501,7 +502,8 @@ fun GpsAppMainScreen(
                             onExportCsv = { uri, profile -> viewModel.exportRawCsv(uri, profile) },
                             onStartCapture = { viewModel.startRawCapture() },
                             onCancelCapture = { viewModel.cancelRawCapture() },
-                            onDiscardCapture = { viewModel.discardRawCapture() }
+                            onDiscardCapture = { viewModel.discardRawCapture() },
+                            onWriteNav = if (isDebuggable) ({ viewModel.writeNavRinex() }) else null
                         )
                     }
                 }

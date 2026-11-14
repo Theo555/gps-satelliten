@@ -84,7 +84,8 @@ fun MeasurementScreen(
     onExportCsv: (Uri, CsvProfile) -> Boolean,
     onStartCapture: () -> Unit,
     onCancelCapture: () -> Unit,
-    onDiscardCapture: () -> Unit
+    onDiscardCapture: () -> Unit,
+    onWriteNav: (() -> String?)? = null
 ) {
     var constellationFilter by remember { mutableStateOf<Constellation?>(null) }
     var showExportDialog by remember { mutableStateOf(false) }
@@ -242,6 +243,7 @@ fun MeasurementScreen(
             onStartCapture = onStartCapture,
             onCancelCapture = onCancelCapture,
             onDiscardCapture = onDiscardCapture,
+            onWriteNav = onWriteNav,
             onDismiss = { showExportDialog = false }
         )
     }
@@ -379,9 +381,11 @@ private fun ExportDialog(
     onStartCapture: () -> Unit,
     onCancelCapture: () -> Unit,
     onDiscardCapture: () -> Unit,
+    onWriteNav: (() -> String?)? = null,
     onDismiss: () -> Unit
 ) {
     var profile by remember { mutableStateOf(CsvProfile.UNIVERSAL) }
+    var navFile by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
         if (uri != null) {
@@ -473,6 +477,26 @@ private fun ExportDialog(
                     }
                 }
                 Spacer(modifier = Modifier.height(4.dp))
+                // Nur im Debug-Build: Die Datei landet im privaten Verzeichnis und
+                // ist ein Laborergebnis, keine Nutzerfunktion.
+                if (onWriteNav != null) {
+                    OutlinedActionButton(
+                        onClick = { navFile = onWriteNav() },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("write_nav_rinex")
+                    ) {
+                        Text(stringResource(R.string.meas_write_nav), fontSize = 12.sp)
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = navFile?.let { stringResource(R.string.meas_nav_written_fmt, it) }
+                            ?: stringResource(R.string.meas_nav_empty),
+                        fontSize = 10.sp,
+                        color = if (navFile != null) SignalGreen else Color(0xFF94A3B8)
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                }
                 TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) {
                     Text(stringResource(R.string.btn_close), fontSize = 12.sp)
                 }

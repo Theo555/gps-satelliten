@@ -10,6 +10,7 @@ import android.util.Log
 import de.gpsradar.satellites.R
 import de.gpsradar.satellites.model.Constellation
 import de.gpsradar.satellites.model.GnssNavMessage
+import de.gpsradar.satellites.model.GpsEphemeris
 import java.util.Locale
 import java.util.concurrent.Executor
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -46,6 +47,11 @@ class GnssNavigationMessageReader(
     private val _supports = MutableStateFlow(false)
     val supports: StateFlow<Boolean> = _supports.asStateFlow()
 
+    /** Sammelt vollständige GPS-Ephemeriden für die Navigationsdatei. */
+    private val ephemerisStore = NavEphemerisStore()
+    private val _ephemerides = MutableStateFlow<List<GpsEphemeris>>(emptyList())
+    val ephemerides: StateFlow<List<GpsEphemeris>> = _ephemerides.asStateFlow()
+
     private var registered = false
     private var attempts = 0
     private val retry = Runnable { registerIfPossible() }
@@ -59,6 +65,11 @@ class GnssNavigationMessageReader(
             if (isSimulated()) return
             _messages.update { current ->
                 (current + navMessageFrom(event)).takeLast(MAX_STORED_MESSAGES)
+            }
+            ephemerisStore.add(event)?.let { eph ->
+                _ephemerides.update { current ->
+                    (current.filterNot { it.prn == eph.prn } + eph).sortedBy { it.prn }
+                }
             }
             countForSummary(event)
         }

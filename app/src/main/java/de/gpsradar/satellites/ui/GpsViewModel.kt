@@ -32,6 +32,8 @@ import de.gpsradar.satellites.model.CsvProfile
 import de.gpsradar.satellites.model.ArrivalAlert
 import de.gpsradar.satellites.model.ArrivalNotice
 import de.gpsradar.satellites.model.Constellation
+import de.gpsradar.satellites.model.ExportNames
+import de.gpsradar.satellites.model.GpsEphemeris
 import de.gpsradar.satellites.model.GpsLocationState
 import de.gpsradar.satellites.model.GnssNavMessage
 import de.gpsradar.satellites.model.ImportResult
@@ -39,6 +41,7 @@ import de.gpsradar.satellites.model.MeasurementCsv
 import de.gpsradar.satellites.model.Navigation
 import de.gpsradar.satellites.model.RawClockSnapshot
 import de.gpsradar.satellites.model.RawMeasurement
+import de.gpsradar.satellites.model.RinexNav
 import de.gpsradar.satellites.model.SatelliteInfo
 import de.gpsradar.satellites.model.SkipReason
 import de.gpsradar.satellites.model.Track
@@ -135,6 +138,7 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
     val compassSpinState: StateFlow<CompassSpinState> = gpsDataManager.spinState
     val compassWalkState: StateFlow<CompassWalkState> = gpsDataManager.compassWalkState
     val supportsNavigationMessages: StateFlow<Boolean> = gpsDataManager.supportsNavigationMessages
+    val navEphemerides: StateFlow<List<GpsEphemeris>> = gpsDataManager.navEphemerides
     val supportsRawMeasurements: StateFlow<Boolean> = rawGnssManager.supportsRawMeasurements
     val rawMeasurements: StateFlow<List<RawMeasurement>> = rawGnssManager.measurements
     val rawClock: StateFlow<RawClockSnapshot?> = rawGnssManager.clock
@@ -900,6 +904,31 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
             } != null
         } catch (e: Exception) {
             false
+        }
+    }
+
+    /**
+     * Schreibt die bisher gesammelten GPS-Ephemeriden als RINEX-Navigationsdatei
+     * ins private Verzeichnis der App.
+     *
+     * Bewusst ohne Dateiauswahl-Dialog: Die Datei ist ein Laborergebnis, keine
+     * Nutzerfunktion. Der Name steht im Protokoll, abholbar per `run-as`.
+     *
+     * @return Dateiname bei Erfolg, null wenn kein vollständiger Satz vorliegt.
+     */
+    fun writeNavRinex(): String? {
+        val ephemericen = gpsDataManager.navEphemerides.value
+        if (ephemericen.none { it.hasConsistentIode }) return null
+        return try {
+            val name = "nav_${ExportNames.timestamp()}.rnx"
+            val file = java.io.File(getApplication<Application>().filesDir, name)
+            file.writeText(RinexNav.write(ephemericen), Charsets.US_ASCII)
+            Log.i("NavRinex", "geschrieben: ${file.absolutePath} " +
+                "(${ephemericen.count { it.hasConsistentIode }} Sätze)")
+            name
+        } catch (e: Exception) {
+            Log.w("NavRinex", "Schreiben fehlgeschlagen", e)
+            null
         }
     }
 

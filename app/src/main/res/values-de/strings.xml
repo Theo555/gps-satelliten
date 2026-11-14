@@ -233,6 +233,9 @@
     <string name="meas_phase_unc">Trägerphase-Unsicherheit Ø %1$s m</string>
     <string name="meas_phase_note">Trägerphase (adr_m) ist relativ; nur mit adr_state-Bit 1 gültig</string>
     <string name="meas_csv_export">CSV-Export</string>
+    <string name="meas_write_nav">Navigationsdatei schreiben</string>
+    <string name="meas_nav_written_fmt">Geschrieben: %1$s</string>
+    <string name="meas_nav_empty">Noch kein vollständiger Datensatz</string>
     <string name="profile_universal">universell (RFC)</string>
     <string name="profile_excel_de">Excel (deutsch)</string>
     <string name="btn_cancel_record">Aufzeichnung abbrechen</string>
