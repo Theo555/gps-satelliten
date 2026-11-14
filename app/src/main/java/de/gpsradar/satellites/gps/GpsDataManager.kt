@@ -18,7 +18,6 @@ import de.gpsradar.satellites.model.Constellation
 import de.gpsradar.satellites.model.ExportGeometry
 import de.gpsradar.satellites.model.FixType
 import de.gpsradar.satellites.model.GnssNavMessage
-import de.gpsradar.satellites.model.GpsEphemeris
 import de.gpsradar.satellites.model.GpsLocationState
 import de.gpsradar.satellites.model.Navigation
 import de.gpsradar.satellites.model.SatelliteInfo
@@ -87,8 +86,8 @@ class GpsDataManager(private val context: Context) {
     val navigationMessages: StateFlow<List<GnssNavMessage>> = navMessages.messages
     val supportsNavigationMessages: StateFlow<Boolean> = navMessages.supports
 
-    /** Vollständige GPS-Ephemeriden je Satellit (für die Navigationsdatei). */
-    val navEphemerides: StateFlow<List<GpsEphemeris>> = navMessages.ephemerides
+    /** Vollständige Ephemeriden je Satellit (GPS und GLONASS, für die Navigationsdatei). */
+    val navEphemerides: StateFlow<NavEphemerides> = navMessages.ephemerides
 
     private val demo = DemoScenario(scope = scope, state = _gpsState)
 

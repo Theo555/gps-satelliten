@@ -5,12 +5,13 @@ import java.util.Locale
 import java.util.TimeZone
 
 /**
- * Schreibt dekodierte GPS-Ephemeriden als RINEX-3-Navigationsdatei.
+ * Schreibt dekodierte GPS- und GLONASS-Ephemeriden als RINEX-3-Navigationsdatei.
  *
  * Spaltenbreiten und Feldreihenfolge sind aus RTKLIB abgeleitet
- * (`src/rinex.c`: `readrnxnavb` liest je Wert 19 Zeichen, `decode_eph` legt die
- * Reihenfolge fest). Wer hier aus dem Gedächtnis formatiert, bekommt eine Datei,
- * die aussieht wie RINEX und von strengen Lesern verworfen wird.
+ * (`src/rinex.c`: `readrnxnavb` liest je Wert 19 Zeichen, `decode_eph` und
+ * `decode_geph` legen die Reihenfolge fest). Wer hier aus dem Gedächtnis
+ * formatiert, bekommt eine Datei, die aussieht wie RINEX und von strengen
+ * Lesern verworfen wird.
  *
  * Zwei Fallen, die beim ersten Versuch zugeschlagen haben:
  *
@@ -26,15 +27,17 @@ object RinexNav {
     private const val SECONDS_PER_WEEK = 604_800L
 
     /**
-     * Dateiinhalt erzeugen. Sätze mit unvollständigem oder widersprüchlichem
-     * IODE werden übersprungen — lieber eine kürzere richtige Datei als eine
-     * lange mit einem falschen Satz.
+     * Dateiinhalt erzeugen. GPS-Sätze mit unvollständigem oder widersprüchlichem
+     * IODE und GLONASS-Sätze ohne plausible Bahn werden übersprungen — lieber
+     * eine kürzere richtige Datei als eine lange mit einem falschen Satz.
      */
-    fun write(ephemerides: List<GpsEphemeris>): String {
-        val brauchbar = ephemerides.filter { it.hasConsistentIode }.sortedBy { it.prn }
+    fun write(gps: List<GpsEphemeris>, glo: List<GloEphemeris> = emptyList()): String {
+        val gpsSaetze = gps.filter { it.hasConsistentIode }.sortedBy { it.prn }
+        val gloSaetze = glo.filter { it.hasPlausibleOrbit }.sortedBy { it.satelliteSlot }
         val sb = StringBuilder()
-        sb.append(header(brauchbar.size))
-        for (e in brauchbar) sb.append(record(e))
+        sb.append(header(gpsSaetze.size + gloSaetze.size, gloSaetze.isNotEmpty()))
+        for (e in gpsSaetze) sb.append(record(e))
+        for (e in gloSaetze) sb.append(gloRecord(e))
         return sb.toString()
     }
 
@@ -70,6 +73,71 @@ object RinexNav {
 
     private fun satelliteId(prn: Int): String = String.format(Locale.US, "G%02d", prn)
 
+    /**
+     * Ein GLONASS-Satz zu vier Zeilen.
+     *
+     * Reihenfolge und Einheiten stammen aus RTKLIB (`outrnxgnavb`): Uhrversatz,
+     * relative Frequenzabweichung, Rahmenzeit — dann je Achse Ort (km),
+     * Geschwindigkeit (km/s), Beschleunigung (km/s²) und ein Zusatzwert
+     * (Gesundheit, Frequenznummer, Alter der Daten).
+     *
+     * Drei Feinheiten:
+     *
+     * - In Feld 1 steht **−τn**: RTKLIB liest `geph->taun = -data[0]` und
+     *   rechnet die Uhrkorrektur als `taun + gamn·t`. Am Mitschnitt geprüft:
+     *   τn = −7,4498·10⁻⁵ s entspricht der BRDC-Zeile +7,4496·10⁻⁵.
+     * - Die Rahmenzeit ist die des Gültigkeitsbeginns `tb` (nicht die laufende
+     *   Rahmenzeit aus String 1) und steht als Sekunden der GPS-Woche in UTC,
+     *   so wie in den BRDC-Dateien. RTKLIB nimmt davon `fmod(…, 86400)` und
+     *   setzt das Datum aus der Epoche.
+     * - Die Frequenznummer ist 0, solange das Gerät sie nicht liefert (siehe
+     *   [GloLnav]); RTKLIB setzt sie bei eigenen Rohdaten-Ephemeriden genauso.
+     */
+    fun gloRecord(e: GloEphemeris): String {
+        val parts = calendarFromMillis(e.tbMillis)
+        val sb = StringBuilder()
+        sb.append(
+            String.format(
+                Locale.US,
+                "R%02d %4d %02d %02d %02d %02d %02d",
+                e.satelliteSlot, parts[0], parts[1], parts[2], parts[3], parts[4], parts[5]
+            )
+        )
+        sb.append(
+            plainValues(-e.tauSeconds, e.gamma, weekSecondsUtc(e.tbMillis))
+        ).append('\n')
+        sb.append(
+            values(
+                e.x.positionKm, e.x.velocityKmPerSecond,
+                e.x.accelerationKmPerSecond2, e.health.toDouble()
+            )
+        ).append('\n')
+        sb.append(
+            values(
+                e.y.positionKm, e.y.velocityKmPerSecond,
+                e.y.accelerationKmPerSecond2, (e.frequencyChannel ?: 0).toDouble()
+            )
+        ).append('\n')
+        sb.append(
+            values(
+                e.z.positionKm, e.z.velocityKmPerSecond,
+                e.z.accelerationKmPerSecond2, e.ageOfDataDays.toDouble()
+            )
+        ).append('\n')
+        return sb.toString()
+    }
+
+    /**
+     * Zeitpunkt in Sekunden der GPS-Woche, aber auf der UTC-Zeitskala.
+     *
+     * RTKLIB schreibt GLONASS-Zeiten so (`time2gpst(gpst2utc(tof))`); die
+     * BRDC-Dateien enthalten dieselbe Zählung (Beispiel: 574 200 heißt Samstag
+     * 15:30:00 UTC). Unix-Millisekunden zählen ohne Schaltsekunden, deshalb ist
+     * die Differenz zur GPS-Epoche genau diese Kalenderzählung.
+     */
+    private fun weekSecondsUtc(millis: Long): Double =
+        ((millis - GPS_EPOCH_MILLIS) / 1000L).toDouble() % SECONDS_PER_WEEK
+
     /** Vier Werte zu je 19 Zeichen, mit den vier Füllzeichen am Zeilenanfang. */
     private fun values(vararg v: Double): String = "    " + plainValues(*v)
 
@@ -81,9 +149,10 @@ object RinexNav {
     }
 
     /** Kopfzeilen; die Kennung steht rechtsbündig in Spalte 60–80. */
-    private fun header(count: Int): String = buildString {
+    private fun header(count: Int, mitGlonass: Boolean): String = buildString {
         append(headerLine("     3.04           NAVIGATION DATA", "RINEX VERSION / TYPE"))
-        append(headerLine("GPS-Satelliten     GPS", "PGM / RUN BY / DATE"))
+        val wer = if (mitGlonass) "GPS-Satelliten   GPS GLO" else "GPS-Satelliten       GPS"
+        append(headerLine(wer, "PGM / RUN BY / DATE"))
         append(headerLine("Aus Navigationsnachrichten dekodiert", "COMMENT"))
         append(headerLine(String.format(Locale.US, "%6d", count), "# OF SATELLITES"))
         append(headerLine("", "END OF HEADER"))
@@ -97,9 +166,13 @@ object RinexNav {
      *
      * Bewusst ohne Schaltsekunden: RINEX erwartet bei GPS-Sätzen die GPS-Zeit.
      */
-    private fun calendar(week: Int, secondsOfWeek: Int): IntArray {
+    private fun calendar(week: Int, secondsOfWeek: Int): IntArray =
+        calendarFromMillis(GPS_EPOCH_MILLIS + (week * SECONDS_PER_WEEK + secondsOfWeek) * 1000L)
+
+    /** Derselbe Aufbau für einen fertigen Zeitpunkt (UTC-Millisekunden). */
+    private fun calendarFromMillis(millis: Long): IntArray {
         val cal = Calendar.getInstance(TimeZone.getTimeZone("UTC"), Locale.US)
-        cal.timeInMillis = GPS_EPOCH_MILLIS + (week * SECONDS_PER_WEEK + secondsOfWeek) * 1000L
+        cal.timeInMillis = millis
         return intArrayOf(
             cal.get(Calendar.YEAR),
             cal.get(Calendar.MONTH) + 1,

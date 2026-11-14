@@ -10,7 +10,6 @@ import android.util.Log
 import de.gpsradar.satellites.R
 import de.gpsradar.satellites.model.Constellation
 import de.gpsradar.satellites.model.GnssNavMessage
-import de.gpsradar.satellites.model.GpsEphemeris
 import java.util.Locale
 import java.util.concurrent.Executor
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -47,10 +46,10 @@ class GnssNavigationMessageReader(
     private val _supports = MutableStateFlow(false)
     val supports: StateFlow<Boolean> = _supports.asStateFlow()
 
-    /** Sammelt vollständige GPS-Ephemeriden für die Navigationsdatei. */
+    /** Sammelt vollständige Ephemeriden (GPS und GLONASS) für die Navigationsdatei. */
     private val ephemerisStore = NavEphemerisStore()
-    private val _ephemerides = MutableStateFlow<List<GpsEphemeris>>(emptyList())
-    val ephemerides: StateFlow<List<GpsEphemeris>> = _ephemerides.asStateFlow()
+    private val _ephemerides = MutableStateFlow(NavEphemerides())
+    val ephemerides: StateFlow<NavEphemerides> = _ephemerides.asStateFlow()
 
     private var registered = false
     private var attempts = 0
@@ -66,10 +65,8 @@ class GnssNavigationMessageReader(
             _messages.update { current ->
                 (current + navMessageFrom(event)).takeLast(MAX_STORED_MESSAGES)
             }
-            ephemerisStore.add(event)?.let { eph ->
-                _ephemerides.update { current ->
-                    (current.filterNot { it.prn == eph.prn } + eph).sortedBy { it.prn }
-                }
+            if (ephemerisStore.add(event)) {
+                _ephemerides.value = ephemerisStore.snapshot()
             }
             countForSummary(event)
         }
@@ -192,7 +189,14 @@ class GnssNavigationMessageReader(
             val sub = summarySub[type].orEmpty().sorted().joinToString(",")
             "${navTypeLabel(type)}: $svids Sats, Unterrahmen [$sub], ${summaryCount[type]} Meldungen"
         }
-        Log.i(TAG, "Navigationsnachrichten: " + parts.joinToString(" · "))
+        // Anzahl der fertig zusammengesetzten Ephemeriden: Meldungen allein sagen
+        // nichts darüber, ob daraus eine brauchbare Navigationsdatei wird.
+        val fertig = ephemerisStore.snapshot()
+        Log.i(
+            TAG,
+            "Navigationsnachrichten: " + parts.joinToString(" · ") +
+                " · Ephemeriden fertig: GPS ${fertig.gps.size}, GLONASS ${fertig.glo.size}"
+        )
     }
 
     private fun navMessageFrom(event: GnssNavigationMessage): GnssNavMessage {

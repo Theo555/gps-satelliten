@@ -21,6 +21,7 @@ import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
 import de.gpsradar.satellites.gps.GpsDataManager
+import de.gpsradar.satellites.gps.NavEphemerides
 import de.gpsradar.satellites.gps.RawGnssManager
 import de.gpsradar.satellites.model.Cache
 import de.gpsradar.satellites.model.BufferStats
@@ -32,7 +33,6 @@ import de.gpsradar.satellites.model.CsvProfile
 import de.gpsradar.satellites.model.ArrivalAlert
 import de.gpsradar.satellites.model.ArrivalNotice
 import de.gpsradar.satellites.model.Constellation
-import de.gpsradar.satellites.model.GpsEphemeris
 import de.gpsradar.satellites.model.GpsLocationState
 import de.gpsradar.satellites.model.GnssNavMessage
 import de.gpsradar.satellites.model.ImportResult
@@ -137,7 +137,7 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
     val compassSpinState: StateFlow<CompassSpinState> = gpsDataManager.spinState
     val compassWalkState: StateFlow<CompassWalkState> = gpsDataManager.compassWalkState
     val supportsNavigationMessages: StateFlow<Boolean> = gpsDataManager.supportsNavigationMessages
-    val navEphemerides: StateFlow<List<GpsEphemeris>> = gpsDataManager.navEphemerides
+    val navEphemerides: StateFlow<NavEphemerides> = gpsDataManager.navEphemerides
     val supportsRawMeasurements: StateFlow<Boolean> = rawGnssManager.supportsRawMeasurements
     val rawMeasurements: StateFlow<List<RawMeasurement>> = rawGnssManager.measurements
     val rawClock: StateFlow<RawClockSnapshot?> = rawGnssManager.clock
@@ -908,16 +908,18 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
-     * Schreibt die gesammelten GPS-Ephemeriden als RINEX-Navigationsdatei in
-     * denselben Ordner. Liefert false, wenn noch kein vollständiger Satz vorliegt
-     * oder das Schreiben scheitert – dann bleibt es bei der CSV.
+     * Schreibt die gesammelten GPS- und GLONASS-Ephemeriden als
+     * RINEX-Navigationsdatei in denselben Ordner. Liefert false, wenn noch kein
+     * vollständiger Satz vorliegt oder das Schreiben scheitert — dann bleibt es
+     * bei der CSV.
      */
     fun exportNavRinex(ordner: Uri, dateiName: String): Boolean {
-        val ephemericen = gpsDataManager.navEphemerides.value
-        if (ephemericen.none { it.hasConsistentIode }) return false
+        val nav = gpsDataManager.navEphemerides.value
+        val brauchbar = nav.gps.any { it.hasConsistentIode } || nav.glo.any { it.hasPlausibleOrbit }
+        if (!brauchbar) return false
         // Eigener MIME-Typ statt "text/plain": Android haengt sonst die Endung
         // des MIME-Typs an (.txt) und aus navigation_….rnx wuerde .rnx.txt.
-        return schreibeInOrdner(ordner, dateiName, "application/rnx", RinexNav.write(ephemericen))
+        return schreibeInOrdner(ordner, dateiName, "application/rnx", RinexNav.write(nav.gps, nav.glo))
     }
 
     /** Eine Datei in einem vom Nutzer freigegebenen Ordner anlegen und füllen. */
