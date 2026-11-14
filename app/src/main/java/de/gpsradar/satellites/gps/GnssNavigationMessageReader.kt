@@ -2,6 +2,7 @@ package de.gpsradar.satellites.gps
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.content.pm.ApplicationInfo
 import android.location.GnssNavigationMessage
 import android.location.LocationManager
 import android.os.Build
@@ -21,6 +22,14 @@ private const val TAG = "GnssNavMessages"
 private const val NAV_REGISTER_ATTEMPTS = 5
 private const val NAV_REGISTER_RETRY_MS = 2000L
 private const val MAX_STORED_MESSAGES = 20
+
+/**
+ * Eigenes Kennzeichen für den Mitschnitt der Rohbits fremder Systeme.
+ *
+ * Getrennt von [TAG], weil dort nur eine Zeile je Minute steht: Der Mitschnitt
+ * schreibt eine Zeile je Meldung und würde die Übersicht unlesbar machen.
+ */
+private const val TAG_DUMP = "NavDump"
 
 /** Abstand der Übersichtszeile im Protokoll (siehe [GnssNavigationMessageReader.logSummary]). */
 private const val SUMMARY_INTERVAL_MS = 60_000L
@@ -51,6 +60,13 @@ class GnssNavigationMessageReader(
     private val _ephemerides = MutableStateFlow(NavEphemerides())
     val ephemerides: StateFlow<NavEphemerides> = _ephemerides.asStateFlow()
 
+    /** Der Mitschnitt ist ein Werkzeug für den Feldtest, kein Produktmerkmal. */
+    private val isDebugBuild =
+        (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+
+    /** Wie viele Meldungen der Mitschnitt bisher geschrieben hat. */
+    private var dumpedMessages = 0
+
     private var registered = false
     private var attempts = 0
     private val retry = Runnable { registerIfPossible() }
@@ -69,6 +85,7 @@ class GnssNavigationMessageReader(
                 _ephemerides.value = ephemerisStore.snapshot()
             }
             countForSummary(event)
+            dumpForeignTypes(event)
         }
 
         override fun onStatusChanged(status: Int) {
@@ -141,6 +158,9 @@ class GnssNavigationMessageReader(
         registered = ok
         if (ok) {
             attempts = 0
+            // Ohne diese Zeile lässt sich am Rechner nicht unterscheiden, ob
+            // der Mitschnitt läuft oder ob nur gerade nichts ankommt.
+            if (isDebugBuild) Log.i(TAG_DUMP, "Rohbit-Mitschnitt aktiv (nur Debug-Build)")
         } else if (attempts < NAV_REGISTER_ATTEMPTS) {
             attempts++
             Log.w(TAG, "Navigationsnachrichten noch nicht möglich (Versuch $attempts)")
@@ -192,18 +212,46 @@ class GnssNavigationMessageReader(
         // Anzahl der fertig zusammengesetzten Ephemeriden: Meldungen allein sagen
         // nichts darüber, ob daraus eine brauchbare Navigationsdatei wird.
         val fertig = ephemerisStore.snapshot()
+        val mitschnitt = if (dumpedMessages > 0) " · Rohbits mitgeschrieben: $dumpedMessages" else ""
         Log.i(
             TAG,
             "Navigationsnachrichten: " + parts.joinToString(" · ") +
-                " · Ephemeriden fertig: GPS ${fertig.gps.size}, GLONASS ${fertig.glo.size}"
+                " · Ephemeriden fertig: GPS ${fertig.gps.size}, GLONASS ${fertig.glo.size}" +
+                mitschnitt
         )
+    }
+
+    /**
+     * Rohbits der Systeme mitschreiben, für die es noch keinen Dekoder gibt.
+     *
+     * Warum über das Protokoll und nicht in eine Datei: Der Mitschnitt ist ein
+     * Werkzeug für den Feldtest, kein Produktmerkmal. Über `adb logcat` landet er
+     * auf dem Rechner, das Gerät schreibt nichts zusätzlich in seinen Speicher,
+     * und mit dem Abziehen des Steckers ist er vorbei.
+     *
+     * Am Rechner mitlesen:
+     * `adb logcat -s NavDump:I > mitschnitt.txt`
+     */
+    private fun dumpForeignTypes(event: GnssNavigationMessage) {
+        if (!isDebugBuild) return
+        val line = navDumpLine(
+            seq = dumpedMessages + 1,
+            type = event.type,
+            svid = event.svid,
+            messageId = event.messageId,
+            submessageId = event.submessageId,
+            status = event.status,
+            data = event.data
+        ) ?: return
+        dumpedMessages++
+        Log.i(TAG_DUMP, line)
     }
 
     private fun navMessageFrom(event: GnssNavigationMessage): GnssNavMessage {
         val type = event.type
         val constellation = constellationForNavType(type)
         val raw = event.data ?: ByteArray(0)
-        val hex = raw.joinToString(" ") { String.format(Locale.US, "%02X", it.toInt() and 0xFF) }
+        val hex = hexOf(raw)
         return GnssNavMessage(
             svid = event.svid,
             constellation = constellation,
@@ -232,28 +280,64 @@ class GnssNavigationMessageReader(
         else -> Constellation.UNKNOWN
     }
 
-    private fun navTypeLabel(type: Int): String = when (type) {
-        GnssNavigationMessage.TYPE_GPS_L1CA -> "GPS L1 C/A"
-        GnssNavigationMessage.TYPE_GPS_L2CNAV -> "GPS L2C"
-        GnssNavigationMessage.TYPE_GPS_L5CNAV -> "GPS L5"
-        GnssNavigationMessage.TYPE_GPS_CNAV2 -> "GPS CNAV-2"
-        GnssNavigationMessage.TYPE_GLO_L1CA -> "GLONASS L1 C/A"
-        GnssNavigationMessage.TYPE_BDS_D1 -> "BeiDou D1"
-        GnssNavigationMessage.TYPE_BDS_D2 -> "BeiDou D2"
-        GnssNavigationMessage.TYPE_BDS_CNAV1 -> "BeiDou CNAV-1"
-        GnssNavigationMessage.TYPE_BDS_CNAV2 -> "BeiDou CNAV-2"
-        GnssNavigationMessage.TYPE_GAL_I -> "Galileo I/NAV"
-        GnssNavigationMessage.TYPE_GAL_F -> "Galileo F/NAV"
-        GnssNavigationMessage.TYPE_QZS_L1CA -> "QZSS L1 C/A"
-        GnssNavigationMessage.TYPE_IRN_L1 -> "IRNSS L1"
-        GnssNavigationMessage.TYPE_IRN_L5 -> "IRNSS L5"
-        GnssNavigationMessage.TYPE_IRN_L5CA -> "IRNSS L5 C/A"
-        else -> "Typ 0x${Integer.toHexString(type)}"
-    }
-
     private fun navStatusLabel(status: Int): String = when (status) {
         GnssNavigationMessage.STATUS_PARITY_PASSED -> context.getString(R.string.nav_status_parity_ok)
         GnssNavigationMessage.STATUS_PARITY_REBUILT -> context.getString(R.string.nav_status_parity_rebuilt)
         else -> "Status 0x${Integer.toHexString(status)}"
     }
+}
+
+/**
+ * Eine Zeile für den Rohbit-Mitschnitt, oder null, wenn die Meldung nicht
+ * mitgeschrieben wird.
+ *
+ * Übersprungen werden GPS (L1 C/A) und GLONASS (L1 C/A): Für beide gibt es einen
+ * fertigen Dekoder, und ihre Meldungen würden die Ausgabe überschwemmen.
+ * Mitgeschrieben wird nur, was noch keinen Dekoder hat.
+ *
+ * Der Aufbau ist bewusst schlicht und leicht zu trennen — der Meldungstyp kann
+ * Leerzeichen enthalten, deshalb steht das Hex-Feld als letztes und alles
+ * davor hat die Form `schlüssel=wert`.
+ */
+internal fun navDumpLine(
+    seq: Int,
+    type: Int,
+    svid: Int,
+    messageId: Int,
+    submessageId: Int,
+    status: Int,
+    data: ByteArray?
+): String? {
+    if (type == GnssNavigationMessage.TYPE_GPS_L1CA ||
+        type == GnssNavigationMessage.TYPE_GLO_L1CA
+    ) {
+        return null
+    }
+    if (data == null || data.isEmpty()) return null
+    return "n=$seq type=${navTypeLabel(type)} svid=$svid msg=$messageId " +
+        "sub=$submessageId status=$status data=${hexOf(data)}"
+}
+
+/** Rohbytes als Hex, durch Leerzeichen getrennt. */
+private fun hexOf(data: ByteArray): String =
+    data.joinToString(" ") { String.format(Locale.US, "%02X", it.toInt() and 0xFF) }
+
+/** Anzeigename des Meldungstyps – auch für die Auswertung des Mitschnitts. */
+internal fun navTypeLabel(type: Int): String = when (type) {
+    GnssNavigationMessage.TYPE_GPS_L1CA -> "GPS L1 C/A"
+    GnssNavigationMessage.TYPE_GPS_L2CNAV -> "GPS L2C"
+    GnssNavigationMessage.TYPE_GPS_L5CNAV -> "GPS L5"
+    GnssNavigationMessage.TYPE_GPS_CNAV2 -> "GPS CNAV-2"
+    GnssNavigationMessage.TYPE_GLO_L1CA -> "GLONASS L1 C/A"
+    GnssNavigationMessage.TYPE_BDS_D1 -> "BeiDou D1"
+    GnssNavigationMessage.TYPE_BDS_D2 -> "BeiDou D2"
+    GnssNavigationMessage.TYPE_BDS_CNAV1 -> "BeiDou CNAV-1"
+    GnssNavigationMessage.TYPE_BDS_CNAV2 -> "BeiDou CNAV-2"
+    GnssNavigationMessage.TYPE_GAL_I -> "Galileo I/NAV"
+    GnssNavigationMessage.TYPE_GAL_F -> "Galileo F/NAV"
+    GnssNavigationMessage.TYPE_QZS_L1CA -> "QZSS L1 C/A"
+    GnssNavigationMessage.TYPE_IRN_L1 -> "IRNSS L1"
+    GnssNavigationMessage.TYPE_IRN_L5 -> "IRNSS L5"
+    GnssNavigationMessage.TYPE_IRN_L5CA -> "IRNSS L5 C/A"
+    else -> "Typ 0x${Integer.toHexString(type)}"
 }
