@@ -19,6 +19,26 @@ import androidx.documentfile.provider.DocumentFile
  */
 object ExportFolder {
 
+    /**
+     * Unterordner im gewählten Exportziel.
+     *
+     * Bewusst Unterordner und **kein** fest verdrahteter Pfad wie
+     * `Download/gps-satelliten`: Ein fester Pfad ginge nur über MediaStore
+     * (ab Android 10) oder über die Speicherberechtigung (bis Android 9) — also
+     * neue Rechte und zwei Codezweige. Ein Unterordner im selbst gewählten
+     * Ziel kann jeder Anbieter ab Android 7, ganz ohne Berechtigung.
+     *
+     * Der Nutzer wählt weiterhin den Ort (Download, SD-Karte, eigener Ordner);
+     * die App sortiert darin nur.
+     */
+    const val MESSUNGEN = "messungen"
+
+    /** Navigationsdateien (RINEX) — liegen neben, nicht zwischen den Messungen. */
+    const val NAVIGATION = "navigation"
+
+    /** Später: aufgezeichnete Tracks, sobald der Export dorthin wandert. */
+    const val TRACKS = "tracks"
+
     private const val PREFS = "export"
     private const val KEY_URI = "ordner_uri"
     private const val KEY_NAME = "ordner_name"

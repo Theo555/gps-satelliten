@@ -980,7 +980,7 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
             exportedAtUtc = utcNow()
         )
         val content = MeasurementCsv.toCsv(rawGnssManager.epochSnapshot(), meta, profile)
-        return schreibeInOrdner(ordner, dateiName, "text/csv", content)
+        return schreibeInOrdner(ordner, ExportFolder.MESSUNGEN, dateiName, "text/csv", content)
     }
 
     /**
@@ -999,14 +999,21 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
         // Eigener MIME-Typ statt "text/plain": Android haengt sonst die Endung
         // des MIME-Typs an (.txt) und aus navigation_….rnx wuerde .rnx.txt.
         return schreibeInOrdner(
-            ordner, dateiName, "application/rnx",
+            ordner, ExportFolder.NAVIGATION, dateiName, "application/rnx",
             RinexNav.write(nav.gps, nav.glo, nav.bds, nav.gal, nav.corrections)
         )
     }
 
-    /** Eine Datei in einem vom Nutzer freigegebenen Ordner anlegen und füllen. */
+    /**
+     * Eine Datei in einem vom Nutzer freigegebenen Ordner anlegen und füllen.
+     *
+     * [unterordner] wird im Ziel angelegt, falls er fehlt — so liegen Messungen
+     * und Navigationsdateien getrennt, ohne dass der Nutzer selbst sortieren
+     * muss. Ist `unterordner` null, wird direkt ins Ziel geschrieben.
+     */
     private fun schreibeInOrdner(
         ordner: Uri,
+        unterordner: String?,
         dateiName: String,
         mimeType: String,
         inhalt: String
@@ -1014,7 +1021,12 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
         return try {
             val app = getApplication<Application>()
             val ziel = DocumentFile.fromTreeUri(app, ordner) ?: return false
-            val datei = ziel.findFile(dateiName) ?: ziel.createFile(mimeType, dateiName)
+            val ablage = if (unterordner == null) {
+                ziel
+            } else {
+                ziel.findFile(unterordner) ?: ziel.createDirectory(unterordner)
+            } ?: return false
+            val datei = ablage.findFile(dateiName) ?: ablage.createFile(mimeType, dateiName)
             if (datei == null) return false
             app.contentResolver.openOutputStream(datei.uri)?.use {
                 it.write(inhalt.toByteArray(Charsets.UTF_8))
