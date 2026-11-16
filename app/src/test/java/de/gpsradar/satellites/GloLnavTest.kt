@@ -260,50 +260,40 @@ class GloLnavTest {
     }
 
     /**
-     * Zeitbezug GLONASS→UTC aus String 5.
+     * Zeitbezug GLONASS→UTC aus String 5 — **echter Mitschnitt** vom 16.11.2026.
      *
-     * **Synthetisch**, weil der Rohbit-Mitschnitt GLONASS bisher auslässt: Die
-     * Felder werden nach GLONASS-ICD 5.1, Tabelle 4.11 gesetzt (τc auf Bit
-     * 38–69, N4 auf 32–36, NA auf 70–80) und der Dekoder muss sie wiederfinden.
-     * Die Gegenprobe am Gerät steht noch aus.
+     * Die Meldung kommt von Satellit 2, aufgenommen auf dem S20 FE. Die
+     * Bitlagen standen zuerst falsch (ich hatte die `b`-Nummern der ICD direkt
+     * als Index genommen); RTKLIBs `decode_glostr_utc` und ein 5-Bit-Feld mit
+     * dem Wert 8 auf Index 49–53 (Vierjahresintervall ab 1996 für 2026) haben
+     * die Zuordnung geklärt: **Index = 85 − b-Nummer**.
      */
     @Test
     fun zeitbezugAusString5() {
-        fun string5(
-            tauC: String = "0".repeat(32),
-            n4: String = "0".repeat(5),
-            na: String = "0".repeat(11)
-        ): String {
-            val b = StringBuilder("0".repeat(GloLnav.DATA_BITS))
-            // Stringnummer 5 an Bit 2–5 (unsere Helfer zählen ab ICD-Bit 1).
-            b.setCharAt(1, '0'); b.setCharAt(2, '1'); b.setCharAt(3, '0'); b.setCharAt(4, '1')
-            for (i in tauC.indices) b.setCharAt(37 + i, tauC[i])
-            for (i in n4.indices) b.setCharAt(31 + i, n4[i])
-            for (i in na.indices) b.setCharAt(69 + i, na[i])
-            return b.toString()
-        }
+        val b = bits("2C1B00000009200000E728")
+        assertEquals(5, GloLnav.stringId(b))
 
-        // 2⁻³¹ s: Vorzeichenbit + 31 Betragsbits.
-        val eins = "1".padStart(32, '0')          // +1 LSB
-        val minus = "1" + "0".repeat(31)          // Vorzeichen gesetzt, Betrag 0
-        val u = GloLnav.utc(string5(tauC = eins))!!
-        assertEquals(2.0.pow(-31), u.a0, 1e-20)
-        assertTrue(u.isUsable)
+        // τc = +4,19 · 10⁻⁹ s — Nanosekunden, wie es für GLONASS gehört.
+        val utc = GloLnav.utc(b)!!
+        assertEquals(4.190952e-9, utc.a0, 1e-15)
+        assertTrue(utc.isUsable)
 
-        // Vorzeichen und Betrag, nicht Zweierkomplement: eine gesetzte
-        // Vorzeichenstelle bei Betrag 0 ergibt 0, nicht -2³¹.
-        assertEquals(0.0, GloLnav.utc(string5(tauC = minus))!!.a0, 0.0)
+        // NA = 1051: derselbe Tag bei allen Satelliten dieser Aufnahme.
+        assertEquals(1051, GloLnav.almanacDayNumber(b))
 
-        // Betrag 5 mit Vorzeichen → -5 · 2⁻³¹.
-        val negFuenf = "1" + "0000000000000000000000000000101"
-        assertEquals(-5 * 2.0.pow(-31), GloLnav.utc(string5(tauC = negFuenf))!!.a0, 1e-20)
-
-        // NA = 700 (Tag im Vierjahresintervall), N4 bleibt ungenutzt.
-        assertEquals(700, GloLnav.almanacDayNumber(string5(na = "01010111100")))
+        // τGPS = +2,25 ms (GPS−GLONASS im Bruchteil).
+        assertEquals(2.253056e-3, GloLnav.gpsOffsetSeconds(b), 1e-9)
 
         // Andere Strings liefern nichts.
-        val b = StringBuilder("0".repeat(GloLnav.DATA_BITS))
-        b.setCharAt(1, '0'); b.setCharAt(4, '0')   // Stringnummer 0
-        assertNull(GloLnav.utc(b.toString()))
+        assertNull(GloLnav.utc(bits(sat1[0])))
+    }
+
+    /** Das Vierjahresintervall N4 (Index 49–53) ist 8 — der Anker für die Lage. */
+    @Test
+    fun vierjahresintervallBestaetigtDieLage() {
+        val b = bits("2C1B00000009200000E728")
+        var n4 = 0
+        for (i in 49..53) if (b[i] == '1') n4 = n4 * 2 + 1 else n4 *= 2
+        assertEquals(8, n4)
     }
 }
