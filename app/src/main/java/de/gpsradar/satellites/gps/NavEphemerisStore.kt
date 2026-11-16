@@ -10,6 +10,13 @@ import de.gpsradar.satellites.model.GloAxis
 import de.gpsradar.satellites.model.GloClock
 import de.gpsradar.satellites.model.GloEphemeris
 import de.gpsradar.satellites.model.GloLnav
+import de.gpsradar.satellites.model.GalClock
+import de.gpsradar.satellites.model.GalEphemeris
+import de.gpsradar.satellites.model.GalHealth
+import de.gpsradar.satellites.model.GalLnav
+import de.gpsradar.satellites.model.GalOrbitA
+import de.gpsradar.satellites.model.GalOrbitB
+import de.gpsradar.satellites.model.GalOrbitC
 import de.gpsradar.satellites.model.GpsClock
 import de.gpsradar.satellites.model.GpsEphemeris
 import de.gpsradar.satellites.model.GpsLnav
@@ -20,9 +27,10 @@ import de.gpsradar.satellites.model.GpsOrbitB
 data class NavEphemerides(
     val gps: List<GpsEphemeris> = emptyList(),
     val glo: List<GloEphemeris> = emptyList(),
-    val bds: List<BdsEphemeris> = emptyList()
+    val bds: List<BdsEphemeris> = emptyList(),
+    val gal: List<GalEphemeris> = emptyList()
 ) {
-    val total: Int get() = gps.size + glo.size + bds.size
+    val total: Int get() = gps.size + glo.size + bds.size + gal.size
 }
 
 /**
@@ -95,6 +103,22 @@ class NavEphemerisStore {
     private val bdsTeile = mutableMapOf<Int, BdsTeile>()
     private val bdsEphemerides = mutableMapOf<Int, BdsEphemeris>()
 
+    private class GalTeile {
+        var orbitA: GalOrbitA? = null
+        var orbitAAtMillis: Long = 0L
+        var orbitB: GalOrbitB? = null
+        var orbitBAtMillis: Long = 0L
+        var orbitC: GalOrbitC? = null
+        var orbitCAtMillis: Long = 0L
+        var clock: GalClock? = null
+        var clockAtMillis: Long = 0L
+        var health: GalHealth? = null
+        var healthAtMillis: Long = 0L
+    }
+
+    private val galTeile = mutableMapOf<Int, GalTeile>()
+    private val galEphemerides = mutableMapOf<Int, GalEphemeris>()
+
     /**
      * Eine Meldung aufnehmen. Liefert true, wenn sich dadurch ein vollständiger
      * Datensatz geändert hat — der Aufrufer veröffentlicht dann den neuen Stand.
@@ -105,6 +129,8 @@ class NavEphemerisStore {
             GnssNavigationMessage.TYPE_GPS_L1CA -> addGps(message.svid, data)
             GnssNavigationMessage.TYPE_GLO_L1CA -> addGlo(message.svid, data, nowMillis)
             GnssNavigationMessage.TYPE_BDS_D1 -> addBds(message.svid, data, nowMillis)
+            GnssNavigationMessage.TYPE_GAL_I ->
+                addGal(message.svid, message.submessageId, data, nowMillis)
             else -> false
         }
     }
@@ -113,7 +139,8 @@ class NavEphemerisStore {
     fun snapshot(): NavEphemerides = NavEphemerides(
         gps = gpsEphemerides.values.sortedBy { it.prn },
         glo = gloEphemerides.values.sortedBy { it.satelliteSlot },
-        bds = bdsEphemerides.values.sortedBy { it.prn }
+        bds = bdsEphemerides.values.sortedBy { it.prn },
+        gal = galEphemerides.values.sortedBy { it.prn }
     )
 
     fun clear() {
@@ -123,6 +150,8 @@ class NavEphemerisStore {
         gloEphemerides.clear()
         bdsTeile.clear()
         bdsEphemerides.clear()
+        galTeile.clear()
+        galEphemerides.clear()
     }
 
     // ---- GPS ----
@@ -298,6 +327,70 @@ class NavEphemerisStore {
         return changed
     }
 
+    // ---- Galileo ----
+
+    /**
+     * Die Worttypen 1–5 sammeln und zu einem Satz verbinden.
+     *
+     * Der Worttyp kommt aus `submessageId`; er muss mit Byte 0 der Rohdaten
+     * übereinstimmen (das Gerät liefert ihn an beiden Stellen). Weicht beides ab,
+     * ist die Meldung nicht zu trauen und wird verworfen.
+     *
+     * Die eigentlichen Prüfungen stecken in [GalEphemeris.of] — vor allem, dass
+     * IODnav in allen vier Bahnwörtern gleich ist. Sie sind der Grund, warum
+     * Geräte, deren HAL Galileo anders packt (Note 9 mit Android 10), hier
+     * nichts Falsches einliefern, sondern gar nichts.
+     */
+    private fun addGal(svid: Int, wordType: Int, data: ByteArray, nowMillis: Long): Boolean {
+        if (wordType != GalLnav.wordType(data)) return false
+        val bits = GalLnav.contentBits(data) ?: return false
+        val t = galTeile.getOrPut(svid) { GalTeile() }
+        when (wordType) {
+            1 -> {
+                t.orbitA = GalLnav.orbitA(bits) ?: return false
+                t.orbitAAtMillis = nowMillis
+            }
+            2 -> {
+                t.orbitB = GalLnav.orbitB(bits) ?: return false
+                t.orbitBAtMillis = nowMillis
+            }
+            3 -> {
+                t.orbitC = GalLnav.orbitC(bits) ?: return false
+                t.orbitCAtMillis = nowMillis
+            }
+            4 -> {
+                t.clock = GalLnav.clock(bits) ?: return false
+                t.clockAtMillis = nowMillis
+            }
+            5 -> {
+                t.health = GalLnav.health(bits) ?: return false
+                t.healthAtMillis = nowMillis
+            }
+            else -> return false // Worttypen 6–10: Ionosphäre, Zeit, Almanach
+        }
+
+        val orbitA = t.orbitA ?: return false
+        val orbitB = t.orbitB ?: return false
+        val orbitC = t.orbitC ?: return false
+        val clock = t.clock ?: return false
+        val health = t.health ?: return false
+        val frischAb = nowMillis - GAL_PART_MAX_AGE_MILLIS
+        if (t.orbitAAtMillis < frischAb || t.orbitBAtMillis < frischAb ||
+            t.orbitCAtMillis < frischAb || t.clockAtMillis < frischAb ||
+            t.healthAtMillis < frischAb
+        ) {
+            return false
+        }
+
+        // null heißt hier: Worttypen passen nicht zusammen (anderer IODnav,
+        // fremde Kennung, unplausible Bahn). Der letzte gültige Satz bleibt stehen.
+        val eph = GalEphemeris.of(svid, orbitA, orbitB, orbitC, clock, health)
+            ?: return false
+        val changed = galEphemerides[svid] != eph
+        galEphemerides[svid] = eph
+        return changed
+    }
+
     private companion object {
         /**
          * Ein vollständiger Durchlauf über die Strings 1–4 dauert 8 Sekunden,
@@ -312,6 +405,13 @@ class NavEphemerisStore {
          * schnell nicht nach.
          */
         const val BDS_PART_MAX_AGE_MILLIS = 60_000L
+
+        /**
+         * Galileo sendet je Seitenteil einen Worttyp; ein voller Durchlauf über
+         * die Typen 1–5 ist in wenigen Sekunden durch. Danach darf nichts länger
+         * als eine Minute auf seinen Gegenpart warten.
+         */
+        const val GAL_PART_MAX_AGE_MILLIS = 60_000L
         /** Rahmenzeit darf bis zu 35 Minuten nach tb liegen (Satzabstand 30 min). */
         const val GLO_FRAME_AFTER_TB_SECONDS = 2_100
 

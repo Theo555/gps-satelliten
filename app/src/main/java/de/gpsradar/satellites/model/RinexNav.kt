@@ -37,22 +37,26 @@ object RinexNav {
     fun write(
         gps: List<GpsEphemeris>,
         glo: List<GloEphemeris> = emptyList(),
-        bds: List<BdsEphemeris> = emptyList()
+        bds: List<BdsEphemeris> = emptyList(),
+        gal: List<GalEphemeris> = emptyList()
     ): String {
         val gpsSaetze = gps.filter { it.hasConsistentIode }.sortedBy { it.prn }
         val gloSaetze = glo.filter { it.hasPlausibleOrbit }.sortedBy { it.satelliteSlot }
         val bdsSaetze = bds.filter { it.hasConsistentToc }.sortedBy { it.prn }
+        val galSaetze = gal.filter { it.hasPlausibleOrbit }.sortedBy { it.prn }
         val sb = StringBuilder()
         sb.append(
             header(
-                gpsSaetze.size + gloSaetze.size + bdsSaetze.size,
+                gpsSaetze.size + gloSaetze.size + bdsSaetze.size + galSaetze.size,
                 gloSaetze.isNotEmpty(),
-                bdsSaetze.isNotEmpty()
+                bdsSaetze.isNotEmpty(),
+                galSaetze.isNotEmpty()
             )
         )
         for (e in gpsSaetze) sb.append(record(e))
         for (e in gloSaetze) sb.append(gloRecord(e))
         for (e in bdsSaetze) sb.append(bdsRecord(e))
+        for (e in galSaetze) sb.append(galRecord(e))
         return sb.toString()
     }
 
@@ -198,6 +202,87 @@ object RinexNav {
     }
 
     /**
+     * Ein Galileo-Satz zu acht Zeilen.
+     *
+     * Reihenfolge aus RTKLIB (`outrnxnavb`): af0–af2, dann IODnav/Crs/Δn/M0,
+     * Cuc/e/Cus/√A, Toe/Cic/Ω0/Cis, i0/Crc/ω/Ω̇, i̇/Datenquelle/Woche/Reserve,
+     * **SISA in Metern** mit Gesundheit und beiden Gruppenlaufzeiten, zuletzt die
+     * Sendezeit.
+     *
+     * Drei Feinheiten:
+     *
+     * - **SISA** steht im Signal als Index. In der Datei erwarten die Leser den
+     *   Nennwert in Metern und rechnen ihn beim Einlesen wieder auf den Index
+     *   zurück (`sisa_index` in RTKLIB) — Index 107 heißt 3,12 m.
+     * - **Datenquelle 512** (Bit 9) sagt: af0–af2 und toc gelten für E5b–E1.
+     *   RTKLIB setzt beim Dekodieren von I/NAV genau diesen Wert. Die
+     *   BRDC-Dateien desselben Tages führen 517, also zusätzlich Bit 0 („Quelle
+     *   ist I/NAV E1-B") und Bit 2 („F/NAV E5b-I") — für eine Datei, die nur aus
+     *   I/NAV entsteht, wäre Bit 2 falsch.
+     * - Die Epoche steht in Galileo-Zeit, die mit der GPS-Zeit gleichläuft und
+     *   deshalb mit derselben Rechnung wie bei GPS gebildet wird.
+     */
+    fun galRecord(e: GalEphemeris): String {
+        val parts = calendar(e.week, e.clock.tocSeconds)
+        val sb = StringBuilder()
+        sb.append(
+            String.format(
+                Locale.US,
+                "E%02d %4d %02d %02d %02d %02d %02d",
+                e.prn, parts[0], parts[1], parts[2], parts[3], parts[4], parts[5]
+            )
+        )
+        sb.append(plainValues(e.clock.af0, e.clock.af1, e.clock.af2)).append('\n')
+        sb.append(
+            values(e.iodNav.toDouble(), e.orbitC.crs, e.orbitC.deltaN, e.orbitA.m0)
+        ).append('\n')
+        sb.append(
+            values(e.orbitC.cuc, e.orbitA.eccentricity, e.orbitC.cus, e.orbitA.sqrtA)
+        ).append('\n')
+        sb.append(
+            values(e.toeSeconds.toDouble(), e.clock.cic, e.orbitB.omega0, e.clock.cis)
+        ).append('\n')
+        sb.append(
+            values(e.orbitB.i0, e.orbitC.crc, e.orbitB.omega, e.orbitC.omegaDot)
+        ).append('\n')
+        sb.append(
+            values(
+                e.orbitB.idot, GAL_DATA_SOURCES_I_NAV.toDouble(), e.week.toDouble(), 0.0
+            )
+        ).append('\n')
+        sb.append(
+            values(
+                e.sisaMetres, e.health.health.toDouble(),
+                e.health.bgdE5aE1, e.health.bgdE5bE1
+            )
+        ).append('\n')
+        sb.append(
+            values(transmissionSeconds(e).toDouble(), 0.0, 0.0, 0.0)
+        ).append('\n')
+        return sb.toString()
+    }
+
+    /**
+     * Sendezeit des Seitenteils in Sekunden der Galileo-Woche.
+     *
+     * Sie kommt aus Worttyp 5 und kann über den Wochenwechsel hinweg auf der
+     * anderen Seite von `toe` liegen; dann wird sie um eine Woche verschoben,
+     * damit sie im selben Bezug wie der Satz steht.
+     */
+    private fun transmissionSeconds(e: GalEphemeris): Int {
+        var ttr = e.health.transmissionSeconds
+        while (ttr - e.toeSeconds > SECONDS_PER_WEEK / 2) ttr -= SECONDS_PER_WEEK.toInt()
+        while (ttr - e.toeSeconds < -SECONDS_PER_WEEK / 2) ttr += SECONDS_PER_WEEK.toInt()
+        return ttr
+    }
+
+    /**
+     * Datenquelle im Galileo-Satz: Bit 9 — Uhr und Bezugszeit gelten für
+     * E5b–E1. RTKLIB setzt beim Dekodieren von I/NAV denselben Wert.
+     */
+    private const val GAL_DATA_SOURCES_I_NAV = 512
+
+    /**
      * URA-Index auf seinen Nennwert in Metern — dieselbe Tabelle wie in RTKLIB
      * (`ura_nominal` in `rinex.c`). Index 0 heißt 2,0 m; alles ab 15 ist
      * „unbekannt" und wird als 8192 m geschrieben.
@@ -235,13 +320,14 @@ object RinexNav {
     private fun header(
         count: Int,
         mitGlonass: Boolean,
-        mitBeidou: Boolean = false
+        mitBeidou: Boolean = false,
+        mitGalileo: Boolean = false
     ): String = buildString {
         // RINEX 3 verlangt in Zeile 1 nicht nur den Dateityp, sondern in
         // Spalte 41 auch das System. Bis 16.11. stand hier der RINEX-2-Text
         // („NAVIGATION DATA"), womit die Datei formal keinem RINEX-3-Nav-File
         // entsprach — RTKLIB las sie trotzdem, andere Werkzeuge vielleicht nicht.
-        val system = if (mitGlonass || mitBeidou) "M: Mixed" else "G: GPS"
+        val system = if (mitGlonass || mitBeidou || mitGalileo) "M: Mixed" else "G: GPS"
         val kopf = String.format(
             Locale.US, "%9.2f           %-20s%-20s", 3.04, "N: GNSS NAV DATA", system
         )
@@ -250,6 +336,7 @@ object RinexNav {
             append("       GPS")
             if (mitGlonass) append(" GLO")
             if (mitBeidou) append(" BDS")
+            if (mitGalileo) append(" GAL")
         }
         append(headerLine("GPS-Satelliten$systeme", "PGM / RUN BY / DATE"))
         append(headerLine("Aus Navigationsnachrichten dekodiert", "COMMENT"))

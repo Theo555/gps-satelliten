@@ -18,9 +18,10 @@ import org.junit.Test
  *
  * Zwei Eigenschaften sind wichtiger, als sie aussehen:
  *
- * - **GPS und GLONASS werden nicht mitgeschrieben.** Ihre Meldungen kommen im
- *   Sekundentakt je Satellit; ein zehnminütiger Feldtest würde damit Tausende
- *   Zeilen schreiben, in denen das Gesuchte untergeht.
+ * - **GPS, GLONASS und Galileo werden nicht mitgeschrieben.** Ihre Meldungen
+ *   kommen im Sekundentakt je Satellit; ein zehnminütiger Feldtest würde damit
+ *   Tausende Zeilen schreiben, in denen das Gesuchte untergeht. Für alle drei
+ *   gibt es inzwischen einen Dekoder.
  * - **Negative Bytes müssen als zweistelliges Hex erscheinen.** In Kotlin ist
  *   `Byte` vorzeichenbehaftet; ohne `and 0xFF` wird aus `0xAB` die Zeichenkette
  *   `FFFFFFAB` und der Mitschnitt ist unbrauchbar.
@@ -64,14 +65,16 @@ class NavDumpTest {
     }
 
     @Test
-    fun galileoWirdMitgeschrieben() {
-        val line = navDumpLine(
-            seq = 8, type = GnssNavigationMessage.TYPE_GAL_I, svid = 11,
-            messageId = 2, submessageId = 2, status = 1,
-            data = hex("00FE")
+    fun galileoWirdNichtMitgeschrieben() {
+        // Seit dem 16.11.2026 gibt es einen I/NAV-Dekoder; die Meldungen würden
+        // die Ausgabe nur noch überschwemmen.
+        assertNull(
+            navDumpLine(
+                seq = 8, type = GnssNavigationMessage.TYPE_GAL_I, svid = 11,
+                messageId = 2, submessageId = 2, status = 1,
+                data = hex("00FE")
+            )
         )
-        assertNotNull(line)
-        assertTrue(line!!.startsWith("n=8 type=Galileo I/NAV svid=11 msg=2 sub=2 status=1 data=00 FE"))
     }
 
     @Test

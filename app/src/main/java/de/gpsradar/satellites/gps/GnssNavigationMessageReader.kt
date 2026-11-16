@@ -229,7 +229,7 @@ class GnssNavigationMessageReader(
             TAG,
             "Navigationsnachrichten: " + parts.joinToString(" · ") +
                 " · Ephemeriden fertig: GPS ${fertig.gps.size}, GLONASS ${fertig.glo.size}" +
-                ", BeiDou ${fertig.bds.size}" +
+                ", BeiDou ${fertig.bds.size}, Galileo ${fertig.gal.size}" +
                 mitschnitt
         )
     }
@@ -304,9 +304,9 @@ class GnssNavigationMessageReader(
  * Eine Zeile für den Rohbit-Mitschnitt, oder null, wenn die Meldung nicht
  * mitgeschrieben wird.
  *
- * Übersprungen werden GPS (L1 C/A) und GLONASS (L1 C/A): Für beide gibt es einen
- * fertigen Dekoder, und ihre Meldungen würden die Ausgabe überschwemmen.
- * Mitgeschrieben wird nur, was noch keinen Dekoder hat.
+ * Übersprungen werden GPS (L1 C/A), GLONASS (L1 C/A) und Galileo (I/NAV): Für
+ * alle drei gibt es einen fertigen Dekoder, und ihre Meldungen würden die
+ * Ausgabe überschwemmen. Mitgeschrieben wird nur, was noch keinen Dekoder hat.
  *
  * Der Aufbau ist bewusst schlicht und leicht zu trennen — der Meldungstyp kann
  * Leerzeichen enthalten, deshalb steht das Hex-Feld als letztes und alles
@@ -322,7 +322,8 @@ internal fun navDumpLine(
     data: ByteArray?
 ): String? {
     if (type == GnssNavigationMessage.TYPE_GPS_L1CA ||
-        type == GnssNavigationMessage.TYPE_GLO_L1CA
+        type == GnssNavigationMessage.TYPE_GLO_L1CA ||
+        type == GnssNavigationMessage.TYPE_GAL_I
     ) {
         return null
     }
