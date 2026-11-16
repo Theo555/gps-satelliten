@@ -286,6 +286,13 @@ object RinexNav {
      * URA-Index auf seinen Nennwert in Metern — dieselbe Tabelle wie in RTKLIB
      * (`ura_nominal` in `rinex.c`). Index 0 heißt 2,0 m; alles ab 15 ist
      * „unbekannt" und wird als 8192 m geschrieben.
+     *
+     * **Bewusst auch für BeiDou:** Die B1I-ICD (Tabelle 5-4) nennt für ihren
+     * URAI andere Grenzen (2,40 / 3,40 / 4,85 / 6,85 … m). Geschrieben wird
+     * trotzdem die GPS-Treppe, weil RTKLIB beim Einlesen mit `uraindex()` genau
+     * diese Tabelle verwendet: 2,8 m ergibt dort wieder Index 1, ein Wert von
+     * 3,40 m dagegen Index 2. Mit der BeiDou-Tabelle wäre die Datei also nicht
+     * mehr verlustfrei lesbar — der Zahlenwert sähe genauer aus und wäre falsch.
      */
     private fun uraNominal(index: Int): Double =
         if (index in URA_NOMINAL.indices) URA_NOMINAL[index] else 8192.0

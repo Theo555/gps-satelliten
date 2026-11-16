@@ -237,4 +237,24 @@ class GloLnavTest {
         assertTrue(RinexNav.write(emptyList(), listOf(e)).contains("END OF HEADER"))
         assertTrue(!RinexNav.write(emptyList(), listOf(e)).contains("R19"))
     }
+
+    @Test
+    fun gesundheitNimmtNurDasHoechsteBit() {
+        // `Bn` belegt Bit 7–9 des Strings, aber die ICD (§4.4) sagt: „The user
+        // navigation equipment analyzes the only one MSB of this word … does not
+        // consider both second and third bits.“ Bis zum 16.11.2026 nahm die App
+        // alle drei Bit — ein gesetztes Reservebit hätte eine Störung gemeldet.
+        fun mitBn(muster: String): String {
+            val b = StringBuilder("0".repeat(GloLnav.DATA_BITS))
+            for (i in 0 until 3) b.setCharAt(6 + i, muster[i])
+            return b.toString()
+        }
+        assertEquals(0, GloLnav.health(mitBn("000")))
+        assertEquals(0, GloLnav.health(mitBn("001")))
+        assertEquals(0, GloLnav.health(mitBn("011")))
+        assertEquals(1, GloLnav.health(mitBn("100")))
+        assertEquals(1, GloLnav.health(mitBn("111")))
+        // Gegenprobe am echten Mitschnitt: Bn = 000.
+        assertEquals(0, GloLnav.health(bits(sat1[1])))
+    }
 }

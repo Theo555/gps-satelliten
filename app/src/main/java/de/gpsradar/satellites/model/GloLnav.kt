@@ -35,13 +35,15 @@ package de.gpsradar.satellites.model
  * in `GnssNavigationMessage.getStatus`; ein Nachbau wäre eine zweite
  * Fehlerquelle ohne Gewinn.
  *
- * Die Frequenznummer (F_T, Bit 53–56 aus String 4) wird nicht ausgewertet. Das
- * S20 FE liefert dort keine brauchbaren Werte: zwei Satelliten mit
- * nachweislich verschiedenen Kanälen (gemessene Trägerfrequenz 1602,0 und
- * 1602,6 MHz) senden an dieser Stelle denselben Wert. In die RINEX-Datei geht
- * deshalb 0 — derselbe Wert, den RTKLIB selbst setzt, wenn es Ephemeriden aus
- * Rohdaten baut (`rcvraw.c`: „geph->frq is set to 0"). Für die Bahnrechnung
- * wird die Nummer nicht gebraucht, nur für die RTCM-3-Ausgabe.
+ * Die Frequenznummer wird nicht ausgewertet — sie steht bei GLONASS auch gar
+ * nicht in den unmittelbaren Daten, sondern im **Almanach** (§4.5), den diese
+ * App nicht liest. In die RINEX-Datei geht deshalb 0: derselbe Wert, den RTKLIB
+ * setzt, wenn es Ephemeriden aus Rohdaten baut (`rcvraw.c`: „geph->frq is set
+ * to 0"). Für die Bahnrechnung wird sie nicht gebraucht, nur für RTCM 3.
+ *
+ * Das Wort **FT** im vierten String ist ebenfalls nicht die Frequenznummer,
+ * sondern die vorhergesagte Bahngenauigkeit zum Zeitpunkt `tb` (Tabelle 4.4 der
+ * ICD, Abstufungen von 1 m bis 7 m). Es wird nicht ausgewertet.
  */
 object GloLnav {
 
@@ -102,8 +104,16 @@ object GloLnav {
             unsigned(bits, 15, 6).toInt() * 60 +
             unsigned(bits, 21, 1).toInt() * 30
 
-    /** Gesundheitszustand `Bn` aus String 2: 0 heißt gesund. */
-    fun health(bits: String): Int = unsigned(bits, 6, 3).toInt()
+    /**
+     * Gesundheitszustand `Bn` aus String 2 — **nur das höchstwertige Bit zählt**.
+     *
+     * `Bn` ist drei Bit breit, aber die ICD (§4.4) sagt ausdrücklich: „The user
+     * navigation equipment analyzes the only one MSB of this word … does not
+     * consider both second and third bits.“ Würde man alle drei Bit nehmen,
+     * meldete ein Satellit mit gesetztem Reservebit fälschlich „krank“ — und in
+     * der Navigationsdatei stünde eine Störung, die es nicht gibt.
+     */
+    fun health(bits: String): Int = if (bits[6] == '1') 1 else 0
 
     /**
      * `tb`-Index aus String 2: Nummer des 15-Minuten-Intervalls, in dem der

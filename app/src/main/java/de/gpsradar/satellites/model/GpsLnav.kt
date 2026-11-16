@@ -102,6 +102,11 @@ object GpsLnav {
             cus = signed(bits, 168, 16) * P2_29,
             sqrtA = unsigned(bits, 184, 32) * P2_19,
             toeSeconds = (unsigned(bits, 216, 16) * 16).toInt(),
+            // Fit-Intervall-Kennzeichen (IS-GPS-200, §20.3.3.4.3.1): 0 heißt
+            // Normalbetrieb mit 4-Stunden-Passung, 1 heißt erweiterter Betrieb
+            // („länger als 4 Stunden“, §6.2.3). In die RINEX-Zeile gehört eine
+            // Stundenzahl; geschrieben wird wie in RTKLIB 4,0 bzw. 0,0. Der Wert
+            // geht in keine Positionsrechnung ein.
             fitHours = if (unsigned(bits, 232, 1) == 0L) 4.0 else 0.0
         )
     }
@@ -126,7 +131,11 @@ object GpsLnav {
      * Wochenzahl auf den vollen Wert bringen.
      *
      * Im Signal stehen nur 10 Bit (0..1023); in einer RINEX-Datei wird die volle
-     * Woche erwartet. RTKLIB macht in `adjgpsweek()` dasselbe Aufaddieren.
+     * Woche erwartet. RTKLIB macht in `adjgpsweek()` dasselbe Aufaddieren, nimmt
+     * dafür aber die aktuelle Uhrzeit als Anhaltspunkt. Hier steht eine feste
+     * Grenze: alles unter 2048 gilt als „vor der zweiten Wiederholung" und
+     * bekommt 1024 dazu. Das trägt von 2019 bis 2039 (Woche 2048–3071); danach
+     * müsste die Grenze mitwandern.
      */
     fun expandWeek(week: Int): Int {
         var w = week
