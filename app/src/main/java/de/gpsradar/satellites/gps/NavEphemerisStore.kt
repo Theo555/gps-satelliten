@@ -145,7 +145,6 @@ class NavEphemerisStore {
      */
     private var gpsIono: KlobucharIono? = null
     private var gpsUtc: UtcCorrection? = null
-    private var gloUtc: UtcCorrection? = null
     private var bdsIono: KlobucharIono? = null
     private var bdsUtc: UtcCorrection? = null
     private var galIono: GalIonosphere? = null
@@ -176,7 +175,6 @@ class NavEphemerisStore {
         corrections = NavCorrections(
             gpsIono = gpsIono,
             gpsUtc = gpsUtc,
-            gloUtc = gloUtc,
             galIono = galIono,
             galUtc = galUtc,
             bdsIono = bdsIono,
@@ -199,7 +197,6 @@ class NavEphemerisStore {
         almanac.clear()
         gpsIono = null
         gpsUtc = null
-        gloUtc = null
         bdsIono = null
         bdsUtc = null
         galIono = null
@@ -316,14 +313,7 @@ class NavEphemerisStore {
                 t.clock = clock
                 t.clockAtMillis = nowMillis
             }
-            else -> {
-                // Strings 5–15: String 5 trägt den Zeitbezug GLONASS→UTC(SU).
-                // Der Almanach der übrigen Strings wird nicht ausgewertet.
-                val utc = GloLnav.utc(bits) ?: return false
-                if (!utc.isUsable || utc == gloUtc) return false
-                gloUtc = utc
-                return true
-            }
+            else -> return false // Strings 5–15: UTC-Parameter und Almanach
         }
 
         val eph = complete(svid, t, nowMillis) ?: return false

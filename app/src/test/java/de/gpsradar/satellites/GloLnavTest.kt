@@ -1,7 +1,6 @@
 package de.gpsradar.satellites
 
 import de.gpsradar.satellites.model.GloEphemeris
-import kotlin.math.pow
 import de.gpsradar.satellites.model.GloLnav
 import de.gpsradar.satellites.model.RinexNav
 import java.util.Calendar
@@ -257,53 +256,5 @@ class GloLnavTest {
         assertEquals(1, GloLnav.health(mitBn("111")))
         // Gegenprobe am echten Mitschnitt: Bn = 000.
         assertEquals(0, GloLnav.health(bits(sat1[1])))
-    }
-
-    /**
-     * Zeitbezug GLONASS→UTC aus String 5.
-     *
-     * **Synthetisch**, weil der Rohbit-Mitschnitt GLONASS bisher auslässt: Die
-     * Felder werden nach GLONASS-ICD 5.1, Tabelle 4.11 gesetzt (τc auf Bit
-     * 38–69, N4 auf 32–36, NA auf 70–80) und der Dekoder muss sie wiederfinden.
-     * Die Gegenprobe am Gerät steht noch aus.
-     */
-    @Test
-    fun zeitbezugAusString5() {
-        fun string5(
-            tauC: String = "0".repeat(32),
-            n4: String = "0".repeat(5),
-            na: String = "0".repeat(11)
-        ): String {
-            val b = StringBuilder("0".repeat(GloLnav.DATA_BITS))
-            // Stringnummer 5 an Bit 2–5 (unsere Helfer zählen ab ICD-Bit 1).
-            b.setCharAt(1, '0'); b.setCharAt(2, '1'); b.setCharAt(3, '0'); b.setCharAt(4, '1')
-            for (i in tauC.indices) b.setCharAt(37 + i, tauC[i])
-            for (i in n4.indices) b.setCharAt(31 + i, n4[i])
-            for (i in na.indices) b.setCharAt(69 + i, na[i])
-            return b.toString()
-        }
-
-        // 2⁻³¹ s: Vorzeichenbit + 31 Betragsbits.
-        val eins = "1".padStart(32, '0')          // +1 LSB
-        val minus = "1" + "0".repeat(31)          // Vorzeichen gesetzt, Betrag 0
-        val u = GloLnav.utc(string5(tauC = eins))!!
-        assertEquals(2.0.pow(-31), u.a0, 1e-20)
-        assertTrue(u.isUsable)
-
-        // Vorzeichen und Betrag, nicht Zweierkomplement: eine gesetzte
-        // Vorzeichenstelle bei Betrag 0 ergibt 0, nicht -2³¹.
-        assertEquals(0.0, GloLnav.utc(string5(tauC = minus))!!.a0, 0.0)
-
-        // Betrag 5 mit Vorzeichen → -5 · 2⁻³¹.
-        val negFuenf = "1" + "0000000000000000000000000000101"
-        assertEquals(-5 * 2.0.pow(-31), GloLnav.utc(string5(tauC = negFuenf))!!.a0, 1e-20)
-
-        // NA = 700 (Tag im Vierjahresintervall), N4 bleibt ungenutzt.
-        assertEquals(700, GloLnav.almanacDayNumber(string5(na = "01010111100")))
-
-        // Andere Strings liefern nichts.
-        val b = StringBuilder("0".repeat(GloLnav.DATA_BITS))
-        b.setCharAt(1, '0'); b.setCharAt(4, '0')   // Stringnummer 0
-        assertNull(GloLnav.utc(b.toString()))
     }
 }

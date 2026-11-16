@@ -74,15 +74,5 @@ data class NavCorrections(
     val galIono: GalIonosphere? = null,
     val galUtc: UtcCorrection? = null,
     val bdsIono: KlobucharIono? = null,
-    val bdsUtc: UtcCorrection? = null,
-    /**
-     * GLONASS zu UTC(SU): A₀ ist die Korrektur τc.
-     *
-     * Die GLONASS-Nachricht liefert dazu nur den Tag `NA`, auf den sich der
-     * Wert bezieht, und mit τGPS auch den Abstand zu GPS — beides hat in der
-     * RINEX-Zeile `GLUT` keinen Platz (dort stehen A₀, A₁, T, W wie bei den
-     * anderen Systemen). T und W bleiben deshalb 0; wer τc zeitlich einordnen
-     * muss, braucht `NA` aus derselben Meldung.
-     */
-    val gloUtc: UtcCorrection? = null
+    val bdsUtc: UtcCorrection? = null
 )
