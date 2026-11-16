@@ -231,13 +231,21 @@ object RinexNav {
         return sb.toString()
     }
 
-    /** Kopfzeilen; die Kennung steht rechtsbündig in Spalte 60–80. */
+    /** Kopfzeilen; die Kennung rechtsbündig in Spalte 60–80. */
     private fun header(
         count: Int,
         mitGlonass: Boolean,
         mitBeidou: Boolean = false
     ): String = buildString {
-        append(headerLine("     3.04           NAVIGATION DATA", "RINEX VERSION / TYPE"))
+        // RINEX 3 verlangt in Zeile 1 nicht nur den Dateityp, sondern in
+        // Spalte 41 auch das System. Bis 16.11. stand hier der RINEX-2-Text
+        // („NAVIGATION DATA"), womit die Datei formal keinem RINEX-3-Nav-File
+        // entsprach — RTKLIB las sie trotzdem, andere Werkzeuge vielleicht nicht.
+        val system = if (mitGlonass || mitBeidou) "M: Mixed" else "G: GPS"
+        val kopf = String.format(
+            Locale.US, "%9.2f           %-20s%-20s", 3.04, "N: GNSS NAV DATA", system
+        )
+        append(headerLine(kopf, "RINEX VERSION / TYPE"))
         val systeme = buildString {
             append("       GPS")
             if (mitGlonass) append(" GLO")

@@ -248,6 +248,11 @@ class BdsLnavTest {
     fun navDateiNenntBeidouImKopf() {
         val e = satz(14, c14Sf1, c14Sf2, c14Sf3)!!
         val datei = RinexNav.write(emptyList(), emptyList(), listOf(e))
+        // RINEX 3: Dateityp und System in Zeile 1, dazu die Systemliste im
+        // PGM-Feld. Ohne „N: GNSS NAV DATA" und „M: Mixed" ist die Datei formal
+        // kein RINEX-3-Navigationsfile.
+        assertTrue(datei.contains("N: GNSS NAV DATA"))
+        assertTrue(datei.contains("M: Mixed"))
         assertTrue(datei.contains("BDS"))
         assertTrue(datei.contains("C14 2026 11 16 08 00 00"))
         assertEquals(1, datei.lines().count { it.startsWith("C") })
