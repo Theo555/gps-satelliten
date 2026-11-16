@@ -112,6 +112,18 @@ class GnssNavigationMessageReader(
 
     fun unregister() {
         mainHandler.removeCallbacks(retry)
+        // Noch einmal zusammenfassen, bevor der Takt gelöscht wird.
+        //
+        // Der Übersichtstakt wird 60 Sekunden nach der ersten Meldung fällig.
+        // Wer die App vorher in den Hintergrund schickt — und das passiert beim
+        // Export, beim Sperren des Bildschirms oder beim Tabwechsel —, hat die
+        // Zeile sonst nie im Protokoll. Am 16.11. stand ich deshalb vor einem
+        // Mitschnitt ohne jede Zusammenfassung und hielt den Kanal für tot.
+        //
+        // Die Zähler sind absichtlich kumulativ: Sie zeigen, was dieses Gerät
+        // insgesamt liefert, nicht pro Sitzung. Mehrfache Zeilen mit gleichen
+        // Zahlen sind daher normal.
+        if (summaryRunning && summaryCount.isNotEmpty()) logSummary()
         mainHandler.removeCallbacks(summaryTick)
         summaryRunning = false
         attempts = 0
