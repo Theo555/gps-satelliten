@@ -67,6 +67,7 @@ object GloLnav {
     private const val P2_11 = 1.0 / 2048.0
     private const val P2_20 = 1.0 / 1_048_576.0
     private const val P2_30 = 1.0 / 1_073_741_824.0
+    private const val P2_31 = 1.0 / 2_147_483_648.0
     private const val P2_40 = 1.0 / 1_099_511_627_776.0
 
     /**
@@ -124,6 +125,54 @@ object GloLnav {
 
     /** Relative Frequenzabweichung γn aus String 3. */
     fun gamma(bits: String): Double = signMagnitude(bits, 7, 11) * P2_40
+
+    /**
+     * Zeitbezug GLONASS zu UTC(SU) aus **String 5** — die Korrektur τc.
+     *
+     * Feldlagen aus GLONASS-ICD 5.1, **Tabelle 4.11** („Arrangement of
+     * non-immediate information within frame“), Breiten und Skalen aus Tabelle
+     * 4.9:
+     *
+     * | Feld | Bits im String | Breite | Skala |
+     * |---|---|---|---|
+     * | τGPS (GPS−GLONASS) | 10–31 | 22 | 2⁻³⁰ Tag |
+     * | N4 (Vierjahresintervall ab 1996) | 32–36 | 5 | 1 |
+     * | **τc (GLONASS→UTC(SU))** | **38–69** | **32** | **2⁻³¹ s** |
+     * | NA (Tag im Vierjahresintervall) | 70–80 | 11 | 1 |
+     *
+     * τc hat bei GLONASS-M 32 Bit (Anmerkung 4 zu Tabelle 4.9: „will occupy
+     * 38th to 69th bits“), bei älteren Satelliten nur 28 Bit mit 2⁻²⁷; wir
+     * lesen die 32-Bit-Fassung, weil alle heutigen Satelliten GLONASS-M oder
+     * neuer sind.
+     *
+     * **Für RINEX:** τc wird zu A₀ der Zeile `GLUT`. Die zugehörige Bezugszeit
+     * gibt die ICD nur als „Beginn des Tages NA“ an — ein Gegenstück zu den
+     * Feldern T und W der RINEX-Zeile existiert nicht, beide bleiben deshalb 0.
+     * Wer τc genau braucht, muss NA aus derselben Meldung mitlesen (siehe
+     * [dayNumber]).
+     */
+    fun utc(bits: String): UtcCorrection? {
+        if (stringId(bits) != 5) return null
+        return UtcCorrection(
+            a0 = signMagnitude(bits, 38, 32) * P2_31,
+            a1 = 0.0,
+            deltaLs = 0,
+            referenceSeconds = 0,
+            weekNumber = 0,
+            deltaLsf = 0,
+            weekNumberLsf = 0,
+            dayNumber = 0
+        )
+    }
+
+    /** Tag `NA`, auf den sich τc und der Almanach beziehen (String 5, Bit 70–80). */
+    fun almanacDayNumber(bits: String): Int =
+        if (stringId(bits) != 5) 0 else unsigned(bits, 70, 11).toInt()
+
+    /** Korrektur GPS−GLONASS (τGPS) aus String 5, in Sekunden. */
+    fun gpsOffsetSeconds(bits: String): Double =
+        if (stringId(bits) != 5) 0.0
+        else signMagnitude(bits, 10, 22) * P2_30 * SECONDS_PER_DAY
 
     /** Uhr- und Kennungsdaten aus String 4. */
     fun clock(bits: String): GloClock = GloClock(
