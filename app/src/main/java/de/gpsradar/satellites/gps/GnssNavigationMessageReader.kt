@@ -11,6 +11,7 @@ import android.util.Log
 import de.gpsradar.satellites.R
 import de.gpsradar.satellites.model.Constellation
 import de.gpsradar.satellites.model.GnssNavMessage
+import de.gpsradar.satellites.model.GloLnav
 import de.gpsradar.satellites.model.GpsLnav
 import java.util.Locale
 import java.util.concurrent.Executor
@@ -305,11 +306,14 @@ class GnssNavigationMessageReader(
  * Eine Zeile für den Rohbit-Mitschnitt, oder null, wenn die Meldung nicht
  * mitgeschrieben wird.
  *
- * Übersprungen werden GLONASS (L1 C/A) und Galileo (I/NAV): Für beide gibt es
- * einen fertigen Dekoder, und ihre Meldungen würden die Ausgabe überschwemmen.
- * Von GPS werden nur die **Unterrahmen 4 und 5** mitgeschrieben — dort stehen
- * Ionosphären- und UTC-Parameter, und dieser Teil hat noch keinen Dekoder.
- * Unterrahmen 1–3 kommen im Sekundentakt und bleiben draußen.
+ * Von GPS kommen nur die **Unterrahmen 4 und 5** mit — dort stehen
+ * Ionosphären-, UTC- und Almanachdaten. Unterrahmen 1–3 kommen im Sekundentakt
+ * und bleiben draußen.
+ *
+ * Von GLONASS kommt nur **String 5** mit: er trägt den Zeitbezug zu UTC(SU)
+ * (τc) und den Tag, auf den sich der Almanach bezieht. Die Strings 1–4 und 6–15
+ * haben fertige Dekoder (Ephemeride) bzw. würden die Ausgabe überschwemmen.
+ * Galileo (I/NAV) bleibt ganz draußen; die Worttypen 1–6 sind dekodiert.
  *
  * Der Aufbau ist bewusst schlicht und leicht zu trennen — der Meldungstyp kann
  * Leerzeichen enthalten, deshalb steht das Hex-Feld als letztes und alles
@@ -324,17 +328,22 @@ internal fun navDumpLine(
     status: Int,
     data: ByteArray?
 ): String? {
-    if (type == GnssNavigationMessage.TYPE_GLO_L1CA ||
-        type == GnssNavigationMessage.TYPE_GAL_I
-    ) {
+    if (type == GnssNavigationMessage.TYPE_GAL_I) return null
+    if (data == null || data.isEmpty()) return null
+    if (type == GnssNavigationMessage.TYPE_GLO_L1CA && !isGloUtcString(data)) {
         return null
     }
-    if (data == null || data.isEmpty()) return null
     if (type == GnssNavigationMessage.TYPE_GPS_L1CA && !isGpsIonoUtcPage(data)) {
         return null
     }
     return "n=$seq type=${navTypeLabel(type)} svid=$svid msg=$messageId " +
         "sub=$submessageId status=$status data=${hexOf(data)}"
+}
+
+/** Ist das der GLONASS-String 5 (Zeitbezug zu UTC und Almanach-Bezugstag)? */
+internal fun isGloUtcString(data: ByteArray): Boolean {
+    val bits = GloLnav.dataBits(data) ?: return false
+    return GloLnav.stringId(bits) == 5
 }
 
 /** Rohbytes als Hex, durch Leerzeichen getrennt. */
