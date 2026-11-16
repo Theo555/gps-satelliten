@@ -354,6 +354,9 @@ object RinexNav {
         // Ionosphäre und UTC-Bezug: RTKLIB rechnet das Klobuchar-Modell nur,
         // wenn diese Zeilen im Kopf stehen. Ohne sie bleibt der ionosphärische
         // Fehler (5 bis 15 m) in der Einzelpunktlösung steckend.
+        // Achtung: `rnx2rtkp` hat das Modell ausserdem standardmaessig AUS
+        // (prcopt_default: ionoopt=0); es braucht ionoopt=brdc aus der
+        // Konfigurationsdatei. Die Zeilen allein aendern an der Loesung nichts.
         corrections.gpsIono?.takeIf { it.isUsable }?.let {
             append(ionoLine("GPSA", it.alpha))
             append(ionoLine("GPSB", it.beta))
@@ -368,6 +371,14 @@ object RinexNav {
         corrections.gpsUtc?.takeIf { it.isUsable }?.let { append(utcLine("GPUT", it)) }
         corrections.galUtc?.takeIf { it.isUsable }?.let { append(utcLine("GAUT", it)) }
         corrections.bdsUtc?.takeIf { it.isUsable }?.let { append(utcLine("BDUT", it)) }
+        // Die Schaltsekunde selbst gehoert nicht in TIME SYSTEM CORR (dort
+        // stehen nur A0, A1, Bezugszeit, Woche), sondern in eine eigene Zeile.
+        // Nur eine: GPS, Galileo, QZSS und IRN sind schaltsekundengleich
+        // (RINEX 3.04, Anhang A5, Anmerkung 1), ein zweiter Satz fuer BeiDou
+        // wuerde bei RTKLIB den ersten ueberschreiben - dessen Leser
+        // (decode_navh) schreibt jede LEAP-SECONDS-Zeile nach utc_gps.
+        val leaps = (corrections.gpsUtc ?: corrections.galUtc)?.takeIf { it.isUsable }
+        leaps?.let { append(leapSecondsLine(it)) }
         append(headerLine("", "END OF HEADER"))
     }
 
@@ -396,6 +407,21 @@ object RinexNav {
         sb.append(String.format(Locale.US, "%16.9E", u.a1))
         sb.append(String.format(Locale.US, "%7d%5d", u.referenceSeconds, u.weekNumber))
         return headerLine(sb.toString(), "TIME SYSTEM CORR")
+    }
+
+    /**
+     * Die geltende Schaltsekunde: „N, ΔtLSF, WN_LSF, DN“ und das Zeitsystem.
+     *
+     * RINEX 3.04, Anhang A5: vier Felder zu je sechs Zeichen (`I6`), danach ein
+     * dreistelliges Kürzel (`A3`) — leer bedeutet GPS. RTKLIB schreibt dieselbe
+     * Aufteilung (`out_leaps`), gelesen wird sie spaltenweise aus 0/6/12/18.
+     */
+    private fun leapSecondsLine(u: UtcCorrection): String {
+        val werte = String.format(
+            Locale.US, "%6d%6d%6d%6d%3s",
+            u.deltaLs, u.deltaLsf, u.weekNumberLsf, u.dayNumber, ""
+        )
+        return headerLine(werte, "LEAP SECONDS")
     }
 
     private fun headerLine(text: String, label: String): String =

@@ -1,6 +1,8 @@
 package de.gpsradar.satellites
 
 import de.gpsradar.satellites.model.GpsLnav
+import de.gpsradar.satellites.model.NavCorrections
+import de.gpsradar.satellites.model.RinexNav
 import kotlin.math.pow
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -59,11 +61,12 @@ class GpsIonoUtcTest {
         setze(b, 144, 8, 0)                // A0 untere 8 Bit
         setze(b, 152, 16, 0)               // A1 obere 16 Bit
         setze(b, 168, 8, 0)                // A1 untere 8 Bit
-        setze(b, 176, 8, 18)               // Schaltsekunde
-        setze(b, 184, 8, 24)               // Bezugszeit in Stunden
-        setze(b, 192, 8, 137)              // WNt
-        setze(b, 200, 8, 18)               // künftige Schaltsekunde
-        setze(b, 208, 8, 140)              // WN_LSF
+        setze(b, 176, 8, 78)               // tot in Schritten von 4096 s
+        setze(b, 184, 8, 141)              // WNt (2445 mod 256)
+        setze(b, 192, 8, 18)               // Schaltsekunde
+        setze(b, 200, 8, 137)              // WNLSF
+        setze(b, 208, 8, 7)                // DN
+        setze(b, 216, 8, 18)               // künftige Schaltsekunde
         return String(b)
     }
 
@@ -109,9 +112,41 @@ class GpsIonoUtcTest {
         assertEquals(0.0, utc.a0, 0.0)
         assertEquals(0.0, utc.a1, 0.0)
         assertEquals(18, utc.deltaLs)
-        assertEquals(24 * 3600, utc.referenceSeconds)
-        assertEquals(137, utc.weekNumber)
+        assertEquals(78 * 4096, utc.referenceSeconds)
+        assertEquals(141, utc.weekNumber)
+        assertEquals(137, utc.weekNumberLsf)
+        assertEquals(7, utc.dayNumber)
         assertEquals(18, utc.deltaLsf)
-        assertEquals(140, utc.weekNumberLsf)
+    }
+
+    @Test
+    fun kopfzeileSchreibtDieSchaltsekunde() {
+        val utc = GpsLnav.utc(GpsLnav.dataBits(gpsBytes(seite18()))!!)!!
+        val datei = RinexNav.write(
+            gps = emptyList(),
+            corrections = NavCorrections(gpsUtc = utc)
+        )
+        val zeile = datei.lines().single { it.endsWith("LEAP SECONDS") }
+        // Feste Spalten, wie sie RTKLIB liest (0/6/12/18) — nicht frei formatiert.
+        assertEquals(18, zeile.substring(0, 6).trim().toInt())
+        assertEquals(18, zeile.substring(6, 12).trim().toInt())
+        assertEquals(137, zeile.substring(12, 18).trim().toInt())
+        assertEquals(7, zeile.substring(18, 24).trim().toInt())
+        // Leeres Kuerzel = GPS; bei nur einem Satz darf es keinen zweiten geben.
+        assertEquals(1, datei.lines().count { it.endsWith("LEAP SECONDS") })
+    }
+
+    @Test
+    fun beiDouVerdraengtDieGpsSchaltsekundeNicht() {
+        val gps = GpsLnav.utc(GpsLnav.dataBits(gpsBytes(seite18()))!!)!!
+        // BeiDou zaehlt ab 2006 und meldet deshalb 4 s statt 18 s.
+        val bds = gps.copy(deltaLs = 4)
+        val datei = RinexNav.write(
+            gps = emptyList(),
+            corrections = NavCorrections(gpsUtc = gps, bdsUtc = bds)
+        )
+        val zeilen = datei.lines().filter { it.endsWith("LEAP SECONDS") }
+        assertEquals(1, zeilen.size)
+        assertEquals(18, zeilen[0].substring(0, 6).trim().toInt())
     }
 }

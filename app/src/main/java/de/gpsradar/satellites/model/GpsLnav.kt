@@ -110,21 +110,29 @@ object GpsLnav {
      * Zeitbezug GPS zu UTC — steht auf **derselben Seite 18** wie die Ionosphäre.
      *
      * A₀ (32 Bit) und A₁ (24 Bit) sind über Wortgrenzen verteilt: A₀ als 24 + 8,
-     * A₁ als 16 + 8 Bit. Danach folgen die geltende Schaltsekunde, die
-     * Bezugswoche und -zeit sowie die angekündigte künftige Schaltsekunde
-     * (IS-GPS-200, §20.3.3.5.1.8).
+     * A₁ als 16 + 8 Bit. Danach folgen die Bezugszeit `tot`, die Bezugswoche
+     * `WNt`, die Schaltsekunde, die Woche der künftigen Schaltsekunde, deren Tag
+     * und die künftige Schaltsekunde (Tabelle 20-IX der ICD).
+     *
+     * **Reihenfolge am Signal statt in der Tabelle:** Tabelle 20-IX nennt
+     * Δt_LS **vor** `tot`. Am Mitschnitt vom 16.11.2026 liegt `tot` aber davor —
+     * nur so sind alle Gültigkeitsgrenzen der Tabelle gleichzeitig erfüllt:
+     * `tot` = 78 · 4096 s = 319 488 s (Grenze 0…602 112 ✓), `WNt` = 141
+     * (= Woche 2445 mod 256 ✓), Δt_LS = 18 (die geltende Schaltsekunde ✓),
+     * DN = 7 (Grenze 1…7 ✓). Mit der Tabellenreihenfolge käme Δt_LS = 78
+     * heraus — ein Wert, den es nicht gibt.
      */
     fun utc(bits: String): UtcCorrection? {
         if (!isIonoUtcPage(bits)) return null
         return UtcCorrection(
             a0 = signed2(bits, 120, 24, 144, 8) * P2_30,
             a1 = signed2(bits, 152, 16, 168, 8) * P2_50,
-            deltaLs = signed(bits, 176, 8).toInt(),
-            referenceSeconds = unsigned(bits, 184, 8).toInt() * 3600,
-            weekNumber = unsigned(bits, 192, 8).toInt(),
-            deltaLsf = signed(bits, 200, 8).toInt(),
-            weekNumberLsf = unsigned(bits, 208, 8).toInt(),
-            dayNumber = 0
+            referenceSeconds = unsigned(bits, 176, 8).toInt() * 4096,
+            weekNumber = unsigned(bits, 184, 8).toInt(),
+            deltaLs = signed(bits, 192, 8).toInt(),
+            weekNumberLsf = unsigned(bits, 200, 8).toInt(),
+            dayNumber = unsigned(bits, 208, 8).toInt(),
+            deltaLsf = signed(bits, 216, 8).toInt()
         )
     }
 
