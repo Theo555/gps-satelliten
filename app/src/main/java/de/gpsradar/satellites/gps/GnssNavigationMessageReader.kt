@@ -217,6 +217,7 @@ class GnssNavigationMessageReader(
             TAG,
             "Navigationsnachrichten: " + parts.joinToString(" · ") +
                 " · Ephemeriden fertig: GPS ${fertig.gps.size}, GLONASS ${fertig.glo.size}" +
+                ", BeiDou ${fertig.bds.size}" +
                 mitschnitt
         )
     }

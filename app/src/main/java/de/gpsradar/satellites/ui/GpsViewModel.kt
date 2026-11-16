@@ -991,11 +991,15 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
      */
     fun exportNavRinex(ordner: Uri, dateiName: String): Boolean {
         val nav = gpsDataManager.navEphemerides.value
-        val brauchbar = nav.gps.any { it.hasConsistentIode } || nav.glo.any { it.hasPlausibleOrbit }
+        val brauchbar = nav.gps.any { it.hasConsistentIode } ||
+            nav.glo.any { it.hasPlausibleOrbit } ||
+            nav.bds.any { it.hasConsistentToc }
         if (!brauchbar) return false
         // Eigener MIME-Typ statt "text/plain": Android haengt sonst die Endung
         // des MIME-Typs an (.txt) und aus navigation_….rnx wuerde .rnx.txt.
-        return schreibeInOrdner(ordner, dateiName, "application/rnx", RinexNav.write(nav.gps, nav.glo))
+        return schreibeInOrdner(
+            ordner, dateiName, "application/rnx", RinexNav.write(nav.gps, nav.glo, nav.bds)
+        )
     }
 
     /** Eine Datei in einem vom Nutzer freigegebenen Ordner anlegen und füllen. */

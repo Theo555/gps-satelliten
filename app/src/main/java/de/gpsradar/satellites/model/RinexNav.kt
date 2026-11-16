@@ -24,6 +24,9 @@ object RinexNav {
     /** 1980-01-06 00:00 UTC, Beginn der GPS-Zeitzaehlung. */
     private const val GPS_EPOCH_MILLIS = 315_964_800_000L
 
+    /** 2006-01-01 00:00, Beginn der BeiDou-Zeitzaehlung (BDT). */
+    private const val BDT_EPOCH_MILLIS = 1_136_073_600_000L
+
     private const val SECONDS_PER_WEEK = 604_800L
 
     /**
@@ -31,13 +34,25 @@ object RinexNav {
      * IODE und GLONASS-Sätze ohne plausible Bahn werden übersprungen — lieber
      * eine kürzere richtige Datei als eine lange mit einem falschen Satz.
      */
-    fun write(gps: List<GpsEphemeris>, glo: List<GloEphemeris> = emptyList()): String {
+    fun write(
+        gps: List<GpsEphemeris>,
+        glo: List<GloEphemeris> = emptyList(),
+        bds: List<BdsEphemeris> = emptyList()
+    ): String {
         val gpsSaetze = gps.filter { it.hasConsistentIode }.sortedBy { it.prn }
         val gloSaetze = glo.filter { it.hasPlausibleOrbit }.sortedBy { it.satelliteSlot }
+        val bdsSaetze = bds.filter { it.hasConsistentToc }.sortedBy { it.prn }
         val sb = StringBuilder()
-        sb.append(header(gpsSaetze.size + gloSaetze.size, gloSaetze.isNotEmpty()))
+        sb.append(
+            header(
+                gpsSaetze.size + gloSaetze.size + bdsSaetze.size,
+                gloSaetze.isNotEmpty(),
+                bdsSaetze.isNotEmpty()
+            )
+        )
         for (e in gpsSaetze) sb.append(record(e))
         for (e in gloSaetze) sb.append(gloRecord(e))
+        for (e in bdsSaetze) sb.append(bdsRecord(e))
         return sb.toString()
     }
 
@@ -128,6 +143,74 @@ object RinexNav {
     }
 
     /**
+     * Ein BeiDou-Satz zu acht Zeilen.
+     *
+     * Reihenfolge aus RTKLIB (`outrnxnavb`), auf der Leseseite gegengelesen
+     * (`decode_...`, BDS-Zweig in `readrnxnavb`): AODE/Crs/Δn/M0,
+     * Cuc/e/Cus/√A, Toe/Cic/Ω0/Cis, i0/Crc/ω/Ω̇, dann i̇, Kennung, Woche,
+     * Reserve — und in der siebten Zeile **URA in Metern, nicht als Index**:
+     * RTKLIB wendet beim Lesen `uraindex()` auf den Zahlenwert an.
+     *
+     * Die Epoche steht in BeiDou-Zeit (BDT), wie es RINEX für C-Sätze verlangt.
+     * BDT beginnt am 2006-01-01 ohne Schaltsekundenübertrag und liegt deshalb
+     * heute 14 Sekunden vor GPS-Zeit — umgerechnet wird hier nichts, weil die
+     * Datei genau diese Zeitbasis erwartet.
+     */
+    fun bdsRecord(e: BdsEphemeris): String {
+        val parts = calendarFromMillis(
+            BDT_EPOCH_MILLIS +
+                (e.clock.week * SECONDS_PER_WEEK + e.clock.tocSeconds) * 1000L
+        )
+        val sb = StringBuilder()
+        sb.append(
+            String.format(
+                Locale.US,
+                "C%02d %4d %02d %02d %02d %02d %02d",
+                e.prn, parts[0], parts[1], parts[2], parts[3], parts[4], parts[5]
+            )
+        )
+        sb.append(plainValues(e.clock.a0, e.clock.a1, e.clock.a2)).append('\n')
+        sb.append(
+            values(e.clock.aode.toDouble(), e.orbitA.crs, e.orbitA.deltaN, e.orbitA.m0)
+        ).append('\n')
+        sb.append(
+            values(
+                e.orbitA.cuc, e.orbitA.eccentricity, e.orbitA.cus, e.orbitA.sqrtA
+            )
+        ).append('\n')
+        sb.append(
+            values(e.toeSeconds.toDouble(), e.orbitB.cic, e.orbitB.omega0, e.orbitB.cis)
+        ).append('\n')
+        sb.append(
+            values(e.orbitB.i0, e.orbitA.crc, e.orbitB.omega, e.orbitB.omegaDot)
+        ).append('\n')
+        sb.append(values(e.orbitB.idot, 0.0, e.clock.week.toDouble(), 0.0)).append('\n')
+        sb.append(
+            values(
+                uraNominal(e.clock.ura), e.clock.health.toDouble(),
+                e.clock.tgd1, e.clock.tgd2
+            )
+        ).append('\n')
+        sb.append(
+            values(e.transmissionSeconds.toDouble(), e.clock.aodc.toDouble(), 0.0, 0.0)
+        ).append('\n')
+        return sb.toString()
+    }
+
+    /**
+     * URA-Index auf seinen Nennwert in Metern — dieselbe Tabelle wie in RTKLIB
+     * (`ura_nominal` in `rinex.c`). Index 0 heißt 2,0 m; alles ab 15 ist
+     * „unbekannt" und wird als 8192 m geschrieben.
+     */
+    private fun uraNominal(index: Int): Double =
+        if (index in URA_NOMINAL.indices) URA_NOMINAL[index] else 8192.0
+
+    private val URA_NOMINAL = doubleArrayOf(
+        2.0, 2.8, 4.0, 5.7, 8.0, 11.3, 16.0, 32.0,
+        64.0, 128.0, 256.0, 512.0, 1024.0, 2048.0, 4096.0, 8192.0
+    )
+
+    /**
      * Zeitpunkt in Sekunden der GPS-Woche, aber auf der UTC-Zeitskala.
      *
      * RTKLIB schreibt GLONASS-Zeiten so (`time2gpst(gpst2utc(tof))`); die
@@ -149,10 +232,18 @@ object RinexNav {
     }
 
     /** Kopfzeilen; die Kennung steht rechtsbündig in Spalte 60–80. */
-    private fun header(count: Int, mitGlonass: Boolean): String = buildString {
+    private fun header(
+        count: Int,
+        mitGlonass: Boolean,
+        mitBeidou: Boolean = false
+    ): String = buildString {
         append(headerLine("     3.04           NAVIGATION DATA", "RINEX VERSION / TYPE"))
-        val wer = if (mitGlonass) "GPS-Satelliten   GPS GLO" else "GPS-Satelliten       GPS"
-        append(headerLine(wer, "PGM / RUN BY / DATE"))
+        val systeme = buildString {
+            append("       GPS")
+            if (mitGlonass) append(" GLO")
+            if (mitBeidou) append(" BDS")
+        }
+        append(headerLine("GPS-Satelliten$systeme", "PGM / RUN BY / DATE"))
         append(headerLine("Aus Navigationsnachrichten dekodiert", "COMMENT"))
         append(headerLine(String.format(Locale.US, "%6d", count), "# OF SATELLITES"))
         append(headerLine("", "END OF HEADER"))
