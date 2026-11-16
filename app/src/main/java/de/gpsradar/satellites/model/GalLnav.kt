@@ -71,14 +71,18 @@ object GalLnav {
     const val SPLICE_POSITION = 106
 
     private const val P2_5 = 1.0 / 32.0
+    private const val P2_8 = 1.0 / 256.0
+    private const val P2_15 = 1.0 / 32768.0
     private const val P2_19 = 1.0 / 524288.0
     private const val P2_29 = 1.0 / 536870912.0
+    private const val P2_30 = 1.0 / 1073741824.0
     private const val P2_31 = 1.0 / 2147483648.0
     private const val P2_32 = 1.0 / 4294967296.0
     private const val P2_33 = 1.0 / 8589934592.0
     private const val P2_34 = 1.0 / 17179869184.0
     private const val P2_43 = 1.0 / 8796093022208.0
     private const val P2_46 = 1.0 / 70368744177664.0
+    private const val P2_50 = 1.0 / 1125899906842624.0
     private const val P2_59 = 1.0 / 576460752303423488.0
 
     /** Worttyp aus Byte 0 der Meldung. */
@@ -185,6 +189,45 @@ object GalLnav {
     }
 
     /**
+     * Worttyp 5, erste 41 Bit: die Koeffizienten des NeQuick-G-Ionosphären­modells.
+     *
+     * Reihenfolge und Skalen aus RTKLIB (`decode_gal_inav_ion`), die Feldnamen
+     * aus Tabelle 44 der ICD („Ionospheric correction“). Die fünf Bit nach ai2
+     * sind die Störungsmeldungen des Modells (Az); sie werden nur durchgereicht,
+     * nicht ausgewertet.
+     */
+    fun ionosphere(bits: String): GalIonosphere? {
+        if (bits.length < 41) return null
+        return GalIonosphere(
+            ai0 = unsigned(bits, 0, 11) * 0.25,
+            ai1 = signed(bits, 11, 11) * P2_8,
+            ai2 = signed(bits, 22, 14) * P2_15,
+            disturbanceFlags = unsigned(bits, 36, 5).toInt()
+        )
+    }
+
+    /**
+     * Worttyp 6: Zeitbezug Galileo-Zeit zu UTC.
+     *
+     * Raster aus RTKLIB (`decode_gal_inav_utc`), Feldnamen aus Tabelle 45 der
+     * ICD. `deltaLs` ist die geltende Schaltsekunde — derselbe Wert, der in der
+     * Navigationsdatei als LEAP SECONDS steht (derzeit 18).
+     */
+    fun utc(bits: String): UtcCorrection? {
+        if (bits.length < 99) return null
+        return UtcCorrection(
+            a0 = signed(bits, 0, 32) * P2_30,
+            a1 = signed(bits, 32, 24) * P2_50,
+            deltaLs = signed(bits, 56, 8).toInt(),
+            referenceSeconds = unsigned(bits, 64, 8).toInt() * 3600,
+            weekNumber = unsigned(bits, 72, 8).toInt(),
+            weekNumberLsf = unsigned(bits, 80, 8).toInt(),
+            dayNumber = unsigned(bits, 88, 3).toInt(),
+            deltaLsf = signed(bits, 91, 8).toInt()
+        )
+    }
+
+    /**
      * Gesundheitsbits so zusammenschieben, wie RINEX sie erwartet: Bit 0 E1B DVS,
      * Bit 1–2 E1B HS, Bit 6 E5b DVS, Bit 7–8 E5b HS (E5a führt I/NAV nicht).
      */
@@ -275,6 +318,18 @@ data class GalHealth(
     val week: Int,
     /** Sendezeit des Seitenteils in Sekunden der Galileo-Woche. */
     val transmissionSeconds: Int
+)
+
+/** Koeffizienten des NeQuick-G-Ionosphärenmodells aus Worttyp 5. */
+data class GalIonosphere(
+    /** Effektive Ionisation erster Ordnung in SFU. */
+    val ai0: Double,
+    /** Erster Ordnungskoeffizient der Sonnenaktivität. */
+    val ai1: Double,
+    /** Zweiter Ordnungskoeffizient der Sonnenaktivität. */
+    val ai2: Double,
+    /** Störungsmeldungen des Modells (Az); nur durchgereicht, nicht ausgewertet. */
+    val disturbanceFlags: Int
 )
 
 /**

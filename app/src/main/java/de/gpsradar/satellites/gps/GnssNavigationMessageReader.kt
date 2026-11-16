@@ -11,6 +11,7 @@ import android.util.Log
 import de.gpsradar.satellites.R
 import de.gpsradar.satellites.model.Constellation
 import de.gpsradar.satellites.model.GnssNavMessage
+import de.gpsradar.satellites.model.GpsLnav
 import java.util.Locale
 import java.util.concurrent.Executor
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -304,9 +305,11 @@ class GnssNavigationMessageReader(
  * Eine Zeile für den Rohbit-Mitschnitt, oder null, wenn die Meldung nicht
  * mitgeschrieben wird.
  *
- * Übersprungen werden GPS (L1 C/A), GLONASS (L1 C/A) und Galileo (I/NAV): Für
- * alle drei gibt es einen fertigen Dekoder, und ihre Meldungen würden die
- * Ausgabe überschwemmen. Mitgeschrieben wird nur, was noch keinen Dekoder hat.
+ * Übersprungen werden GLONASS (L1 C/A) und Galileo (I/NAV): Für beide gibt es
+ * einen fertigen Dekoder, und ihre Meldungen würden die Ausgabe überschwemmen.
+ * Von GPS werden nur die **Unterrahmen 4 und 5** mitgeschrieben — dort stehen
+ * Ionosphären- und UTC-Parameter, und dieser Teil hat noch keinen Dekoder.
+ * Unterrahmen 1–3 kommen im Sekundentakt und bleiben draußen.
  *
  * Der Aufbau ist bewusst schlicht und leicht zu trennen — der Meldungstyp kann
  * Leerzeichen enthalten, deshalb steht das Hex-Feld als letztes und alles
@@ -321,13 +324,15 @@ internal fun navDumpLine(
     status: Int,
     data: ByteArray?
 ): String? {
-    if (type == GnssNavigationMessage.TYPE_GPS_L1CA ||
-        type == GnssNavigationMessage.TYPE_GLO_L1CA ||
+    if (type == GnssNavigationMessage.TYPE_GLO_L1CA ||
         type == GnssNavigationMessage.TYPE_GAL_I
     ) {
         return null
     }
     if (data == null || data.isEmpty()) return null
+    if (type == GnssNavigationMessage.TYPE_GPS_L1CA && !isGpsIonoUtcPage(data)) {
+        return null
+    }
     return "n=$seq type=${navTypeLabel(type)} svid=$svid msg=$messageId " +
         "sub=$submessageId status=$status data=${hexOf(data)}"
 }
@@ -335,6 +340,17 @@ internal fun navDumpLine(
 /** Rohbytes als Hex, durch Leerzeichen getrennt. */
 private fun hexOf(data: ByteArray): String =
     data.joinToString(" ") { String.format(Locale.US, "%02X", it.toInt() and 0xFF) }
+
+/**
+ * Steckt in dieser GPS-Meldung ein Unterrahmen 4 oder 5?
+ *
+ * Nur dort stehen Ionosphären- und UTC-Parameter (Seite 18). Die Unterrahmen
+ * 1–3 tragen die Ephemeride und haben einen Dekoder.
+ */
+internal fun isGpsIonoUtcPage(data: ByteArray): Boolean {
+    val bits = GpsLnav.dataBits(data) ?: return false
+    return GpsLnav.subframeNumber(bits) >= 4
+}
 
 /** Anzeigename des Meldungstyps – auch für die Auswertung des Mitschnitts. */
 internal fun navTypeLabel(type: Int): String = when (type) {

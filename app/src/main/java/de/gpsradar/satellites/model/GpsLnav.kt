@@ -38,9 +38,11 @@ object GpsLnav {
     private const val P2_5 = 1.0 / 32.0
     private const val P2_19 = 1.0 / 524288.0
     private const val P2_29 = 1.0 / 536870912.0
+    private const val P2_30 = 1.0 / 1073741824.0
     private const val P2_31 = 1.0 / 2147483648.0
     private const val P2_33 = 1.0 / 8589934592.0
     private const val P2_43 = 1.0 / 8796093022208.0
+    private const val P2_50 = 1.0 / 1125899906842624.0
     private const val P2_55 = 1.0 / 36028797018963968.0
 
     /**
@@ -65,6 +67,71 @@ object GpsLnav {
 
     /** Unterrahmen-Nummer (1..5) aus dem Bitstrom, 0 wenn unbrauchbar. */
     fun subframeNumber(bits: String): Int = unsigned(bits, 43, 3).toInt()
+
+    /**
+     * Seitenziffer aus den Unterrahmen 4 und 5 (SV ID, 6 Bit).
+     *
+     * Die ersten zwei Bit von Wort 3 sind die Data-ID (1 = LNAV), danach folgt
+     * die Seitenziffer. Jeder Seite ist ein eigener Inhalt zugeordnet —
+     * Ionosphäre und UTC stehen auf Seite 18.
+     */
+    fun pageNumber(bits: String): Int = unsigned(bits, 50, 6).toInt()
+
+    /** Data-ID; nur der Wert 1 gehört zu LNAV. */
+    fun dataId(bits: String): Int = unsigned(bits, 48, 2).toInt()
+
+    /**
+     * Klobuchar-Ionosphärenkoeffizienten von **Unterrahmen 4, Seite 18**.
+     *
+     * Reihenfolge und Skalen aus IS-GPS-200, §20.3.3.5.1.7 und Tabelle 20-X:
+     * α₀…α₃ mit 2⁻³⁰ s, β₀…β₃ mit 2¹¹ s. Acht Felder zu acht Bit passen genau in
+     * die Wörter 3 bis 5. Die Werte gelten für das ganze System — alle
+     * Satelliten senden dieselben.
+     */
+    fun ionosphere(bits: String): KlobucharIono? {
+        if (!isIonoUtcPage(bits)) return null
+        return KlobucharIono(
+            alpha = listOf(
+                signed(bits, 56, 8) * P2_30,
+                signed(bits, 64, 8) * P2_30,
+                signed(bits, 72, 8) * P2_30,
+                signed(bits, 80, 8) * P2_30
+            ),
+            beta = listOf(
+                signed(bits, 88, 8).toDouble() * 2048.0,
+                signed(bits, 96, 8).toDouble() * 2048.0,
+                signed(bits, 104, 8).toDouble() * 2048.0,
+                signed(bits, 112, 8).toDouble() * 2048.0
+            )
+        )
+    }
+
+    /**
+     * Zeitbezug GPS zu UTC — steht auf **derselben Seite 18** wie die Ionosphäre.
+     *
+     * A₀ (32 Bit) und A₁ (24 Bit) sind über Wortgrenzen verteilt: A₀ als 24 + 8,
+     * A₁ als 16 + 8 Bit. Danach folgen die geltende Schaltsekunde, die
+     * Bezugswoche und -zeit sowie die angekündigte künftige Schaltsekunde
+     * (IS-GPS-200, §20.3.3.5.1.8).
+     */
+    fun utc(bits: String): UtcCorrection? {
+        if (!isIonoUtcPage(bits)) return null
+        return UtcCorrection(
+            a0 = signed2(bits, 120, 24, 144, 8) * P2_30,
+            a1 = signed2(bits, 152, 16, 168, 8) * P2_50,
+            deltaLs = signed(bits, 176, 8).toInt(),
+            referenceSeconds = unsigned(bits, 184, 8).toInt() * 3600,
+            weekNumber = unsigned(bits, 192, 8).toInt(),
+            deltaLsf = signed(bits, 200, 8).toInt(),
+            weekNumberLsf = unsigned(bits, 208, 8).toInt(),
+            dayNumber = 0
+        )
+    }
+
+    /** Steckt in diesem Bitstrom Unterrahmen 4, Seite 18 (Ionosphäre und UTC)? */
+    fun isIonoUtcPage(bits: String): Boolean =
+        bits.length >= 216 && subframeNumber(bits) == 4 &&
+            dataId(bits) == 1 && pageNumber(bits) == 18
 
     /** Zeit im Unterrahmen: Sekunden seit Wochenbeginn (GPS-Zeit, 6-s-Schritte). */
     fun secondsOfWeek(bits: String): Long = unsigned(bits, 24, 17) * 6L
@@ -149,6 +216,13 @@ object GpsLnav {
     private fun signed(bits: String, pos: Int, length: Int): Long {
         val raw = unsigned(bits, pos, length)
         return if (bits[pos] == '1') raw - (1L shl length) else raw
+    }
+
+    /** Feld über eine Wortgrenze hinweg, mit Vorzeichen über die Gesamtbreite. */
+    private fun signed2(bits: String, pos1: Int, len1: Int, pos2: Int, len2: Int): Long {
+        val total = len1 + len2
+        val raw = (unsigned(bits, pos1, len1) shl len2) or unsigned(bits, pos2, len2)
+        return if (raw and (1L shl (total - 1)) != 0L) raw - (1L shl total) else raw
     }
 }
 

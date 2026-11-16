@@ -13,6 +13,7 @@ import de.gpsradar.satellites.model.GloLnav
 import de.gpsradar.satellites.model.GalClock
 import de.gpsradar.satellites.model.GalEphemeris
 import de.gpsradar.satellites.model.GalHealth
+import de.gpsradar.satellites.model.GalIonosphere
 import de.gpsradar.satellites.model.GalLnav
 import de.gpsradar.satellites.model.GalOrbitA
 import de.gpsradar.satellites.model.GalOrbitB
@@ -22,13 +23,17 @@ import de.gpsradar.satellites.model.GpsEphemeris
 import de.gpsradar.satellites.model.GpsLnav
 import de.gpsradar.satellites.model.GpsOrbitA
 import de.gpsradar.satellites.model.GpsOrbitB
+import de.gpsradar.satellites.model.KlobucharIono
+import de.gpsradar.satellites.model.NavCorrections
+import de.gpsradar.satellites.model.UtcCorrection
 
 /** Was der Empfänger bisher an vollständigen Ephemeriden geliefert hat. */
 data class NavEphemerides(
     val gps: List<GpsEphemeris> = emptyList(),
     val glo: List<GloEphemeris> = emptyList(),
     val bds: List<BdsEphemeris> = emptyList(),
-    val gal: List<GalEphemeris> = emptyList()
+    val gal: List<GalEphemeris> = emptyList(),
+    val corrections: NavCorrections = NavCorrections()
 ) {
     val total: Int get() = gps.size + glo.size + bds.size + gal.size
 }
@@ -98,6 +103,11 @@ class NavEphemerisStore {
         var orbitAToMillis: Long = 0L
         var orbitB: BdsOrbitB? = null
         var orbitBAtMillis: Long = 0L
+        /**
+         * Koeffizienten aus demselben Unterrahmen 1 — aber erst übernehmen,
+         * wenn der Satz als Ephemeride taugt (siehe [addBds]).
+         */
+        var iono: KlobucharIono? = null
     }
 
     private val bdsTeile = mutableMapOf<Int, BdsTeile>()
@@ -120,6 +130,17 @@ class NavEphemerisStore {
     private val galEphemerides = mutableMapOf<Int, GalEphemeris>()
 
     /**
+     * Systemweite Korrekturen. Sie gelten nicht je Satellit, sondern für das
+     * ganze System — deshalb ein einzelner Platz je Art und nicht eine Liste.
+     */
+    private var gpsIono: KlobucharIono? = null
+    private var gpsUtc: UtcCorrection? = null
+    private var bdsIono: KlobucharIono? = null
+    private var bdsUtc: UtcCorrection? = null
+    private var galIono: GalIonosphere? = null
+    private var galUtc: UtcCorrection? = null
+
+    /**
      * Eine Meldung aufnehmen. Liefert true, wenn sich dadurch ein vollständiger
      * Datensatz geändert hat — der Aufrufer veröffentlicht dann den neuen Stand.
      */
@@ -140,7 +161,15 @@ class NavEphemerisStore {
         gps = gpsEphemerides.values.sortedBy { it.prn },
         glo = gloEphemerides.values.sortedBy { it.satelliteSlot },
         bds = bdsEphemerides.values.sortedBy { it.prn },
-        gal = galEphemerides.values.sortedBy { it.prn }
+        gal = galEphemerides.values.sortedBy { it.prn },
+        corrections = NavCorrections(
+            gpsIono = gpsIono,
+            gpsUtc = gpsUtc,
+            galIono = galIono,
+            galUtc = galUtc,
+            bdsIono = bdsIono,
+            bdsUtc = bdsUtc
+        )
     )
 
     fun clear() {
@@ -152,9 +181,28 @@ class NavEphemerisStore {
         bdsEphemerides.clear()
         galTeile.clear()
         galEphemerides.clear()
+        gpsIono = null
+        gpsUtc = null
+        bdsIono = null
+        bdsUtc = null
+        galIono = null
+        galUtc = null
     }
 
     // ---- GPS ----
+
+    /**
+     * Unterrahmen 4, Seite 18: Ionosphäre und UTC — sonst Almanach, den wir
+     * nicht auswerten.
+     */
+    private fun gpsCorrections(bits: String): Boolean {
+        val iono = GpsLnav.ionosphere(bits) ?: return false
+        val utc = GpsLnav.utc(bits)
+        val changed = iono != gpsIono || (utc != null && utc != gpsUtc)
+        if (iono.isUsable) gpsIono = iono
+        if (utc != null && utc.isUsable) gpsUtc = utc
+        return changed
+    }
 
     private fun addGps(svid: Int, data: ByteArray): Boolean {
         val bits = GpsLnav.dataBits(data) ?: return false
@@ -168,7 +216,9 @@ class NavEphemerisStore {
             }
             2 -> t.orbitA = GpsLnav.orbitA(bits) ?: return false
             3 -> t.orbitB = GpsLnav.orbitB(bits) ?: return false
-            else -> return false // Unterrahmen 4/5 tragen keine Ephemeriden
+            // Unterrahmen 4/5 tragen keine Ephemeride, aber auf Seite 18
+            // Ionosphäre und UTC-Parameter.
+            else -> return gpsCorrections(bits)
         }
 
         val clock = t.clock ?: return false
@@ -289,12 +339,23 @@ class NavEphemerisStore {
      */
     private fun addBds(svid: Int, data: ByteArray, nowMillis: Long): Boolean {
         val bits = BdsLnav.dataBits(data) ?: return false
+        // Unterrahmen 5, Seite 10 traegt nur den Zeitbezug zu UTC.
+        if (BdsLnav.frameId(bits) == 5) {
+            val utc = BdsLnav.utc(bits) ?: return false
+            if (!utc.isUsable || utc == bdsUtc) return false
+            bdsUtc = utc
+            return true
+        }
         val t = bdsTeile.getOrPut(svid) { BdsTeile() }
+        var korrekturGeaendert = false
         when (BdsLnav.frameId(bits)) {
             1 -> {
                 t.clock = BdsLnav.clock(bits) ?: return false
                 t.transmissionSeconds = BdsLnav.secondsOfWeek(bits).toInt()
                 t.clockAtMillis = nowMillis
+                // Derselbe Unterrahmen traegt die Klobuchar-Koeffizienten.
+                // Sie werden nur gemerkt, nicht sofort veroeffentlicht.
+                t.iono = BdsLnav.ionosphere(bits)
             }
             2 -> {
                 t.orbitA = BdsLnav.orbitA(bits) ?: return false
@@ -304,7 +365,7 @@ class NavEphemerisStore {
                 t.orbitB = BdsLnav.orbitB(bits) ?: return false
                 t.orbitBAtMillis = nowMillis
             }
-            else -> return false // Unterrahmen 4/5: Almanach, Ionosphäre, UTC
+            else -> return false // Unterrahmen 4: Almanach
         }
 
         val clock = t.clock ?: return false
@@ -322,9 +383,18 @@ class NavEphemerisStore {
         val eph = BdsEphemeris.of(
             svid, clock, orbitA, orbitB, t.transmissionSeconds
         ) ?: return false
+        // Erst jetzt die Iono-Koeffizienten uebernehmen: Der Empfaenger liefert
+        // regelmaessig halb gefuellte Unterrahmen 1, in denen der hintere Teil
+        // ein Fuellmuster ist ("toc" liegt dann ausserhalb der Woche). Nur ein
+        // Satz, der als Ephemeride durchgeht, traegt auch brauchbare Koeffizienten.
+        val iono = t.iono
+        if (iono != null && iono.isUsable && iono != bdsIono) {
+            bdsIono = iono
+            korrekturGeaendert = true
+        }
         val changed = bdsEphemerides[svid] != eph
         bdsEphemerides[svid] = eph
-        return changed
+        return changed || korrekturGeaendert
     }
 
     // ---- Galileo ----
@@ -344,7 +414,15 @@ class NavEphemerisStore {
     private fun addGal(svid: Int, wordType: Int, data: ByteArray, nowMillis: Long): Boolean {
         if (wordType != GalLnav.wordType(data)) return false
         val bits = GalLnav.contentBits(data) ?: return false
+        // Worttyp 6 traegt nur den Zeitbezug zu UTC, keine Bahndaten.
+        if (wordType == 6) {
+            val utc = GalLnav.utc(bits) ?: return false
+            if (!utc.isUsable || utc == galUtc) return false
+            galUtc = utc
+            return true
+        }
         val t = galTeile.getOrPut(svid) { GalTeile() }
+        var korrekturGeaendert = false
         when (wordType) {
             1 -> {
                 t.orbitA = GalLnav.orbitA(bits) ?: return false
@@ -365,6 +443,12 @@ class NavEphemerisStore {
             5 -> {
                 t.health = GalLnav.health(bits) ?: return false
                 t.healthAtMillis = nowMillis
+                // Derselbe Worttyp traegt vorn die NeQuick-Koeffizienten.
+                val iono = GalLnav.ionosphere(bits)
+                if (iono != null && iono != galIono) {
+                    galIono = iono
+                    korrekturGeaendert = true
+                }
             }
             else -> return false // Worttypen 6–10: Ionosphäre, Zeit, Almanach
         }
@@ -388,7 +472,7 @@ class NavEphemerisStore {
             ?: return false
         val changed = galEphemerides[svid] != eph
         galEphemerides[svid] = eph
-        return changed
+        return changed || korrekturGeaendert
     }
 
     private companion object {

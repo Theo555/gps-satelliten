@@ -2,6 +2,7 @@ package de.gpsradar.satellites
 
 import de.gpsradar.satellites.model.GalEphemeris
 import de.gpsradar.satellites.model.GalLnav
+import de.gpsradar.satellites.model.NavCorrections
 import de.gpsradar.satellites.model.RinexNav
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -45,6 +46,9 @@ class GalLnavTest {
     )
     private val w5 = hex(
         "05 38 9E AC 01 70 01 E0 88 0B 1A 39 B2 AA AA AA AB C1 34 94 3D 5A AA AA 9A 90 3D C0 40"
+    )
+    private val w6 = hex(
+        "06 00 00 00 00 00 00 00 12 18 8D 89 E2 43 A6 C0 A3 94 67 B8 14 CA AA AA 9D 43 E7 C2 F0"
     )
 
     // Dieselbe Wortart von E30, aber mit IODnav 66 — für den Negativtest.
@@ -203,6 +207,56 @@ class GalLnavTest {
         )
         assertTrue(datei.contains("M: Mixed"))
         assertTrue(datei.contains("GAL"))
+    }
+
+    @Test
+    fun worttyp5TraegtAuchDieIonosphaere() {
+        // Die ersten 41 Bit desselben Wortes sind die NeQuick-Koeffizienten.
+        // Werte aus dem Mitschnitt; alle sechs Satelliten liefern dieselben.
+        val iono = GalLnav.ionosphere(inhalt(w5))!!
+        assertEquals(113.0, iono.ai0, 1e-12)
+        assertEquals(-0.33203125, iono.ai1, 1e-12)
+        assertEquals(0.000701904296875, iono.ai2, 1e-15)
+        assertEquals(0, iono.disturbanceFlags)
+    }
+
+    @Test
+    fun worttyp6TraegtDenUtcBezug() {
+        val utc = GalLnav.utc(inhalt(w6))!!
+        assertEquals(0.0, utc.a0, 0.0)
+        assertEquals(0.0, utc.a1, 0.0)
+        // Die geltende Schaltsekunde — derselbe Wert wie LEAP SECONDS in der
+        // BRDC des Tages.
+        assertEquals(18, utc.deltaLs)
+        assertEquals(86_400, utc.referenceSeconds)
+        assertEquals(141, utc.weekNumber)
+        assertEquals(137, utc.weekNumberLsf)
+        assertEquals(7, utc.dayNumber)
+        assertEquals(18, utc.deltaLsf)
+    }
+
+    @Test
+    fun kopfzeileNenntIonosphaereUndZeitbezug() {
+        val datei = RinexNav.write(
+            gps = emptyList(),
+            gal = listOf(satz()!!),
+            corrections = NavCorrections(
+                galIono = GalLnav.ionosphere(inhalt(w5)),
+                galUtc = GalLnav.utc(inhalt(w6))
+            )
+        )
+        assertTrue(datei.contains("IONOSPHERIC CORR"))
+        assertTrue(datei.contains("TIME SYSTEM CORR"))
+        assertTrue(datei.contains("GAUT"))
+        // Galileo hat drei Koeffizienten und das Kuerzel ohne Buchstaben.
+        assertTrue(datei.contains("GAL   "))
+    }
+
+    @Test
+    fun kopfzeileOhneKorrekturenBleibtSchlank() {
+        val datei = RinexNav.write(gps = emptyList(), gal = listOf(satz()!!))
+        assertTrue(!datei.contains("IONOSPHERIC CORR"))
+        assertTrue(!datei.contains("TIME SYSTEM CORR"))
     }
 
     /** Ein Wert aus einer RINEX-Zeile: vier Werte zu je 19 Zeichen nach 4 Füllzeichen. */

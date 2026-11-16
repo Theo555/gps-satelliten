@@ -257,4 +257,44 @@ class BdsLnavTest {
         assertTrue(datei.contains("C14 2026 11 16 08 00 00"))
         assertEquals(1, datei.lines().count { it.startsWith("C") })
     }
+
+    @Test
+    fun ionosphaereStehtInUnterrahmen1() {
+        // Dieselben acht Koeffizienten bei zwei verschiedenen Satelliten — sie
+        // gelten fuer das ganze System. Werte aus dem Mitschnitt vom 16.11.2026,
+        // Feldlagen aus Figur 5-8 der ICD.
+        val c14 = BdsLnav.ionosphere(BdsLnav.dataBits(hex(c14Sf1))!!)!!
+        val c22 = BdsLnav.ionosphere(BdsLnav.dataBits(hex(c22Sf1))!!)!!
+        assertEquals(2.793968e-08, c14.alpha[0], 1e-13)
+        assertEquals(1.303852e-08, c14.alpha[1], 1e-13)
+        assertEquals(2.197921e-07, c14.alpha[2], 1e-13)
+        assertEquals(2.980232e-08, c14.alpha[3], 1e-13)
+        assertEquals(153600.0, c14.beta[0], 1e-6)
+        assertEquals(468992.0, c14.beta[1], 1e-6)
+        assertEquals(28672.0, c14.beta[2], 1e-6)
+        assertEquals(516096.0, c14.beta[3], 1e-6)
+        assertEquals(c14, c22)
+    }
+
+    @Test
+    fun utcStehtAufSeiteZehnVonUnterrahmen5() {
+        // Seite 10 von Unterrahmen 5 traegt den Bezug BDT zu UTC.
+        val bits = BdsLnav.dataBits(hex(c36Sf5Seite10))!!
+        assertEquals(5, BdsLnav.frameId(bits))
+        assertEquals(10, BdsLnav.pageNumber(bits))
+        val utc = BdsLnav.utc(bits)!!
+        assertEquals(0.0, utc.a0, 0.0)
+        assertEquals(0.0, utc.a1, 0.0)
+        // BDT kennt keine Schaltsekunden, UTC hat seit 2006 vier bekommen.
+        assertEquals(4, utc.deltaLs)
+        assertEquals(4, utc.deltaLsf)
+        assertEquals(61, utc.weekNumberLsf)
+        // Aus Unterrahmen 1 kommen keine UTC-Parameter.
+        assertNull(BdsLnav.utc(BdsLnav.dataBits(hex(c14Sf1))!!))
+    }
+
+    /** Seite 10 von Unterrahmen 5 (Zeitbezug BDT zu UTC) vom 16.11.2026. */
+    private val c36Sf5Seite10 =
+        "38 90 51 C4 2E 58 28 11 04 04 3D E2 00 00 00 00 00 00 00 00 00 00 18 0E " +
+            "00 00 00 00 00 00 00 00 C0 00 00 00 00 00 00 00"
 }

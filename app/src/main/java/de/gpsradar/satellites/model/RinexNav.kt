@@ -38,7 +38,8 @@ object RinexNav {
         gps: List<GpsEphemeris>,
         glo: List<GloEphemeris> = emptyList(),
         bds: List<BdsEphemeris> = emptyList(),
-        gal: List<GalEphemeris> = emptyList()
+        gal: List<GalEphemeris> = emptyList(),
+        corrections: NavCorrections = NavCorrections()
     ): String {
         val gpsSaetze = gps.filter { it.hasConsistentIode }.sortedBy { it.prn }
         val gloSaetze = glo.filter { it.hasPlausibleOrbit }.sortedBy { it.satelliteSlot }
@@ -50,7 +51,8 @@ object RinexNav {
                 gpsSaetze.size + gloSaetze.size + bdsSaetze.size + galSaetze.size,
                 gloSaetze.isNotEmpty(),
                 bdsSaetze.isNotEmpty(),
-                galSaetze.isNotEmpty()
+                galSaetze.isNotEmpty(),
+                corrections
             )
         )
         for (e in gpsSaetze) sb.append(record(e))
@@ -328,7 +330,8 @@ object RinexNav {
         count: Int,
         mitGlonass: Boolean,
         mitBeidou: Boolean = false,
-        mitGalileo: Boolean = false
+        mitGalileo: Boolean = false,
+        corrections: NavCorrections = NavCorrections()
     ): String = buildString {
         // RINEX 3 verlangt in Zeile 1 nicht nur den Dateityp, sondern in
         // Spalte 41 auch das System. Bis 16.11. stand hier der RINEX-2-Text
@@ -348,7 +351,51 @@ object RinexNav {
         append(headerLine("GPS-Satelliten$systeme", "PGM / RUN BY / DATE"))
         append(headerLine("Aus Navigationsnachrichten dekodiert", "COMMENT"))
         append(headerLine(String.format(Locale.US, "%6d", count), "# OF SATELLITES"))
+        // Ionosphäre und UTC-Bezug: RTKLIB rechnet das Klobuchar-Modell nur,
+        // wenn diese Zeilen im Kopf stehen. Ohne sie bleibt der ionosphärische
+        // Fehler (5 bis 15 m) in der Einzelpunktlösung steckend.
+        corrections.gpsIono?.takeIf { it.isUsable }?.let {
+            append(ionoLine("GPSA", it.alpha))
+            append(ionoLine("GPSB", it.beta))
+        }
+        corrections.galIono?.let {
+            append(ionoLine("GAL", listOf(it.ai0, it.ai1, it.ai2)))
+        }
+        corrections.bdsIono?.takeIf { it.isUsable }?.let {
+            append(ionoLine("BDSA", it.alpha))
+            append(ionoLine("BDSB", it.beta))
+        }
+        corrections.gpsUtc?.takeIf { it.isUsable }?.let { append(utcLine("GPUT", it)) }
+        corrections.galUtc?.takeIf { it.isUsable }?.let { append(utcLine("GAUT", it)) }
+        corrections.bdsUtc?.takeIf { it.isUsable }?.let { append(utcLine("BDUT", it)) }
         append(headerLine("", "END OF HEADER"))
+    }
+
+    /**
+     * Eine Ionozeile: vierstelliges Kürzel, dann Werte zu je zwölf Zeichen.
+     *
+     * RTKLIB liest die Werte aus festen Spalten (5, 17, 29, 41 — je zwölf
+     * Zeichen), deshalb `%12.4E` statt einer eigenen Mantissenform. Galileo hat
+     * nur drei Koeffizienten und benutzt das Kürzel „GAL“ ohne Buchstaben.
+     */
+    private fun ionoLine(label: String, values: List<Double>): String {
+        val sb = StringBuilder(String.format(Locale.US, "%-4s ", label))
+        for (v in values) sb.append(String.format(Locale.US, "%12.4E", v))
+        return headerLine(sb.toString(), "IONOSPHERIC CORR")
+    }
+
+    /**
+     * Eine UTC-Zeile: Kürzel, A₀ (17 Zeichen), A₁ (16), Bezugszeit (7), Woche (5).
+     *
+     * Die Spaltenbreiten sind die von RTKLIB (`out_time_sys`), damit dessen
+     * spaltenweiser Leser die Werte wiederfindet.
+     */
+    private fun utcLine(label: String, u: UtcCorrection): String {
+        val sb = StringBuilder(String.format(Locale.US, "%-4s ", label))
+        sb.append(String.format(Locale.US, "%17.10E", u.a0))
+        sb.append(String.format(Locale.US, "%16.9E", u.a1))
+        sb.append(String.format(Locale.US, "%7d%5d", u.referenceSeconds, u.weekNumber))
+        return headerLine(sb.toString(), "TIME SYSTEM CORR")
     }
 
     private fun headerLine(text: String, label: String): String =

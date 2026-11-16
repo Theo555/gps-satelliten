@@ -1000,7 +1000,7 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
         // des MIME-Typs an (.txt) und aus navigation_….rnx wuerde .rnx.txt.
         return schreibeInOrdner(
             ordner, dateiName, "application/rnx",
-            RinexNav.write(nav.gps, nav.glo, nav.bds, nav.gal)
+            RinexNav.write(nav.gps, nav.glo, nav.bds, nav.gal, nav.corrections)
         )
     }
 

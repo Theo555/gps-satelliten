@@ -53,6 +53,7 @@ object BdsLnav {
 
     private const val P2_6 = 1.0 / 64.0
     private const val P2_19 = 1.0 / 524288.0
+    private const val P2_30 = 1.0 / 1073741824.0
     private const val P2_31 = 1.0 / 2147483648.0
     private const val P2_33 = 1.0 / 8589934592.0
     private const val P2_43 = 1.0 / 8796093022208.0
@@ -144,6 +145,66 @@ object BdsLnav {
     /** Bezugszeit der Bahn aus den beiden Teilen: Sekunden der BeiDou-Woche. */
     fun toeSeconds(orbitA: BdsOrbitA, orbitB: BdsOrbitB): Int =
         ((orbitA.toeHighBits shl 15) or orbitB.toeLowBits) * 8
+
+    /**
+     * Seitenziffer aus Unterrahmen 4 und 5 (7 Bit).
+     *
+     * Die Unterrahmen 4 und 5 tragen je Seite einen anderen Inhalt; die
+     * Seitenziffer steht in Wort 2 direkt hinter der Sendezeit.
+     */
+    fun pageNumber(bits: String): Int = unsigned(bits, 43, 7).toInt()
+
+    /**
+     * Koeffizienten des Klobuchar-Ionosphärenmodells — sie stehen im
+     * **Unterrahmen 1**, nicht in Unterrahmen 4/5.
+     *
+     * Feldlagen aus Figur 5-8 der ICD (Seite 20). Vier Felder überspannen eine
+     * Wortgrenze und sind dort zweigeteilt: β₀ als 6 + 2 Bit, β₃ als 4 + 4 Bit.
+     * Die vier Paritätsbits am Wortende liegen zwischen den Teilen — wer sie
+     * mitzählt, verschiebt alles danach.
+     *
+     * Skalen wie bei GPS: α in Sekunden mit 2⁻³⁰, β in Sekunden mit 2¹¹.
+     */
+    fun ionosphere(bits: String): KlobucharIono? {
+        if (frameId(bits) != 1 || bits.length < 214) return null
+        return KlobucharIono(
+            alpha = listOf(
+                unsigned(bits, 126, 8) * P2_30,
+                unsigned(bits, 134, 8) * P2_30,
+                unsigned(bits, 150, 8) * P2_30,
+                unsigned(bits, 158, 8) * P2_30
+            ),
+            beta = listOf(
+                unsigned2(bits, 166, 6, 180, 2) * 2048.0,
+                unsigned(bits, 182, 8) * 2048.0,
+                unsigned(bits, 190, 8) * 2048.0,
+                unsigned2(bits, 198, 4, 210, 4) * 2048.0
+            )
+        )
+    }
+
+    /**
+     * Zeitbezug BeiDou-Zeit zu UTC — **Unterrahmen 5, Seite 10** (Figur 5-11-5).
+     *
+     * A₀ (32 Bit) und Δt_LS (8 Bit) überspannen Wortgrenzen und sind dort
+     * zweigeteilt. BeiDou meldet keine eigene Bezugszeit und keine
+     * Bezugswoche; diese Felder bleiben deshalb leer.
+     */
+    fun utc(bits: String): UtcCorrection? {
+        if (frameId(bits) != 5 || pageNumber(bits) != 10 || bits.length < 162) {
+            return null
+        }
+        return UtcCorrection(
+            a0 = signed2(bits, 90, 22, 120, 10) * P2_30,
+            a1 = signed2(bits, 130, 12, 150, 12) * P2_50,
+            deltaLs = signed2(bits, 50, 2, 60, 6).toInt(),
+            referenceSeconds = 0,
+            weekNumber = 0,
+            deltaLsf = signed(bits, 66, 8).toInt(),
+            weekNumberLsf = unsigned(bits, 74, 8).toInt(),
+            dayNumber = 0
+        )
+    }
 
     private fun unsigned(bits: String, pos: Int, length: Int): Long =
         java.lang.Long.parseLong(bits.substring(pos, pos + length), 2)
