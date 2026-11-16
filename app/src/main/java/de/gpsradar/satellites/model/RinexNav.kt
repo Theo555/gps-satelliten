@@ -369,6 +369,7 @@ object RinexNav {
             append(ionoLine("BDSB", it.beta))
         }
         corrections.gpsUtc?.takeIf { it.isUsable }?.let { append(utcLine("GPUT", it)) }
+        corrections.gloUtc?.takeIf { it.isUsable }?.let { append(utcLine("GLUT", it)) }
         corrections.galUtc?.takeIf { it.isUsable }?.let { append(utcLine("GAUT", it)) }
         corrections.bdsUtc?.takeIf { it.isUsable }?.let { append(utcLine("BDUT", it)) }
         // Die Schaltsekunde selbst gehoert nicht in TIME SYSTEM CORR (dort
