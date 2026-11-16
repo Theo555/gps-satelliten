@@ -35,12 +35,25 @@ object GpsLnav {
     const val DATA_BITS = 240
 
     private const val PREAMBLE = "10001011"
+
+    /**
+     * SV-Kennung der Seite 18 in Unterrahmen 4 (Ionosphäre und UTC).
+     *
+     * Tabelle 20-V der ICD: Seiten ohne eigenen Almanach tragen 48 + Seitennummer
+     * als Kennung, Seite 18 also 56.
+     */
+    const val IONO_UTC_PAGE_ID = 56
     private const val P2_5 = 1.0 / 32.0
+    private const val P2_11 = 1.0 / 2048.0
     private const val P2_19 = 1.0 / 524288.0
+    private const val P2_20 = 1.0 / 1048576.0
+    private const val P2_21 = 1.0 / 2097152.0
+    private const val P2_23 = 1.0 / 8388608.0
     private const val P2_29 = 1.0 / 536870912.0
     private const val P2_30 = 1.0 / 1073741824.0
     private const val P2_31 = 1.0 / 2147483648.0
     private const val P2_33 = 1.0 / 8589934592.0
+    private const val P2_38 = 1.0 / 274877906944.0
     private const val P2_43 = 1.0 / 8796093022208.0
     private const val P2_50 = 1.0 / 1125899906842624.0
     private const val P2_55 = 1.0 / 36028797018963968.0
@@ -109,24 +122,28 @@ object GpsLnav {
     /**
      * Zeitbezug GPS zu UTC — steht auf **derselben Seite 18** wie die Ionosphäre.
      *
-     * A₀ (32 Bit) und A₁ (24 Bit) sind über Wortgrenzen verteilt: A₀ als 24 + 8,
-     * A₁ als 16 + 8 Bit. Danach folgen die Bezugszeit `tot`, die Bezugswoche
-     * `WNt`, die Schaltsekunde, die Woche der künftigen Schaltsekunde, deren Tag
-     * und die künftige Schaltsekunde (Tabelle 20-IX der ICD).
+     * **Feldreihenfolge und -breiten aus Figur 20-1, Blatt 8 von 11** (die
+     * Tabellen 20-IX nennen dieselben Größen, aber nicht in Signalreihenfolge):
+     *
+     * - Wort 6 (Bit 120): A₁, 24 Bit, 2⁻⁵⁰ s/s
+     * - Wort 7 (Bit 144): A₀, die **oberen** 24 Bit; die unteren 8 Bit stehen am
+     *   Anfang von Wort 8 (Bit 168). Zusammen 32 Bit, 2⁻³⁰ s. Im Bitstrom liegen
+     *   die 32 Bit lückenlos hintereinander, deshalb ein Zugriff über 144/32.
+     * - Wort 8: `tot` (Bit 176, 2¹² s) und `WNt` (Bit 184)
+     * - Wort 9: die Schaltsekunde (192), ihre Woche (200), ihr Tag (208)
+     * - Wort 10: die künftige Schaltsekunde (216), danach 14 Reservebits
      *
      * **Reihenfolge am Signal statt in der Tabelle:** Tabelle 20-IX nennt
      * Δt_LS **vor** `tot`. Am Mitschnitt vom 16.11.2026 liegt `tot` aber davor —
-     * nur so sind alle Gültigkeitsgrenzen der Tabelle gleichzeitig erfüllt:
-     * `tot` = 78 · 4096 s = 319 488 s (Grenze 0…602 112 ✓), `WNt` = 141
-     * (= Woche 2445 mod 256 ✓), Δt_LS = 18 (die geltende Schaltsekunde ✓),
-     * DN = 7 (Grenze 1…7 ✓). Mit der Tabellenreihenfolge käme Δt_LS = 78
-     * heraus — ein Wert, den es nicht gibt.
+     * nur so sind alle Gültigkeitsgrenzen gleichzeitig erfüllt: `tot` =
+     * 78 · 4096 s = 319 488 s (Grenze 0…602 112 ✓), `WNt` = 141 (= Woche 2445
+     * mod 256 ✓), Δt_LS = 18 (die geltende Schaltsekunde ✓), DN = 7 (1…7 ✓).
      */
     fun utc(bits: String): UtcCorrection? {
         if (!isIonoUtcPage(bits)) return null
         return UtcCorrection(
-            a0 = signed2(bits, 120, 24, 144, 8) * P2_30,
-            a1 = signed2(bits, 152, 16, 168, 8) * P2_50,
+            a0 = signed(bits, 144, 32) * P2_30,
+            a1 = signed(bits, 120, 24) * P2_50,
             referenceSeconds = unsigned(bits, 176, 8).toInt() * 4096,
             weekNumber = unsigned(bits, 184, 8).toInt(),
             deltaLs = signed(bits, 192, 8).toInt(),
@@ -136,10 +153,19 @@ object GpsLnav {
         )
     }
 
-    /** Steckt in diesem Bitstrom Unterrahmen 4, Seite 18 (Ionosphäre und UTC)? */
+    /**
+     * Steckt in diesem Bitstrom die Seite mit Ionosphäre und UTC?
+     *
+     * Es ist Unterrahmen 4, Seite 18 — und deren **SV-Kennung ist 56**, nicht 18
+     * (Tabelle 20-V: für alle Seiten ohne eigenen Almanach dient die SV-Kennung
+     * als Seitenkennung, 48 + Seitennummer). Am Mitschnitt vom 16.11.2026
+     * bestätigt: die Seite kam mit Kennung 56, und die Prüfung auf 18 hätte nie
+     * gegriffen. Unterrahmen 5, Seite 18 ist dagegen der Almanach von SV 18 und
+     * wird hier ausgeschlossen.
+     */
     fun isIonoUtcPage(bits: String): Boolean =
-        bits.length >= 216 && subframeNumber(bits) == 4 &&
-            dataId(bits) == 1 && pageNumber(bits) == 18
+        bits.length >= 224 && subframeNumber(bits) == 4 &&
+            dataId(bits) == 1 && pageNumber(bits) == IONO_UTC_PAGE_ID
 
     /** Zeit im Unterrahmen: Sekunden seit Wochenbeginn (GPS-Zeit, 6-s-Schritte). */
     fun secondsOfWeek(bits: String): Long = unsigned(bits, 24, 17) * 6L
@@ -216,6 +242,64 @@ object GpsLnav {
         var w = week
         while (w < 2048) w += 1024
         return w
+    }
+
+    /**
+     * Almanach aus einer Seite — Unterrahmen 5, Seiten 1–24 (SV 1–24) oder
+     * Unterrahmen 4, Seiten 2–5 und 7–10 (SV 25–32).
+     *
+     * **Bitbelegung aus Figur 20-1, Blatt 4 von 11**, Breiten und Skalen aus
+     * Tabelle 20-VI:
+     *
+     * | Feld | Bit | Breite | Skala |
+     * |---|---|---|---|
+     * | e | 56 | 16, vorzeichenbehaftet | 2⁻²¹ |
+     * | toa | 72 | 8 | 2¹² s |
+     * | δi | 80 | 16, vorzeichenbehaftet | 2⁻¹⁹ halbe Kreise |
+     * | Ω̇ | 96 | 16, vorzeichenbehaftet | 2⁻³⁸ halbe Kreise/s |
+     * | Gesundheit | 112 | 8 | — |
+     * | √A | 120 | 24 | 2⁻¹¹ |
+     * | Ω₀ | 144 | 24, vorzeichenbehaftet | 2⁻²³ halbe Kreise |
+     * | ω | 168 | 24, vorzeichenbehaftet | 2⁻²³ halbe Kreise |
+     * | M₀ | 192 | 24, vorzeichenbehaftet | 2⁻²³ halbe Kreise |
+     * | af0 | 216 | 11, vorzeichenbehaftet | 2⁻²⁰ s |
+     * | af1 | 227 | 11, vorzeichenbehaftet | 2⁻³⁸ s/s |
+     *
+     * Zwei unabhängige Angaben der ICD stützen die Lage: §20.3.3.5.1.2 zählt
+     * „174 almanac data bits und 8 SV health bits" (Summe der Spalten = 174, die
+     * Gesundheitsbits stehen zusätzlich), und §20.3.3.5.1.3 legt sie auf „bits
+     * 17 through 24 of word five" — Wort 5 ist Bit 96–119, also 112–119.
+     *
+     * **RTKLIB ist hier keine Hilfe:** dessen `decode_alm_sat()` beginnt bei Bit
+     * 50 und liest damit die SV-Kennung als Anfang von `e`. Das widerspricht der
+     * Figur — hier gilt die Spezifikation.
+     *
+     * Die Bezugswoche steht nicht auf der Seite; sie kommt auf der letzten Seite
+     * des Rahmens (Unterrahmen 5, Seite 25) und wird vom Sammler ergänzt.
+     */
+    fun almanac(bits: String): Almanac? {
+        if (bits.length < 238) return null
+        val sub = subframeNumber(bits).toInt()
+        val svid = pageNumber(bits).toInt()
+        val almanachSeite = (sub == 5 && svid in 1..24) || (sub == 4 && svid in 25..32)
+        if (!almanachSeite || dataId(bits) != 1) return null
+        val inclination = 0.30 + signed(bits, 80, 16) * P2_19
+        return Almanac(
+            system = "GPS",
+            svid = svid,
+            week = 0,
+            referenceSeconds = (unsigned(bits, 72, 8) * 4096L).toInt(),
+            sqrtA = unsigned(bits, 120, 24) * P2_11,
+            eccentricity = signed(bits, 56, 16) * P2_21,
+            inclination = inclination * PI,
+            ascendingNode = signed(bits, 144, 24) * P2_23 * PI,
+            argumentOfPerigee = signed(bits, 168, 24) * P2_23 * PI,
+            meanAnomaly = signed(bits, 192, 24) * P2_23 * PI,
+            nodeRate = signed(bits, 96, 16) * P2_38 * PI,
+            clockBias = signed(bits, 216, 11) * P2_20,
+            clockRate = signed(bits, 227, 11) * P2_38,
+            health = unsigned(bits, 112, 8).toInt()
+        )
     }
 
     private fun unsigned(bits: String, pos: Int, length: Int): Long =

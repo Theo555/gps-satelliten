@@ -48,7 +48,7 @@ class GpsIonoUtcTest {
         setze(b, 0, 8, 0b10001011)         // Präambel, sonst wird die Meldung verworfen
         setze(b, 43, 3, 4)                 // Unterrahmen 4
         setze(b, 48, 2, 1)                 // Data-ID 1 (LNAV)
-        setze(b, 50, 6, 18)                // Seite 18
+        setze(b, 50, 6, 56)                // Seite 18 hat die Kennung 56 (Tabelle 20-V)
         setze(b, 56, 8, 30)                // alpha0 = 30 * 2^-30
         setze(b, 64, 8, -14)               // alpha1
         setze(b, 72, 8, 41)                // alpha2
@@ -57,10 +57,9 @@ class GpsIonoUtcTest {
         setze(b, 96, 8, -20)               // beta1
         setze(b, 104, 8, 16)               // beta2
         setze(b, 112, 8, 5)                // beta3
-        setze(b, 120, 24, 0)               // A0 obere 24 Bit
-        setze(b, 144, 8, 0)                // A0 untere 8 Bit
-        setze(b, 152, 16, 0)               // A1 obere 16 Bit
-        setze(b, 168, 8, 0)                // A1 untere 8 Bit
+        // A1 steht in Wort 6, A0 erst in Wort 7/8 (Figur 20-1, Blatt 8).
+        setze(b, 120, 24, 40)              // A1 = 40 * 2^-50
+        setze(b, 144, 32, -9)              // A0 = -9 * 2^-30 (obere 24 + untere 8 Bit)
         setze(b, 176, 8, 78)               // tot in Schritten von 4096 s
         setze(b, 184, 8, 141)              // WNt (2445 mod 256)
         setze(b, 192, 8, 18)               // Schaltsekunde
@@ -75,8 +74,21 @@ class GpsIonoUtcTest {
         val bits = GpsLnav.dataBits(gpsBytes(seite18()))!!
         assertTrue(GpsLnav.isIonoUtcPage(bits))
         assertEquals(4, GpsLnav.subframeNumber(bits))
-        assertEquals(18, GpsLnav.pageNumber(bits))
+        // Nicht 18: die Seitenkennung ist 48 + Seitennummer.
+        assertEquals(56, GpsLnav.pageNumber(bits))
         assertEquals(1, GpsLnav.dataId(bits))
+    }
+
+    @Test
+    fun unterrahmen5Seite18IstAlmanachUndKeineKorrektur() {
+        val b = CharArray(240) { '0' }
+        setze(b, 0, 8, 0b10001011)
+        setze(b, 43, 3, 5)
+        setze(b, 48, 2, 1)
+        setze(b, 50, 6, 18)      // Unterrahmen 5, Seite 18 = Almanach von SV 18
+        val bits = GpsLnav.dataBits(gpsBytes(String(b)))!!
+        assertFalse(GpsLnav.isIonoUtcPage(bits))
+        assertNull(GpsLnav.utc(bits))
     }
 
     @Test
@@ -109,14 +121,42 @@ class GpsIonoUtcTest {
     @Test
     fun utcWirdGelesen() {
         val utc = GpsLnav.utc(GpsLnav.dataBits(gpsBytes(seite18()))!!)!!
-        assertEquals(0.0, utc.a0, 0.0)
-        assertEquals(0.0, utc.a1, 0.0)
+        assertEquals(-9 * 2.0.pow(-30), utc.a0, 1e-24)
+        assertEquals(40 * 2.0.pow(-50), utc.a1, 1e-24)
         assertEquals(18, utc.deltaLs)
         assertEquals(78 * 4096, utc.referenceSeconds)
         assertEquals(141, utc.weekNumber)
         assertEquals(137, utc.weekNumberLsf)
         assertEquals(7, utc.dayNumber)
         assertEquals(18, utc.deltaLsf)
+    }
+
+    /**
+     * Mitschnitt vom 16.11.2026, PRN 13, Unterrahmen 4 Seite 18 — echte Bytes.
+     *
+     * Die Werte gelten systemweit und waren bei allen sechs empfangenen
+     * Satelliten gleich (12, 13, 14, 15, 19, 20).
+     */
+    @Test
+    fun echterMitschnittLiefertDieGeltendenWerte() {
+        val roh = intArrayOf(
+            34, 193, 141, 13, 10, 154, 76, 51, 30, 5, 191, 188, 63, 128, 207, 244,
+            62, 191, 128, 61, 63, 255, 255, 234, 63, 255, 255, 234, 63, 211, 163,
+            72, 4, 162, 65, 207, 4, 130, 71, 4
+        )
+        val bits = GpsLnav.dataBits(ByteArray(40) { roh[it].toByte() })!!
+        val utc = GpsLnav.utc(bits)!!
+        // A0 und A1 sind je ein LSB negativ — das übliche Rauschmuster.
+        assertEquals(-1 * 2.0.pow(-30), utc.a0, 1e-24)
+        assertEquals(-1 * 2.0.pow(-50), utc.a1, 1e-24)
+        assertEquals(18, utc.deltaLs)
+        assertEquals(319_488, utc.referenceSeconds)
+        assertEquals(141, utc.weekNumber)
+        assertEquals(137, utc.weekNumberLsf)
+        assertEquals(7, utc.dayNumber)
+        assertEquals(18, utc.deltaLsf)
+        // Dieselbe Seitenkennung, die die App vorher verworfen hat.
+        assertEquals(56, GpsLnav.pageNumber(bits))
     }
 
     @Test

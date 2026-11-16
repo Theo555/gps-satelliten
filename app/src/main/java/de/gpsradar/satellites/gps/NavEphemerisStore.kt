@@ -1,6 +1,7 @@
 package de.gpsradar.satellites.gps
 
 import android.location.GnssNavigationMessage
+import de.gpsradar.satellites.model.Almanac
 import de.gpsradar.satellites.model.BdsClock
 import de.gpsradar.satellites.model.BdsEphemeris
 import de.gpsradar.satellites.model.BdsLnav
@@ -33,7 +34,13 @@ data class NavEphemerides(
     val glo: List<GloEphemeris> = emptyList(),
     val bds: List<BdsEphemeris> = emptyList(),
     val gal: List<GalEphemeris> = emptyList(),
-    val corrections: NavCorrections = NavCorrections()
+    val corrections: NavCorrections = NavCorrections(),
+    /**
+     * Almanach-Sätze. Sie gehören nicht in die RINEX-Navigationsdatei — das
+     * Format kennt keinen Almanach — und werden deshalb als eigene Datei
+     * geschrieben.
+     */
+    val almanac: List<Almanac> = emptyList()
 ) {
     val total: Int get() = gps.size + glo.size + bds.size + gal.size
 }
@@ -92,6 +99,9 @@ class NavEphemerisStore {
     private val gpsTeile = mutableMapOf<Int, GpsTeile>()
     private val gpsEphemerides = mutableMapOf<Int, GpsEphemeris>()
 
+    /** Almanach je System und Satellit; der jüngste Satz gewinnt. */
+    private val almanac = mutableMapOf<String, MutableMap<Int, Almanac>>()
+
     private val gloTeile = mutableMapOf<Int, GloTeile>()
     private val gloEphemerides = mutableMapOf<Int, GloEphemeris>()
 
@@ -147,7 +157,7 @@ class NavEphemerisStore {
     fun add(message: GnssNavigationMessage, nowMillis: Long = System.currentTimeMillis()): Boolean {
         val data = message.data ?: return false
         return when (message.type) {
-            GnssNavigationMessage.TYPE_GPS_L1CA -> addGps(message.svid, data)
+            GnssNavigationMessage.TYPE_GPS_L1CA -> addGps(message.svid, data, nowMillis)
             GnssNavigationMessage.TYPE_GLO_L1CA -> addGlo(message.svid, data, nowMillis)
             GnssNavigationMessage.TYPE_BDS_D1 -> addBds(message.svid, data, nowMillis)
             GnssNavigationMessage.TYPE_GAL_I ->
@@ -169,7 +179,10 @@ class NavEphemerisStore {
             galUtc = galUtc,
             bdsIono = bdsIono,
             bdsUtc = bdsUtc
-        )
+        ),
+        almanac = almanac.values
+            .flatMap { it.values }
+            .sortedWith(compareBy({ it.system }, { it.svid }))
     )
 
     fun clear() {
@@ -181,6 +194,7 @@ class NavEphemerisStore {
         bdsEphemerides.clear()
         galTeile.clear()
         galEphemerides.clear()
+        almanac.clear()
         gpsIono = null
         gpsUtc = null
         bdsIono = null
@@ -192,8 +206,8 @@ class NavEphemerisStore {
     // ---- GPS ----
 
     /**
-     * Unterrahmen 4, Seite 18: Ionosphäre und UTC — sonst Almanach, den wir
-     * nicht auswerten.
+     * Unterrahmen 4, Seite 18: Ionosphäre und UTC. Andere Seiten liefern hier
+     * nichts — der Almanach wird in [gpsExtra] behandelt.
      */
     private fun gpsCorrections(bits: String): Boolean {
         val iono = GpsLnav.ionosphere(bits) ?: return false
@@ -204,7 +218,40 @@ class NavEphemerisStore {
         return changed
     }
 
-    private fun addGps(svid: Int, data: ByteArray): Boolean {
+    /**
+     * Unterrahmen 4/5: entweder Ionosphäre und UTC (Seite 18) oder der Almanach
+     * eines Satelliten (Unterrahmen 5 Seiten 1–24, Unterrahmen 4 Seiten 2–5 und
+     * 7–10). Beides schließt sich aus — die Seitenprüfung entscheidet.
+     */
+    private fun gpsExtra(bits: String, nowMillis: Long): Boolean {
+        if (gpsCorrections(bits)) return true
+        val alm = GpsLnav.almanac(bits) ?: return false
+        if (!alm.isPlausible) return false
+        val week = gpsWeekOf(nowMillis, alm.referenceSeconds)
+        val satz = alm.copy(week = week)
+        val fach = almanac.getOrPut(satz.system) { mutableMapOf() }
+        val changed = fach[satz.svid] != satz
+        fach[satz.svid] = satz
+        return changed
+    }
+
+    /**
+     * GPS-Woche, in die ein Almanach-Bezug fällt.
+     *
+     * Der Almanach trägt `toa` nur als Sekunden seit Wochenbeginn; die Woche
+     * steht auf einer anderen Seite. Deshalb aus der Empfangszeit ableiten: Ist
+     * der Bezug mehr als eine halbe Woche „in der Zukunft“, gehört er zur
+     * Vorwoche. Almanachsätze sind bis zu sechs Tage alt, deshalb genügt dieser
+     * eine Schritt.
+     */
+    private fun gpsWeekOf(nowMillis: Long, referenceSeconds: Int): Int {
+        val secondsSinceEpoch = (nowMillis - GPS_EPOCH_MILLIS) / 1000L
+        val week = (secondsSinceEpoch / 604_800L).toInt()
+        val sow = (secondsSinceEpoch % 604_800L).toInt()
+        return if (referenceSeconds - sow > 302_400) week - 1 else week
+    }
+
+    private fun addGps(svid: Int, data: ByteArray, nowMillis: Long): Boolean {
         val bits = GpsLnav.dataBits(data) ?: return false
         val seconds = GpsLnav.secondsOfWeek(bits).toInt()
 
@@ -217,8 +264,9 @@ class NavEphemerisStore {
             2 -> t.orbitA = GpsLnav.orbitA(bits) ?: return false
             3 -> t.orbitB = GpsLnav.orbitB(bits) ?: return false
             // Unterrahmen 4/5 tragen keine Ephemeride, aber auf Seite 18
-            // Ionosphäre und UTC-Parameter.
-            else -> return gpsCorrections(bits)
+            // Ionosphäre und UTC-Parameter und auf den übrigen Seiten den
+            // Almanach.
+            else -> return gpsExtra(bits, nowMillis)
         }
 
         val clock = t.clock ?: return false
@@ -476,6 +524,9 @@ class NavEphemerisStore {
     }
 
     private companion object {
+        /** Beginn der GPS-Zeit in Millisekunden seit 1970 (6. Januar 1980). */
+        const val GPS_EPOCH_MILLIS = 315_964_800_000L
+
         /**
          * Ein vollständiger Durchlauf über die Strings 1–4 dauert 8 Sekunden,
          * wiederholt wird er alle 30. Nach 70 Sekunden fehlt mindestens eine

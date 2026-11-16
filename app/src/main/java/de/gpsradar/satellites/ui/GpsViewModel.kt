@@ -23,6 +23,7 @@ import java.util.TimeZone
 import de.gpsradar.satellites.gps.GpsDataManager
 import de.gpsradar.satellites.gps.NavEphemerides
 import de.gpsradar.satellites.gps.RawGnssManager
+import de.gpsradar.satellites.model.AlmanacFile
 import de.gpsradar.satellites.model.Cache
 import de.gpsradar.satellites.model.BufferStats
 import de.gpsradar.satellites.model.CapturePhase
@@ -988,6 +989,10 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
      * RINEX-Navigationsdatei in denselben Ordner. Liefert false, wenn noch kein
      * vollständiger Satz vorliegt oder das Schreiben scheitert — dann bleibt es
      * bei der CSV.
+     *
+     * Liegt zusätzlich ein Almanach vor, entsteht daneben `almanach_….txt`:
+     * RINEX kennt keinen Almanach, und die Sätze sind für die Auswertung nicht
+     * nötig — sie belegen aber, was der Empfänger geliefert hat.
      */
     fun exportNavRinex(ordner: Uri, dateiName: String): Boolean {
         val nav = gpsDataManager.navEphemerides.value
@@ -998,10 +1003,28 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
         if (!brauchbar) return false
         // Eigener MIME-Typ statt "text/plain": Android haengt sonst die Endung
         // des MIME-Typs an (.txt) und aus navigation_….rnx wuerde .rnx.txt.
-        return schreibeInOrdner(
+        val geschrieben = schreibeInOrdner(
             ordner, ExportFolder.NAVIGATION, dateiName, "application/rnx",
             RinexNav.write(nav.gps, nav.glo, nav.bds, nav.gal, nav.corrections)
         )
+        if (nav.almanac.isNotEmpty()) {
+            val almanachName = dateiName
+                .substringAfter("navigation_", dateiName)
+                .substringBeforeLast(".")
+            schreibeInOrdner(
+                ordner, ExportFolder.NAVIGATION, "almanach_$almanachName.txt",
+                "text/plain",
+                AlmanacFile.write(
+                    nav.almanac,
+                    listOf(
+                        "geraet = ${Build.MANUFACTURER} ${Build.MODEL}",
+                        "android = ${Build.VERSION.RELEASE} (SDK ${Build.VERSION.SDK_INT})",
+                        "exportiert = ${utcNow()}"
+                    )
+                )
+            )
+        }
+        return geschrieben
     }
 
     /**
