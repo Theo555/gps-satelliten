@@ -7,6 +7,7 @@ import de.gpsradar.satellites.model.Constellation
 import de.gpsradar.satellites.model.DeviceCapabilities
 import de.gpsradar.satellites.model.KlobucharIono
 import de.gpsradar.satellites.model.NavCorrections
+import de.gpsradar.satellites.model.UtcCorrection
 import de.gpsradar.satellites.ui.EmpfangAbility
 import de.gpsradar.satellites.ui.EmpfangSummaryBuilder
 import org.junit.Assert.assertEquals
@@ -41,6 +42,17 @@ class EmpfangSummaryTest {
     )
 
     private val leereNavigation = NavEphemerides()
+
+    private fun utc(a0: Double) = UtcCorrection(
+        a0 = a0,
+        a1 = 0.0,
+        deltaLs = 18,
+        referenceSeconds = 0,
+        weekNumber = 0,
+        deltaLsf = 0,
+        weekNumberLsf = 0,
+        dayNumber = 0
+    )
 
     @Test
     fun ohneDatenBleibenAlleSystemeBeiNull() {
@@ -125,6 +137,44 @@ class EmpfangSummaryTest {
         val summary = EmpfangSummaryBuilder.of(allesKlar, leereNavigation)
 
         assertFalse(summary.hasUnclearAbilities)
+    }
+
+    /**
+     * GLONASS sendet den Zeitbezug zu UTC(SU) und wir werten ihn aus (GLUT in
+     * der Navigationsdatei) — die Ansicht hat ihn aber nicht genannt.
+     * Gefunden am 17.11.2026 auf dem Note 9.
+     */
+    @Test
+    fun glonassUtcWirdGenannt() {
+        val nav = NavEphemerides(
+            corrections = NavCorrections(gloUtc = utc(a0 = -4.6566128731E-09))
+        )
+
+        val summary = EmpfangSummaryBuilder.of(DeviceCapabilities(sdkInt = 33), nav)
+
+        assertEquals(listOf(Constellation.GLONASS), summary.utcSystems)
+    }
+
+    /**
+     * GLONASS sendet **keine** Ionosphärenkoeffizienten — es darf also auch
+     * dann nicht auftauchen, wenn andere Systeme Daten liefern.
+     */
+    @Test
+    fun glonassHatKeineIonosphaere() {
+        val nav = NavEphemerides(
+            corrections = NavCorrections(
+                gpsIono = KlobucharIono(
+                    alpha = listOf(1.0, 2.0, 3.0, 4.0),
+                    beta = listOf(5.0, 6.0, 7.0, 8.0)
+                ),
+                gloUtc = utc(a0 = -4.6566128731E-09)
+            )
+        )
+
+        val summary = EmpfangSummaryBuilder.of(DeviceCapabilities(sdkInt = 33), nav)
+
+        assertEquals(listOf(Constellation.GPS), summary.ionosphereSystems)
+        assertEquals(listOf(Constellation.GLONASS), summary.utcSystems)
     }
 
     @Test

@@ -77,10 +77,16 @@ object EmpfangSummaryBuilder {
                 Constellation.GALILEO.takeIf { nav.corrections.galIono != null },
                 Constellation.BEIDOU.takeIf { nav.corrections.bdsIono != null }
             ),
+            // GLONASS gehört hierher: es sendet zwar keine Ionosphären-
+            // koeffizienten (deshalb fehlt es oben zu Recht), wohl aber den
+            // Zeitbezug zu UTC(SU). Der Wert lag längst vor — er steht als
+            // GLUT in der Navigationsdatei —, nur die Anzeige hat ihn
+            // vergessen (gefunden am 17.11.2026 auf dem Note 9).
             utcSystems = listOfNotNull(
                 Constellation.GPS.takeIf { nav.corrections.gpsUtc != null },
-                Constellation.GALILEO.takeIf { nav.corrections.galUtc != null },
-                Constellation.BEIDOU.takeIf { nav.corrections.bdsUtc != null }
+                Constellation.GLONASS.takeIf { nav.corrections.gloUtc != null },
+                Constellation.BEIDOU.takeIf { nav.corrections.bdsUtc != null },
+                Constellation.GALILEO.takeIf { nav.corrections.galUtc != null }
             )
         )
 
