@@ -25,6 +25,11 @@ val CompassWarningColor = Color(0xFFF59E0B)
  * man auf die Nav-Seite – der Hinweis war dort unsichtbar, obwohl der Pfeil
  * genau dort benutzt wird.
  *
+ * [compact] kürzt den Text auf das, was in der Knopfreihe des Radars neben
+ * „Kompass prüfen" passt ("Feld 45 µT · zu stark" statt "Kompass unsicher ·
+ * Feld 45 µT (zu stark)"). Auf der Nav-Seite steht der volle Satz, weil dort
+ * kein Knopf daneben steht, der den Bezug herstellt.
+ *
  * Zeigt nichts, wenn der Kompass in Ordnung ist; Aufrufer können die Zeile
  * also unbedingt einbauen und nur den Platz drumherum bedingt reservieren.
  */
@@ -33,16 +38,27 @@ fun CompassWarningLine(
     state: GpsLocationState,
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
-    tag: String? = null
+    tag: String? = null,
+    compact: Boolean = false
 ) {
     if (!state.compassSuspect) return
     val fieldMicroTesla = state.compassFieldMicroTesla
     val hint = when {
         state.compassIssue == CompassIssue.FIELD_TOO_STRONG && fieldMicroTesla != null ->
-            stringResource(R.string.compass_issue_field_strong, fieldMicroTesla)
+            stringResource(
+                if (compact) R.string.compass_issue_field_strong_short
+                else R.string.compass_issue_field_strong,
+                fieldMicroTesla
+            )
         state.compassIssue == CompassIssue.FIELD_TOO_WEAK && fieldMicroTesla != null ->
-            stringResource(R.string.compass_issue_field_weak, fieldMicroTesla)
-        else -> stringResource(R.string.compass_unreliable)
+            stringResource(
+                if (compact) R.string.compass_issue_field_weak_short
+                else R.string.compass_issue_field_weak,
+                fieldMicroTesla
+            )
+        else -> stringResource(
+            if (compact) R.string.compass_unreliable_short else R.string.compass_unreliable
+        )
     }
     Text(
         text = hint,

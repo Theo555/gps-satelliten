@@ -43,6 +43,10 @@
     <string name="compass_unreliable">Kompass unzuverlässig</string>
     <string name="compass_issue_field_strong">Kompass unsicher · Feld %1$.0f µT (zu stark)</string>
     <string name="compass_issue_field_weak">Kompass unsicher · Feld %1$.0f µT (zu schwach)</string>
+    <!-- Kurzfassung für die Knopfreihe im Radar, direkt neben "Kompass prüfen" -->
+    <string name="compass_unreliable_short">Kompass unsicher</string>
+    <string name="compass_issue_field_strong_short">Feld %1$.0f µT · zu stark</string>
+    <string name="compass_issue_field_weak_short">Feld %1$.0f µT · zu schwach</string>
 
     <!-- Kompass-Prüfung (reine Diagnose) -->
     <string name="compass_check_open">Kompass prüfen</string>

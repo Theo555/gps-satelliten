@@ -43,6 +43,10 @@
     <string name="compass_unreliable">Compass unreliable</string>
     <string name="compass_issue_field_strong">Compass unreliable · field %1$.0f µT (too strong)</string>
     <string name="compass_issue_field_weak">Compass unreliable · field %1$.0f µT (too weak)</string>
+    <!-- Kurzfassung für die Knopfreihe im Radar, direkt neben "Check compass" -->
+    <string name="compass_unreliable_short">Compass unreliable</string>
+    <string name="compass_issue_field_strong_short">field %1$.0f µT · too strong</string>
+    <string name="compass_issue_field_weak_short">field %1$.0f µT · too weak</string>
 
     <!-- Compass check (diagnosis only) -->
     <string name="compass_check_open">Check compass</string>

@@ -21,7 +21,6 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -156,24 +155,6 @@ fun RadarSkyView(
             }
         }
 
-        // Kleiner Hinweis, wenn der Kompass unzuverlässig ist – mit dem Grund
-        // und dem gemessenen Feldbetrag. Die Höhe ist dauerhaft reserviert:
-        // Sonst springt das Radar beim Ein- und Ausblenden um eine Zeile.
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(min = 16.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            if (state.compassSuspect) {
-                CompassWarningLine(
-                    state = state,
-                    onClick = onOpenCompassCheck,
-                    tag = "compass_check_hint"
-                )
-            }
-        }
-
         // Radar Canvas Box
         BoxWithConstraints(
             modifier = Modifier
@@ -207,22 +188,41 @@ fun RadarSkyView(
         )
 
         // Einstieg in die Kompass-Prüfung – immer erreichbar, auch ohne Warnung.
-        TextButton(
-            onClick = onOpenCompassCheck,
-            modifier = Modifier.testTag("compass_check_btn")
+        // Links, und der Hinweis steht direkt daneben statt in einer eigenen
+        // Zeile über dem Radar: Die Zeile wäre sonst doppelt belegt (Knopf und
+        // Warnung sagen dasselbe Thema), und das Radar gewinnt die Höhe.
+        // Die Zeilenhöhe bestimmt der Knopf (48 dp) – der Hinweis bricht bei
+        // schmalen Geräten lieber um, als dass er die Zeile springen lässt.
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                imageVector = Icons.Default.CompassCalibration,
-                contentDescription = null,
-                modifier = Modifier.size(16.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(modifier = Modifier.width(6.dp))
-            Text(
-                text = stringResource(R.string.compass_check_open),
-                fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            TextButton(
+                onClick = onOpenCompassCheck,
+                modifier = Modifier.testTag("compass_check_btn")
+            ) {
+                Icon(
+                    imageVector = Icons.Default.CompassCalibration,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = stringResource(R.string.compass_check_open),
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            if (state.compassSuspect) {
+                CompassWarningLine(
+                    state = state,
+                    onClick = onOpenCompassCheck,
+                    tag = "compass_check_hint",
+                    compact = true,
+                    modifier = Modifier.weight(1f)
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(6.dp))
