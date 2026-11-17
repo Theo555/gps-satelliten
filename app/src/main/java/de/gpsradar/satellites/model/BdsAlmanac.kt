@@ -64,7 +64,22 @@ data class BdsAlmanac(
             kotlin.math.abs(argumentOfPerigee) <= PI &&
             kotlin.math.abs(meanAnomaly) <= PI
 
-    /** Geostationär? Nur dort gilt der Bezugswert i₀ = 0. */
+    /**
+     * Geostationär? Nur dort gilt der Bezugswert i₀ = 0.
+     *
+     * ## Warum die GEO-Neigung nicht mit der Ephemeride vergleichbar ist
+     *
+     * Gegenprobe am 17.11.2026 gegen die BRDC-Tagesdatei: Bei MEO und IGSO
+     * stimmt [inclination] mit der Ephemeride auf 0,0014° (Feldauflösung
+     * 0,011°), bei den GEO-Satelliten liegt sie rund 5° daneben — und zwar
+     * **nicht konstant** (−4,98° / −4,82° / −4,30°), weshalb ein falscher
+     * Bezugswert sie nicht erklären kann. √A und e stimmen auch bei GEO.
+     *
+     * Die Ursache liegt bei der Gegenseite: Die Broadcast-Ephemeride beschreibt
+     * die GEO-Bahn in einer anderen Ebene (RTKLIB rechnet für GEO eigens eine
+     * Drehung). Ein elementweiser i₀-Vergleich ist dort also nicht
+     * aussagekräftig — bei MEO und IGSO dagegen sehr.
+     */
     val isGeostationary: Boolean get() = svid in 1..5 || svid in 59..63
 
     /** Bahnneigung absolut (Radiant) — δi plus Bezugswert. */
