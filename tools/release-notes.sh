@@ -11,7 +11,13 @@
 # zweiten Ordner – genau die Sorte Schritt, die man vergisst.
 #
 # Die deutschen Notizen stehen vorn (Hauptpublikum), darunter der englische
-# Teil unter "### English" – so wie bei den Releases bis 1.3.13.
+# Teil — ausklappbar in <details>, so wie bei den Releases bis 1.3.10. Ab
+# 1.3.11 fehlte der englische Teil, ohne dass es jemandem auffiel; deshalb
+# entsteht der Text jetzt aus beiden Dateien statt aus einer.
+#
+# Der Schlusssatz stand in jedem frueheren Release und sagt in einem Satz,
+# was die App auszeichnet. Er gehoert zum Text, nicht zum Changelog, und
+# steht deshalb hier.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -40,9 +46,17 @@ strip_version() {
 
 BODY="$(strip_version "$DE")
 
-### English
+Die App bleibt vollständig offline und benötigt keine Berechtigung außer dem
+Standort.
 
-$(strip_version "$EN")"
+<details>
+<summary>English</summary>
+
+$(strip_version "$EN")
+
+The app stays fully offline and needs no permission other than location.
+
+</details>"
 
 if [ "${2:-}" = "--url" ]; then
   if [ $# -lt 3 ]; then
