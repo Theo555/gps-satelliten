@@ -320,6 +320,60 @@ object GalLnav {
         )
     }
 
+    /**
+     * Worttyp 9, erster Teil: Bezugszeit, M₀ und Uhr für SVID2.
+     *
+     * Damit wird der Satz vollständig, dessen Bahn in Worttyp 8 begann — der
+     * Satellit steht dort, nicht hier, deshalb [svid2].
+     */
+    fun almanacSecondClock(bits: String, svid2: Int): GalAlmanac? {
+        if (bits.length < 76 || svid2 <= 0) return null
+        return GalAlmanac(
+            svid = svid2,
+            iodA = unsigned(bits, 0, 4).toInt(),
+            weekBits = unsigned(bits, 4, 2).toInt(),
+            referenceSeconds = (unsigned(bits, 6, 10) * 600L).toInt(),
+            meanAnomaly = signed(bits, 16, 16) * P2_15 * PI,
+            clockBias = signed(bits, 32, 16) * P2_19,
+            clockRate = signed(bits, 48, 13) * P2_38
+        )
+    }
+
+    /** Worttyp 9, zweiter Teil: Bahn für SVID3 — ohne Ω₀, Ω̇, M₀ und Uhr. */
+    fun almanacThird(bits: String): GalAlmanac? {
+        if (bits.length < 122) return null
+        val svid = unsigned(bits, 65, 6).toInt()
+        if (svid !in 1..36) return null
+        return GalAlmanac(
+            svid = svid,
+            iodA = unsigned(bits, 0, 4).toInt(),
+            sqrtA = GalAlmanac.SQRT_A_NOMINAL + signed(bits, 71, 13) * P2_9,
+            eccentricity = unsigned(bits, 84, 11) * P2_16,
+            argumentOfPerigee = signed(bits, 95, 16) * P2_15 * PI,
+            inclination = GalAlmanac.INCLINATION_NOMINAL + signed(bits, 111, 11) * P2_14 * PI
+        )
+    }
+
+    /**
+     * Worttyp 10: Knotenlage, Raten, M₀ und Uhr für SVID3.
+     *
+     * Vervollständigt den Satz aus Worttyp 9; der Satellit steht dort.
+     * Der hintere Teil des Wortes trägt die GST-GPS-Umrechnung — die gehört
+     * nicht zum Almanach und bleibt unberücksichtigt.
+     */
+    fun almanacFourth(bits: String, svid3: Int): GalAlmanac? {
+        if (bits.length < 76 || svid3 <= 0) return null
+        return GalAlmanac(
+            svid = svid3,
+            iodA = unsigned(bits, 0, 4).toInt(),
+            ascendingNode = signed(bits, 4, 16) * P2_15 * PI,
+            nodeRate = signed(bits, 20, 11) * P2_33 * PI,
+            meanAnomaly = signed(bits, 31, 16) * P2_15 * PI,
+            clockBias = signed(bits, 47, 16) * P2_19,
+            clockRate = signed(bits, 63, 13) * P2_38
+        )
+    }
+
     private fun unsigned(bits: String, pos: Int, length: Int): Long =
         java.lang.Long.parseLong(bits.substring(pos, pos + length), 2)
 

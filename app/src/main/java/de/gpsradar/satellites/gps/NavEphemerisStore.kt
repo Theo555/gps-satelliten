@@ -140,6 +140,12 @@ class NavEphemerisStore {
 
     /** Satellit aus dem letzten Worttyp 7 — dorthin gehoert die Uhr aus Worttyp 8. */
     private var galAlmanacPendingSvid = 0
+
+    /** Satellit aus dem letzten Worttyp 8 — dorthin gehoert der Rest aus Worttyp 9. */
+    private var galAlmanacPendingSvid2 = 0
+
+    /** Satellit aus dem letzten Worttyp 9 — dorthin gehoert der Rest aus Worttyp 10. */
+    private var galAlmanacPendingSvid3 = 0
     private val bdsEphemerides = mutableMapOf<Int, BdsEphemeris>()
 
     private class GalTeile {
@@ -219,6 +225,8 @@ class NavEphemerisStore {
         bdsAlmanacStimmen.clear()
         galAlmanacTeile.clear()
         galAlmanacPendingSvid = 0
+        galAlmanacPendingSvid2 = 0
+        galAlmanacPendingSvid3 = 0
         gpsIono = null
         gpsUtc = null
         gloUtc = null
@@ -536,9 +544,10 @@ class NavEphemerisStore {
      * veroeffentlichen.
      *
      * Worttyp 7 traegt den Bahnsatz fuer SVID1, Worttyp 8 dessen Uhr und den
-     * Bahnsatz fuer SVID2. Die Typen 9 und 10 (Rest fuer SVID2 und SVID3)
-     * sind noch nicht ausgewertet: im Mitschnitt vom 17.11.2026 kamen bei 15
-     * Minuten Aufnahme nur ein Wort von Typ 7 und eines von Typ 8 an.
+     * Bahnsatz fuer SVID2, Worttyp 9 Bezugszeit und Uhr fuer SVID2 sowie den
+     * Bahnsatz fuer SVID3, Worttyp 10 den Rest fuer SVID3. Jeder Worttyp nennt
+     * nur einen der Satelliten — die anderen ergeben sich aus der Reihenfolge,
+     * deshalb die drei Merker.
      */
     private fun galAlmanac(wordType: Int, bits: String, nowMillis: Long): Boolean {
         var changed = false
@@ -554,7 +563,30 @@ class NavEphemerisStore {
                     if (uhr != null) changed = mergeGalAlmanac(uhr, nowMillis) || changed
                 }
                 val zweiter = GalLnav.almanacSecond(bits)
-                if (zweiter != null) changed = mergeGalAlmanac(zweiter, nowMillis) || changed
+                if (zweiter != null) {
+                    galAlmanacPendingSvid2 = zweiter.svid
+                    changed = mergeGalAlmanac(zweiter, nowMillis) || changed
+                }
+            }
+            9 -> {
+                // Erster Teil: Bezugszeit, M0 und Uhr fuer SVID2.
+                if (galAlmanacPendingSvid2 > 0) {
+                    val uhr = GalLnav.almanacSecondClock(bits, galAlmanacPendingSvid2)
+                    if (uhr != null) changed = mergeGalAlmanac(uhr, nowMillis) || changed
+                }
+                // Zweiter Teil: Bahn fuer SVID3.
+                val dritter = GalLnav.almanacThird(bits)
+                if (dritter != null) {
+                    galAlmanacPendingSvid3 = dritter.svid
+                    changed = mergeGalAlmanac(dritter, nowMillis) || changed
+                }
+            }
+            10 -> {
+                // Rest fuer SVID3: Knotenlage, Raten, M0 und Uhr.
+                if (galAlmanacPendingSvid3 > 0) {
+                    val rest = GalLnav.almanacFourth(bits, galAlmanacPendingSvid3)
+                    if (rest != null) changed = mergeGalAlmanac(rest, nowMillis) || changed
+                }
             }
             else -> return false
         }
