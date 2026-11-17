@@ -27,6 +27,16 @@ data class EmpfangSummary(
 ) {
     /** Ohne Bahndaten hat die mittlere Gruppe nichts zu zeigen. */
     val hasOrbitData: Boolean get() = systems.any { it.ephemerides > 0 || it.almanac > 0 }
+
+    /**
+     * Steht mindestens eine Fähigkeit auf „unklar“?
+     *
+     * Dann braucht der Geräte-Kasten den erklärenden Satz — sonst deutet man
+     * „unklar“ als „kann das Gerät nicht“. Auf Android 12 und 13 ist das der
+     * Regelfall: die Trägerphase lässt sich dort erst ab Android 14 abfragen.
+     */
+    val hasUnclearAbilities: Boolean
+        get() = abilities.any { it.state == CapabilityState.UNKNOWN }
 }
 
 /** Eine Fähigkeit, die in der Ansicht als Zeile erscheint. */

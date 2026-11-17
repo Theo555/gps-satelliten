@@ -99,6 +99,34 @@ class EmpfangSummaryTest {
         )
     }
 
+    /**
+     * „Unklar" braucht den erklärenden Satz — sonst liest man es als „kann das
+     * Gerät nicht". Auf Android 12 und 13 ist das der Regelfall, weil die
+     * Trägerphase sich dort erst ab Android 14 abfragen lässt.
+     */
+    @Test
+    fun unklareFaehigkeitBrauchtDenHinweis() {
+        val summary = EmpfangSummaryBuilder.of(DeviceCapabilities(sdkInt = 33), leereNavigation)
+
+        assertTrue(summary.hasUnclearAbilities)
+    }
+
+    /** Antwortet das Gerät auf alles, bleibt der Satz weg. */
+    @Test
+    fun geklaerteFaehigkeitenBrauchenKeinenHinweis() {
+        val allesKlar = DeviceCapabilities(
+            sdkInt = 34,
+            rawMeasurements = CapabilityState.SUPPORTED,
+            accumulatedDeltaRange = CapabilityState.SUPPORTED,
+            navigationMessages = CapabilityState.SUPPORTED,
+            antennaInfo = CapabilityState.SUPPORTED
+        )
+
+        val summary = EmpfangSummaryBuilder.of(allesKlar, leereNavigation)
+
+        assertFalse(summary.hasUnclearAbilities)
+    }
+
     @Test
     fun ionosphaereWirdGenannt() {
         val nav = NavEphemerides(

@@ -62,6 +62,14 @@ fun EmpfangScreen(summary: EmpfangSummary) {
                         value = stateText(item.state)
                     )
                 }
+                if (summary.hasUnclearAbilities) {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = stringResource(R.string.empfang_unknown_hint),
+                        fontSize = 11.sp,
+                        color = Color(0xFF94A3B8)
+                    )
+                }
             }
         }
 
