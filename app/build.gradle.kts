@@ -11,8 +11,8 @@ android {
     applicationId = "de.gpsradar.satellites"
     minSdk = 24
     targetSdk = 36
-    versionCode = 18
-    versionName = "1.3.13"
+    versionCode = 19
+    versionName = "1.3.14"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }

@@ -11,6 +11,7 @@ Native Android-App (Kotlin + Jetpack Compose) zur **Live-Anzeige von GNSS-Satell
 - **Im Flugmodus getestet.** Läuft sauber und flink auf älteren Geräten ohne jede Verbindung.
 - **~2 MB APK.** Kein Karten-SDK, keine Analytics-Bibliothek. Karten öffnen über `geo:`-Intents in einer externen App. *(Android zeigt nach der Installation ~11 MB an: Es legt zusätzlich eine maschinell übersetzte Kopie des Codes ab. Das macht es mit jeder App und lässt sich nicht abschalten.)*
 - **Der Kompass lässt sich im Gerät selbst prüfen.** Ein Drehtest gegen den Kreisel zeigt, ob die Kompasswerte an dieser Stelle glaubwürdig sind – ohne externe Referenz, ohne Netz.
+- **Nur was die Hardware kann.** Die App fragt beim Empfänger ab, was er unterstützt – Roh-Messungen, Trägerphase, Navigationsnachrichten, Antenne – statt es anzunehmen. Was nachweislich fehlt, wird nicht angeboten; was unklar ist, bleibt sichtbar und als unklar gekennzeichnet. Dieselbe App läuft damit vom Einsteigergerät bis zum Flaggschiff, jeweils mit dem, was dort wirklich geht.
 
 ## Download (fertige APK) ⬇️
 
@@ -38,6 +39,7 @@ Keine Lust, selbst zu kompilieren? Lade einfach die fertige APK herunter und ins
 - **Ehrliche Anzeige** – Werte, die das Gerät nicht liefert (z. B. Pseudorange oder Uhr-Drift), erscheinen als „–“ bzw. „unbekannt“ statt als Fantasiezahl
 - **Rohdaten-Qualität** – eine Zeile mit Code-Lock, TOW, ms-Mehrdeutigkeit und Trägerphase; antippen klappt Details auf
 - **CSV-Export** – die Roh-Messungen als **Zeitreihe** (letzte 60 s, optional 5 Minuten Aufzeichnung), wahlweise RFC-konform oder für deutsches Excel (Details unter [Rohdaten-Export](#rohdaten-export-csv))
+- **Empfang** (Antennensymbol in der Kopfzeile) – was dieses Gerät kann und was es bisher gesammelt hat: Ephemeriden und Almanach je Satellitensystem, dazu die empfangenen Ionosphären- und UTC-Parameter
 - Hinweis: Der Messung-Tab erscheint nur auf Geräten, die **GNSS-Roh-Messungen** (`GnssMeasurements`) unterstützen.
 
 ### 📍 Positionsbestimmung
@@ -135,7 +137,7 @@ Der Kompass ist der einzige Sensor, der von außen gestört wird: Metall, Leitun
 - Android 7.0 (API 24) oder neuer – getestet von älteren Geräten (z. B. Galaxy Note9) bis zu aktuellen Flaggschiffen (z. B. S26 Ultra)
 - Android Studio (empfohlen) **oder** Gradle 9.3 + JDK 17 + Android SDK 36
 
-> **Hinweis:** Einige Funktionen hängen von der Hardware ab. Der **Messung-Tab** (GNSS-Rohdaten) und die **Navigationsnachrichten** erscheinen nur, wenn der GNSS-Chipsatz des Geräts `GnssMeasurements` bzw. `GnssNavigationMessage` unterstützt; auch die empfangbaren Konstellationen sind gerätespezifisch. Alle übrigen Funktionen (Radar, Signale, Position, Geocaching, Tracks) laufen auf allen unterstützten Geräten.
+> **Hinweis:** Einige Funktionen hängen von der Hardware ab. Der **Messung-Tab** (GNSS-Rohdaten) und die **Navigationsnachrichten** erscheinen nur, wenn der GNSS-Chipsatz des Geräts `GnssMeasurements` bzw. `GnssNavigationMessage` unterstützt; auch die empfangbaren Konstellationen sind gerätespezifisch. Alle übrigen Funktionen (Radar, Signale, Position, Geocaching, Tracks) laufen auf allen unterstützten Geräten. Was das jeweilige Gerät kann, steht in der Ansicht **Empfang** (Antennensymbol in der Kopfzeile) – dort auch, welche Bahndaten schon empfangen wurden.
 
 ## Bauen
 
@@ -158,7 +160,7 @@ Die Release-APK liegt danach unter `app/build/outputs/apk/release/app-release.ap
 
 ![Tests](https://github.com/Theo555/gps-satelliten/actions/workflows/test.yml/badge.svg)
 
-Die Logik ist durch über 200 Unit-Tests abgedeckt: Import von GPX, JSON und ZIP (mit echten Beispieldateien), Cache-Gruppierung, Track-Speicherung sowie die Rechenwege für Pseudorange und Ankunftsschwellen. Sie laufen bei jedem Push automatisch:
+Die Logik ist durch über 360 Unit-Tests abgedeckt: Import von GPX, JSON und ZIP (mit echten Beispieldateien), Cache-Gruppierung, Track-Speicherung sowie die Rechenwege für Pseudorange und Ankunftsschwellen. Sie laufen bei jedem Push automatisch:
 
 ```bash
 ./gradlew testDebugUnitTest
@@ -229,7 +231,7 @@ Im **Messung-Tab** schreibt die Export-Karte die Roh-Messungen als CSV – eine 
 
 Deutsches Excel trennt Listen mit `;` und Dezimalzahlen mit `,`; eine RFC-Datei landet dort komplett in Spalte A. Deshalb zwei feste Profile statt einzelner Schalter.
 
-**Aufbau:** `#`-Kommentarzeilen mit Gerät, Android- und App-Version, UTC-Zeitpunkt und Bedeutung der Flags, darunter die Kopfzeile und die Messwerte. Fehlende Werte bleiben leer – kein `null`, kein `–`.
+**Aufbau:** `#`-Kommentarzeilen mit Gerät, Android- und App-Version, UTC-Zeitpunkt und Bedeutung der Flags, darunter die Kopfzeile und die Messwerte. Fehlende Werte bleiben leer – kein `null`, kein `–`. Zwei Zeilen beantworten dabei verschiedene Fragen: `faehigkeiten` (zusammen mit `signale` und `antenne`) sagt, was der Empfänger dieses Geräts **grundsätzlich** kann, `geliefert` sagt, was in **dieser** Aufzeichnung tatsächlich ankam. Erst beide zusammen unterscheiden „kann nicht“ von „kam gerade nicht“. Die Datei landet im gewählten Ordner im Unterordner `messungen/`; der Ordner wird gemerkt, der Freigabedialog erscheint nur beim ersten Mal.
 
 ```text
 # format = RFC 4180 · UTF-8 · CRLF · Trennzeichen Komma · Dezimalzeichen Punkt
@@ -237,13 +239,16 @@ Deutsches Excel trennt Listen mit `;` und Dezimalzahlen mit `,`; eine RFC-Datei 
 # geraet = samsung SM-N960F · hardware qcom · board msm8998
 # aufzeichnung = 60 Epochen · 2140 Zeilen · 1 Epoche = ein GnssMeasurementsEvent
 # flags = state_flags: GnssMeasurement.getState() · code_lock/tow_known/msec_ambiguous: 1 ja, 0 nein · pr_status: ok, no_clock, no_time oder implausible
+# faehigkeiten = Android SDK 33 · Rohmessungen ja · Trägerphase unklar · Navigationsnachrichten ja · Antenneninfo nein · Korrekturdienste nein · Fähigkeits-API ja · AGC ja · SNR in dB ja · Basisband-C/N0 ja · Uhrunsicherheit ja
+# signale = GAL E1 · GAL E5a · GPS L1 C/A · GPS L5
+# antenne = vom Gerät nicht gemeldet
 # geliefert = agc=ja · snr_in=ja · basisband_cn0=ja · code_type=ja · uhr_unsicherheit=ja · uhrspruenge=ja · elev_azim=ja
 epoch,svid,constellation,band,freq_hz,cn0_dbhz,time_ns,full_bias_ns,bias_ns,drift_nsps,leap_s,week_offset_ns,t_tx_raw_ns,t_tx_ns,sv_time_unc_ns,pseudorange_m,doppler_mps,adr_m,adr_state,phase_unc_m,state_flags,code_lock,tow_known,msec_ambiguous,multipath,pr_status,agc_db,snr_in_db,baseband_cn0_dbhz,code_type,bias_unc_ns,drift_unc_nsps,elapsed_realtime_ns,hw_clock_disc,elev_deg,azim_deg
 ```
 
 `epoch` nummeriert die Messsätze (1 = der älteste im Export); Lücken bedeuten, dass der Chip in dem Moment nichts geliefert hat. `adr_m` ist die **accumulated delta range** – die aufsummierte Trägerphase in Metern seit dem letzten Lock-Verlust (jeder Satellit ab eigenem Nullpunkt), keine absolute Trägerphase, aufgelöst auf 0,1 mm. `time_ns` ist die Empfängerzeit, `t_tx_raw_ns` die Sendezeit des Satelliten so, wie das Gerät sie meldet – **jede Konstellation in ihrer eigenen Zeitbasis**, GLONASS zusätzlich ab dem Systemtag statt ab der Woche. `t_tx_ns` ist dieselbe Sendezeit auf GPS-Zeit umgerechnet (BeiDou liegt 14 s zurück, GLONASS 3 h vor UTC plus Schaltsekunden); `week_offset_ns` ist genau der dafür angewandte Versatz. `pr_status` sagt, warum eine Pseudorange fehlt: `ok`, `no_clock`, `no_time` oder `implausible`. `full_bias_ns`, `bias_ns`, `drift_nsps` und `leap_s` sind die Empfängeruhr.
 
-Mit `agc_db` (Regelpegel der Empfängerverstärkung), `snr_in_db` (Rauschmaß am Korrelatoreingang) und `baseband_cn0_dbhz` (C/N₀ nach der Basisbandverarbeitung) lässt sich ein Störsender erkennen: die Verstärkung regelt hoch, das Rauschmaß steigt, das C/N₀ fällt – meist bevor die Navigation schlechter wird. `code_type` nennt den Signalcode (`C` = C/A, je System auch `L`, `W`, `Q` …). `bias_unc_ns` und `drift_unc_nsps` sind die Unsicherheiten von Uhrversatz und Uhrgang, `elapsed_realtime_ns` die monotone Empfängerzeit und `hw_clock_disc` ein Zähler, der bei jedem Neusetzen der Hardwareuhr hochzählt – Phasen über einen Sprung hinweg sind nicht vergleichbar. Diese Spalten am Ende liefert nicht jedes Gerät: eine leere Zelle heißt hier *nicht geliefert*, und die Kommentarzeile `geliefert` sagt, welche Felder dieses Gerät überhaupt kann. Werte, die ein Gerät nur als Platzhalter füllt, stehen so im Export, wie sie kommen – die App erfindet nichts dazu.
+Mit `agc_db` (Regelpegel der Empfängerverstärkung), `snr_in_db` (Rauschmaß am Korrelatoreingang) und `baseband_cn0_dbhz` (C/N₀ nach der Basisbandverarbeitung) lässt sich ein Störsender erkennen: die Verstärkung regelt hoch, das Rauschmaß steigt, das C/N₀ fällt – meist bevor die Navigation schlechter wird. `code_type` nennt den Signalcode (`C` = C/A, je System auch `L`, `W`, `Q` …). `bias_unc_ns` und `drift_unc_nsps` sind die Unsicherheiten von Uhrversatz und Uhrgang, `elapsed_realtime_ns` die monotone Empfängerzeit und `hw_clock_disc` ein Zähler, der bei jedem Neusetzen der Hardwareuhr hochzählt – Phasen über einen Sprung hinweg sind nicht vergleichbar. Diese Spalten am Ende liefert nicht jedes Gerät: eine leere Zelle heißt hier *nicht geliefert*, die Zeile `geliefert` sagt, welche Felder in dieser Aufzeichnung ankamen, und `faehigkeiten` im Kopf, welche das Gerät grundsätzlich kann. Werte, die ein Gerät nur als Platzhalter füllt, stehen so im Export, wie sie kommen – die App erfindet nichts dazu.
 
 `elev_deg` und `azim_deg` sind Höhenwinkel und Azimut des Satelliten: 90° steht im Zenit, 0° am Horizont, das Azimut zählt von Nord über Ost. Sie stehen nicht in der Messung selbst, sondern stammen aus dem Satellitenstatus; fehlt der Satellit dort, bleiben beide Zellen leer – eine alte Lage zu einer neuen Messung wäre falsch. Der Status wird nur ungültig, wenn die Ortung endet: Der Empfänger meldet Änderungen der Satellitenliste, nicht jede Sekunde einen neuen Satz, und bei stillem Gerät bleibt die Lage gültig. Für Auswertungen am Rechner sind die beiden Spalten die Grundlage für Maskenwinkel und Gewichtung: ein Satellit bei 12° ist mehr als doppelt so anfällig für Mehrwegeempfang wie einer bei 60°.
 

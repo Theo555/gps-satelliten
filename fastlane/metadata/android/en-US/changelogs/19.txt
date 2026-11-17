@@ -1,0 +1,17 @@
+1.3.14
+* New: "Reception" view (antenna icon in the top bar) - what this device can do
+  and which orbit data it has collected so far
+* The app now asks the receiver what it supports instead of assuming it: raw
+  measurements, carrier phase, navigation messages, antenna. What is provably
+  absent is not offered, what is unclear stays visible
+* Raw data export: new columns for AGC, noise figure, baseband C/N0, signal
+  code, clock uncertainty, clock resets and elevation/azimuth per satellite.
+  New header lines separate "can the device do it" from "did it arrive"
+* Almanac for GPS, BeiDou and Galileo is decoded from the navigation messages
+  and counted per system
+* Export: the target folder is remembered, files go into subfolders, date and
+  time are part of the file name
+* New: a stalled receiver is detected and can be restarted with one button
+  without leaving the app
+* Fixed: elevation and azimuth no longer drop out of the export for good after
+  the receiver once reported "stopped"

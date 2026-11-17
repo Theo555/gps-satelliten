@@ -1,0 +1,17 @@
+1.3.14
+* Neu: Ansicht "Empfang" (Antennensymbol in der Kopfzeile) - was dieses Gerät
+  kann und welche Bahndaten es bisher gesammelt hat
+* Die App fragt jetzt ab, was der Empfänger kann, statt es vorauszusetzen:
+  Rohmessungen, Trägerphase, Navigationsnachrichten, Antenne. Was nachweislich
+  fehlt, wird nicht angeboten, was unklar ist, bleibt sichtbar
+* Rohdatenexport: neue Spalten für AGC, Rauschmaß, Basisband-C/N0, Signalcode,
+  Uhrunsicherheit, Uhrsprünge und Höhenwinkel/Azimut je Satellit. Neue
+  Kopfzeilen trennen "kann das Gerät" von "kam gerade an"
+* Almanach für GPS, BeiDou und Galileo wird aus den Navigationsnachrichten
+  ausgewertet und je System gezählt
+* Export: Zielordner wird gemerkt, Dateien landen in Unterordnern, Datum und
+  Uhrzeit stehen im Dateinamen
+* Neu: Ein hängender Empfänger wird erkannt und lässt sich mit einem Knopf neu
+  starten, ohne die App zu verlassen
+* Behoben: Höhenwinkel und Azimut fielen im Export dauerhaft aus, wenn der
+  Empfänger einmal "gestoppt" gemeldet hatte

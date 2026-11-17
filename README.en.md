@@ -11,6 +11,7 @@ Native Android app (Kotlin + Jetpack Compose) for **live GNSS satellite display*
 - **Tested in airplane mode.** Runs reliably and briskly on older devices without any connection.
 - **~2 MB APK.** No map SDK, no analytics library. Maps open through `geo:` intents in an external app. *(Android shows ~11 MB after installation: it stores an additional machine-translated copy of the code. Every app gets that and it cannot be switched off.)*
 - **The compass can be checked on the device itself.** A rotation test against the gyroscope shows whether the compass readings are credible at this place – no external reference, no network.
+- **Only what the hardware can do.** The app asks the receiver what it supports – raw measurements, carrier phase, navigation messages, antenna – instead of assuming it. What is provably absent is not offered; what is unclear stays visible and is labelled as unclear. The same app therefore runs from an entry-level phone to a flagship, each with what genuinely works there.
 
 ## Download (ready-made APK) ⬇️
 
@@ -38,6 +39,7 @@ No desire to build it yourself? Just download the ready-made APK and install it 
 - **Honest display** – values the device does not deliver (e.g. pseudorange or clock drift) appear as "–" or "unknown" instead of an invented number
 - **Raw data quality** – one line with code lock, TOW, ms ambiguity and carrier phase; tap to expand the details
 - **CSV export** – the raw measurements as a **time series** (last 60 s, optionally a 5-minute recording), either RFC-compliant or for German Excel (details under [raw data export](#raw-data-export-csv))
+- **Reception** (antenna icon in the top bar) – what this device can do and what it has collected so far: ephemerides and almanac per satellite system, plus the ionosphere and UTC parameters received
 - Note: The measurement tab only appears on devices that support **GNSS raw measurements** (`GnssMeasurements`).
 
 ### 📍 Position fix
@@ -135,7 +137,7 @@ The compass is the only sensor that is disturbed from outside: metal, wiring and
 - Android 7.0 (API 24) or newer – tested from older devices (e.g. Galaxy Note9) up to current flagships (e.g. S26 Ultra)
 - Android Studio (recommended) **or** Gradle 9.3 + JDK 17 + Android SDK 36
 
-> **Note:** Some features depend on the hardware. The **measurement tab** (GNSS raw data) and the **navigation messages** only appear if the device's GNSS chipset supports `GnssMeasurements` and `GnssNavigationMessage`; the constellations you can receive are device-specific as well. All other features (radar, signals, position, geocaching, tracks) run on every supported device.
+> **Note:** Some features depend on the hardware. The **measurement tab** (GNSS raw data) and the **navigation messages** only appear if the device's GNSS chipset supports `GnssMeasurements` or `GnssNavigationMessage`; the constellations you can receive are device-specific as well. All other features (radar, signals, position, geocaching, tracks) run on every supported device. What a given device can do is shown in the **Reception** view (antenna icon in the top bar) – including which orbit data has already been received.
 
 ## Building
 
@@ -229,21 +231,24 @@ In the **measurement tab** the export card writes the raw measurements as CSV �
 
 German Excel separates lists with `;` and decimal numbers with `,`; an RFC file ends up entirely in column A there. Hence two fixed profiles instead of individual switches.
 
-**Structure:** `#` comment lines with device, Android and app version, UTC timestamp and the meaning of the flags, followed by the header row and the measured values. Missing values stay empty – no `null`, no `–`. *(The comment keys are written in German by the app; the column names are language-neutral.)*
+**Structure:** `#` comment lines with device, Android and app version, UTC timestamp and the meaning of the flags, followed by the header row and the measured values. Missing values stay empty – no `null`, no `–`. Two lines answer different questions: `faehigkeiten` (together with `signale` and `antenne`) states what this device's receiver can do **in principle**, `geliefert` states what actually arrived **in this** recording. Only both together tell "cannot" apart from "did not come just now". *(The comment keys and their `ja`/`nein` values are written in German by the app; the column names are language-neutral.)* The file lands in the chosen folder inside the `messungen/` subfolder; the folder is remembered, so the system picker only appears the first time.
 
 ```text
 # format = RFC 4180 · UTF-8 · CRLF · Trennzeichen Komma · Dezimalzeichen Punkt
 # export_utc = 2026-10-25T12:33:07Z
 # geraet = samsung SM-N960F · hardware qcom · board msm8998
 # aufzeichnung = 60 Epochen · 2140 Zeilen · 1 Epoche = ein GnssMeasurementsEvent
-# flags = state_flags: GnssMeasurement.getState() · code_lock/tow_known/msec_ambiguous: 1 yes, 0 no · pr_status: ok, no_clock, no_time or implausible
-# geliefert = agc=yes · snr_in=yes · basisband_cn0=yes · code_type=yes · uhr_unsicherheit=yes · uhrspruenge=yes · elev_azim=yes
+# flags = state_flags: GnssMeasurement.getState() · code_lock/tow_known/msec_ambiguous: 1 ja, 0 nein · pr_status: ok, no_clock, no_time oder implausible
+# faehigkeiten = Android SDK 33 · Rohmessungen ja · Trägerphase unklar · Navigationsnachrichten ja · Antenneninfo nein · Korrekturdienste nein · Fähigkeits-API ja · AGC ja · SNR in dB ja · Basisband-C/N0 ja · Uhrunsicherheit ja
+# signale = GAL E1 · GAL E5a · GPS L1 C/A · GPS L5
+# antenne = vom Gerät nicht gemeldet
+# geliefert = agc=ja · snr_in=ja · basisband_cn0=ja · code_type=ja · uhr_unsicherheit=ja · uhrspruenge=ja · elev_azim=ja
 epoch,svid,constellation,band,freq_hz,cn0_dbhz,time_ns,full_bias_ns,bias_ns,drift_nsps,leap_s,week_offset_ns,t_tx_raw_ns,t_tx_ns,sv_time_unc_ns,pseudorange_m,doppler_mps,adr_m,adr_state,phase_unc_m,state_flags,code_lock,tow_known,msec_ambiguous,multipath,pr_status,agc_db,snr_in_db,baseband_cn0_dbhz,code_type,bias_unc_ns,drift_unc_nsps,elapsed_realtime_ns,hw_clock_disc,elev_deg,azim_deg
 ```
 
 `epoch` numbers the measurement sets (1 = the oldest in the export); gaps mean the chip delivered nothing at that moment. `adr_m` is the **accumulated delta range** – accumulated carrier phase in metres since the last loss of lock (each satellite starts from its own zero point), not an absolute carrier phase, resolved to 0.1 mm. `time_ns` is the receiver time, `t_tx_raw_ns` the satellite's transmission time **as the device reports it – each constellation in its own time base**, GLONASS additionally counting from the system day instead of the week. `t_tx_ns` is the same transmission time converted to GPS time (BeiDou runs 14 s behind, GLONASS is 3 h ahead of UTC plus leap seconds); `week_offset_ns` is exactly the offset applied for that. `pr_status` says why a pseudorange is missing: `ok`, `no_clock`, `no_time` or `implausible`. `full_bias_ns`, `bias_ns`, `drift_nsps` and `leap_s` are the receiver clock.
 
-`agc_db` (automatic gain control level), `snr_in_db` (noise figure at the correlator input) and `baseband_cn0_dbhz` (C/N₀ after baseband processing) reveal an interferer: the gain goes up, the noise figure rises, the C/N₀ drops – usually before navigation degrades. `code_type` names the signal code (`C` = C/A, per system also `L`, `W`, `Q` …). `bias_unc_ns` and `drift_unc_nsps` are the uncertainties of clock bias and drift, `elapsed_realtime_ns` the monotonic receiver time, and `hw_clock_disc` a counter that increments whenever the hardware clock is re-set – phases across such a jump are not comparable. Not every device delivers these trailing columns: an empty cell here means *not delivered*, and the `delivered` comment line states which fields the device supports at all. Values a device only fills with a placeholder are exported as they come – the app adds nothing.
+`agc_db` (automatic gain control level), `snr_in_db` (noise figure at the correlator input) and `baseband_cn0_dbhz` (C/N₀ after baseband processing) reveal an interferer: the gain goes up, the noise figure rises, the C/N₀ drops – usually before navigation degrades. `code_type` names the signal code (`C` = C/A, per system also `L`, `W`, `Q` …). `bias_unc_ns` and `drift_unc_nsps` are the uncertainties of clock bias and drift, `elapsed_realtime_ns` the monotonic receiver time, and `hw_clock_disc` a counter that increments whenever the hardware clock is re-set – phases across such a jump are not comparable. Not every device delivers these trailing columns: an empty cell here means *not delivered*, `geliefert` states which fields arrived in this recording and `faehigkeiten` in the header which ones the device can do in principle. Values a device only fills with a placeholder are exported as they come – the app adds nothing.
 
 They are not part of the measurement itself but come from the satellite status; if the satellite is missing there, both cells stay empty – an old position angle next to a new measurement would be wrong. The status only becomes invalid when tracking ends: the receiver reports changes to the satellite list, not a new set every second, and while the device is silent the angles remain valid. For desktop analysis these two columns are the basis for elevation masks and weighting: a satellite at 12° is more than twice as susceptible to multipath as one at 60°.
 
