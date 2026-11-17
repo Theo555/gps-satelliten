@@ -25,6 +25,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.automirrored.outlined.HelpOutline
+import androidx.compose.material.icons.outlined.SettingsInputAntenna
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.Navigation
@@ -72,6 +73,8 @@ import de.gpsradar.satellites.model.CapturePhase
 import de.gpsradar.satellites.model.Navigation
 import de.gpsradar.satellites.ui.GpsViewModel
 import de.gpsradar.satellites.ui.components.AboutScreen
+import de.gpsradar.satellites.ui.components.EmpfangScreen
+import de.gpsradar.satellites.ui.EmpfangSummaryBuilder
 import de.gpsradar.satellites.ui.components.CompassCheckDialog
 import de.gpsradar.satellites.ui.components.MeasurementScreen
 import de.gpsradar.satellites.ui.components.NavigationScreen
@@ -157,6 +160,7 @@ fun GpsAppMainScreen(
     val isRecordingPaused by viewModel.isRecordingPaused.collectAsState()
     val recordingPoints by viewModel.recordingPoints.collectAsState()
     val supportsNavigationMessages by viewModel.supportsNavigationMessages.collectAsState()
+    val navEphemerides by viewModel.navEphemerides.collectAsState()
     val selectedSatelliteNavMessages by viewModel.selectedSatelliteNavMessages.collectAsState()
     val supportsRawMeasurements by viewModel.supportsRawMeasurements.collectAsState()
     val rawMeasurements by viewModel.rawMeasurements.collectAsState()
@@ -174,6 +178,7 @@ fun GpsAppMainScreen(
     // (z. B. Rückkehr aus dem Hintergrund) zurück auf "Radar".
     var currentTab by rememberSaveable { mutableStateOf(AppTab.RADAR) }
     var showAbout by rememberSaveable { mutableStateOf(false) }
+    var showEmpfang by rememberSaveable { mutableStateOf(false) }
 
     // Nur im Mess-Tab darf der Rohdatenkanal von selbst neu angefahren werden:
     // dort kostet die Minute ohne Position nichts, beim Navigieren würde sie
@@ -255,9 +260,11 @@ fun GpsAppMainScreen(
     }
 
     // Back handler: schließt "Über die App", dann Satellite-Dialog, dann zurück zum Radar-Tab
-    BackHandler(enabled = showAbout || selectedSatellite != null || currentTab != AppTab.RADAR) {
+    BackHandler(enabled = showAbout || showEmpfang || selectedSatellite != null || currentTab != AppTab.RADAR) {
         if (showAbout) {
             showAbout = false
+        } else if (showEmpfang) {
+            showEmpfang = false
         } else if (selectedSatellite != null) {
             viewModel.selectSatellite(null)
         } else if (currentTab != AppTab.RADAR) {
@@ -271,9 +278,12 @@ fun GpsAppMainScreen(
         topBar = {
             TopAppBar(
                 navigationIcon = {
-                    if (showAbout) {
+                    if (showAbout || showEmpfang) {
                         IconButton(
-                            onClick = { showAbout = false },
+                            onClick = {
+                                showAbout = false
+                                showEmpfang = false
+                            },
                             modifier = Modifier.testTag("about_back_btn")
                         ) {
                             Icon(
@@ -308,6 +318,18 @@ fun GpsAppMainScreen(
                     titleContentColor = Color.White
                 ),
                 actions = {
+                    // Empfang: was dieses Gerät kann und welche Bahndaten es hat
+                    IconButton(
+                        onClick = { showEmpfang = true },
+                        modifier = Modifier.size(40.dp).testTag("empfang_btn")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.SettingsInputAntenna,
+                            contentDescription = stringResource(R.string.cd_empfang),
+                            tint = if (showEmpfang) AccentCyan else Color(0xFF94A3B8),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                     // Über die App
                     IconButton(
                         onClick = { showAbout = true },
@@ -423,6 +445,10 @@ fun GpsAppMainScreen(
                         versionCode = versionCode,
                         onOpenRepository = { openUrl(context, REPOSITORY_URL) },
                         onOpenReadme = { openUrl(context, README_URL) }
+                    )
+                } else if (showEmpfang) {
+                    EmpfangScreen(
+                        summary = EmpfangSummaryBuilder.of(deviceCapabilities, navEphemerides)
                     )
                 } else when (currentTab) {
                     AppTab.RADAR -> {

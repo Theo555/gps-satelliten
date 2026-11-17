@@ -411,6 +411,22 @@
     <string name="meas_caps_yes">ja</string>
     <string name="meas_caps_no">nein</string>
     <string name="meas_caps_unknown">unklar</string>
+
+    <!-- Empfang: was das Gerät kann und welche Bahndaten es hat -->
+    <string name="cd_empfang">Empfangsdaten</string>
+    <string name="empfang_section_device">Gerät</string>
+    <string name="empfang_section_orbits">Bahndaten</string>
+    <string name="empfang_section_corrections">Korrekturen</string>
+    <string name="empfang_ability_raw">Rohmessungen</string>
+    <string name="empfang_ability_phase">Trägerphase</string>
+    <string name="empfang_ability_nav">Navigationsnachrichten</string>
+    <string name="empfang_ability_antenna">Antenne</string>
+    <string name="empfang_no_abilities">Gerät meldet nichts</string>
+    <string name="empfang_no_orbits">Noch keine Bahndaten empfangen</string>
+    <string name="empfang_counts">%1$d Ephemeriden · %2$d Almanach</string>
+    <string name="empfang_ionosphere">Ionosphäre</string>
+    <string name="empfang_utc">UTC</string>
+    <string name="empfang_hint">Was dieser Empfänger kann und welche Bahndaten er gesammelt hat. Die Rohwerte stehen im CSV-Export.</string>
     <string name="meas_quality_fmt">Qualität · Lock %1$d/%2$d · TOW %3$d/%4$d · %5$d ms-mehrdeutig · Phase %6$d/%7$d</string>
     <string name="nav_status_parity_ok">Parität OK</string>
     <string name="nav_status_parity_rebuilt">Parität rekonstruiert</string>
