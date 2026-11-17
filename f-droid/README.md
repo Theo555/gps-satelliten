@@ -38,8 +38,8 @@ Der Ordner `f-droid/` ist frei gewählt und nur für uns.
    `screenshots/` – `tools/check-screenshots.sh` bricht ab, wenn sie
    nicht mehr byte-gleich sind. Also nur an einer Stelle austauschen
    (`screenshots/`) und die fastlane-Kopie mitziehen.
-4. **Changelog**: `changelogs/<versionCode>.txt`. Beim nächsten Release
-   also `9.txt`.
+4. **Changelog**: `changelogs/<versionCode>.txt` – die Datei muss zur
+   Versionsnummer passen (aktuell `19.txt` für 1.3.14).
 5. **E-Mail-Adresse** `t.kichtan@gmail.com` wird öffentlich sichtbar.
 
 ## Was man wissen sollte
