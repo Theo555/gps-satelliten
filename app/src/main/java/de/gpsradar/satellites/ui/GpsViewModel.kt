@@ -31,6 +31,7 @@ import de.gpsradar.satellites.model.CompassSpinState
 import de.gpsradar.satellites.model.CompassWalkState
 import de.gpsradar.satellites.model.CsvMeta
 import de.gpsradar.satellites.model.CsvProfile
+import de.gpsradar.satellites.model.DeviceCapabilities
 import de.gpsradar.satellites.model.ArrivalAlert
 import de.gpsradar.satellites.model.ArrivalNotice
 import de.gpsradar.satellites.model.Constellation
@@ -149,6 +150,8 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
     val supportsNavigationMessages: StateFlow<Boolean> = gpsDataManager.supportsNavigationMessages
     val navEphemerides: StateFlow<NavEphemerides> = gpsDataManager.navEphemerides
     val supportsRawMeasurements: StateFlow<Boolean> = rawGnssManager.supportsRawMeasurements
+    /** Was dieses Gerät kann – Grundlage dafür, nichts Unmögliches anzubieten. */
+    val deviceCapabilities: StateFlow<DeviceCapabilities> = rawGnssManager.capabilities
     val rawMeasurements: StateFlow<List<RawMeasurement>> = rawGnssManager.measurements
     val rawClock: StateFlow<RawClockSnapshot?> = rawGnssManager.clock
     val rawCapturePhase: StateFlow<CapturePhase> = rawGnssManager.capturePhase
@@ -978,7 +981,8 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
             device = "${Build.MANUFACTURER} ${Build.MODEL} · hardware ${Build.HARDWARE} · board ${Build.BOARD}",
             android = "${Build.VERSION.RELEASE} (SDK ${Build.VERSION.SDK_INT})",
             app = appVersionName(),
-            exportedAtUtc = utcNow()
+            exportedAtUtc = utcNow(),
+            capabilities = rawGnssManager.capabilities.value
         )
         val content = MeasurementCsv.toCsv(rawGnssManager.epochSnapshot(), meta, profile)
         return schreibeInOrdner(ordner, ExportFolder.MESSUNGEN, dateiName, "text/csv", content)

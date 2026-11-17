@@ -12,6 +12,7 @@ import de.gpsradar.satellites.model.BufferStats
 import de.gpsradar.satellites.model.CapturePhase
 import de.gpsradar.satellites.model.Constellation
 import de.gpsradar.satellites.model.CsvProfile
+import de.gpsradar.satellites.model.DeviceCapabilities
 import de.gpsradar.satellites.model.MultipathState
 import de.gpsradar.satellites.model.RawMeasurement
 import de.gpsradar.satellites.ui.components.MeasurementScreen
@@ -77,6 +78,7 @@ class MeasurementFilterTest {
                 MeasurementScreen(
                     measurements = measurements,
                     clock = null,
+                    capabilities = DeviceCapabilities(sdkInt = 33),
                     capturePhase = CapturePhase.IDLE,
                     bufferStats = BufferStats(epochs = 1, rows = measurements.size),
                     captureEndsAtMillis = 0L,

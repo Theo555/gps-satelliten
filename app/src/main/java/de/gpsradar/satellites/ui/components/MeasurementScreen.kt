@@ -54,9 +54,11 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import de.gpsradar.satellites.R
 import de.gpsradar.satellites.model.BufferStats
+import de.gpsradar.satellites.model.CapabilityState
 import de.gpsradar.satellites.model.CapturePhase
 import de.gpsradar.satellites.model.Constellation
 import de.gpsradar.satellites.model.CsvProfile
+import de.gpsradar.satellites.model.DeviceCapabilities
 import de.gpsradar.satellites.model.ExportNames
 import de.gpsradar.satellites.model.MultipathState
 import de.gpsradar.satellites.model.RawClockSnapshot
@@ -75,6 +77,7 @@ import kotlinx.coroutines.delay
 fun MeasurementScreen(
     measurements: List<RawMeasurement>,
     clock: RawClockSnapshot?,
+    capabilities: DeviceCapabilities,
     capturePhase: CapturePhase,
     bufferStats: BufferStats,
     captureEndsAtMillis: Long,
@@ -91,6 +94,7 @@ fun MeasurementScreen(
     var constellationFilter by remember { mutableStateOf<Constellation?>(null) }
     var showExportDialog by remember { mutableStateOf(false) }
     var showQualityDetails by remember { mutableStateOf(false) }
+    var showCapabilities by remember { mutableStateOf(false) }
 
     // Filter nach Konstellation, nicht nach Band: gnssBandShort() liefert je
     // System einen eigenen Namen (L1/E1/B1/G1). Ein Knopf "L1" traf daher nur
@@ -125,6 +129,12 @@ fun MeasurementScreen(
             measurements = measurements,
             expanded = showQualityDetails,
             onToggle = { showQualityDetails = !showQualityDetails }
+        )
+
+        CapabilityLine(
+            caps = capabilities,
+            expanded = showCapabilities,
+            onToggle = { showCapabilities = !showCapabilities }
         )
 
         CaptureStatusLine(
@@ -283,6 +293,112 @@ private fun CompactHeader(count: Int, clock: RawClockSnapshot?, onOpenExport: ()
             )
         }
     }
+}
+
+/**
+ * Was dieses Gerät kann – und was deshalb gar nicht erst angeboten wird.
+ *
+ * Steht bewusst über der Qualitätszeile: Sie beantwortet die Frage „kann dieses
+ * Gerät Trägerphase überhaupt?“, bevor die erste Messung da ist. Was die
+ * Plattform nicht beantworten kann, wird nicht geraten, sondern gesagt.
+ */
+@Composable
+private fun CapabilityLine(
+    caps: DeviceCapabilities,
+    expanded: Boolean,
+    onToggle: () -> Unit
+) {
+    val canAsk = caps.capabilityApi.offerable
+    val phase = caps.accumulatedDeltaRange
+    val summary = if (!canAsk) {
+        stringResource(R.string.meas_caps_old_system)
+    } else {
+        listOfNotNull(
+            stringResource(R.string.meas_caps_title),
+            if (phase.offerable) {
+                stringResource(R.string.meas_caps_phase, stateLabel(phase))
+            } else {
+                null
+            },
+            caps.signals.size.takeIf { it > 0 }?.let {
+                stringResource(R.string.meas_caps_signals_count, it)
+            }
+        ).joinToString(" · ")
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onToggle)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = summary,
+                fontSize = 10.sp,
+                color = Color(0xFF94A3B8),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
+            )
+            Text(
+                text = if (expanded) "▾" else "▸",
+                fontSize = 10.sp,
+                color = Color(0xFF94A3B8),
+                modifier = Modifier.padding(start = 4.dp)
+            )
+        }
+        if (expanded) {
+            Spacer(modifier = Modifier.height(2.dp))
+            if (!canAsk) {
+                Text(
+                    text = stringResource(R.string.meas_caps_old_system_hint),
+                    fontSize = 10.sp,
+                    color = Color(0xFF94A3B8)
+                )
+            } else {
+                CapabilityRow(R.string.meas_caps_row_raw, caps.rawMeasurements)
+                CapabilityRow(R.string.meas_caps_row_phase, caps.accumulatedDeltaRange)
+                CapabilityRow(R.string.meas_caps_row_nav, caps.navigationMessages)
+                CapabilityRow(R.string.meas_caps_row_corrections, caps.corrections)
+                if (caps.signals.isNotEmpty()) {
+                    Text(
+                        text = stringResource(R.string.meas_caps_signals) + " " +
+                            caps.signalLabels().joinToString(" · "),
+                        fontSize = 10.sp,
+                        color = Color(0xFF94A3B8)
+                    )
+                }
+                if (caps.antennas.isNotEmpty()) {
+                    Text(
+                        text = stringResource(R.string.meas_caps_antenna) + " " +
+                            caps.antennas.joinToString(" · ") {
+                                String.format(Locale.US, "%.2f MHz", it.carrierFrequencyHz / 1_000_000.0)
+                            },
+                        fontSize = 10.sp,
+                        color = Color(0xFF94A3B8)
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** Eine Fähigkeitszeile – nachweislich Fehlendes wird gar nicht erst gezeigt. */
+@Composable
+private fun CapabilityRow(labelRes: Int, state: CapabilityState) {
+    if (!state.offerable) return
+    Text(
+        text = stringResource(R.string.meas_caps_row, stringResource(labelRes), stateLabel(state)),
+        fontSize = 10.sp,
+        color = Color(0xFF94A3B8)
+    )
+}
+
+@Composable
+private fun stateLabel(state: CapabilityState): String = when (state) {
+    CapabilityState.SUPPORTED -> stringResource(R.string.meas_caps_yes)
+    CapabilityState.UNSUPPORTED -> stringResource(R.string.meas_caps_no)
+    CapabilityState.UNKNOWN -> stringResource(R.string.meas_caps_unknown)
 }
 
 /**

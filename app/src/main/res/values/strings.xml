@@ -393,6 +393,23 @@
     <string name="quality_weak">Weak</string>
     <string name="quality_none">No signal</string>
     <string name="meas_quality_none">Quality · device reports no flags</string>
+
+    <!-- Was das Gerät kann: erst damit ist eine leere Zelle deutbar. -->
+    <string name="meas_caps_title">Device</string>
+    <string name="meas_caps_phase">Carrier phase %1$s</string>
+    <string name="meas_caps_signals_count">%1$d signal paths</string>
+    <string name="meas_caps_old_system">Device · capabilities can be queried from Android 12 on</string>
+    <string name="meas_caps_old_system_hint">From Android 12 the receiver reports what it can do. Below that only the measurement shows it — see "geliefert" in the CSV header.</string>
+    <string name="meas_caps_row">%1$s: %2$s</string>
+    <string name="meas_caps_row_raw">Raw measurements</string>
+    <string name="meas_caps_row_phase">Carrier phase</string>
+    <string name="meas_caps_row_nav">Navigation messages</string>
+    <string name="meas_caps_row_corrections">Corrections</string>
+    <string name="meas_caps_signals">Signal paths:</string>
+    <string name="meas_caps_antenna">Antenna:</string>
+    <string name="meas_caps_yes">yes</string>
+    <string name="meas_caps_no">no</string>
+    <string name="meas_caps_unknown">unknown</string>
     <string name="meas_quality_fmt">Quality · lock %1$d/%2$d · TOW %3$d/%4$d · %5$d ms ambiguous · phase %6$d/%7$d</string>
     <string name="nav_status_parity_ok">Parity OK</string>
     <string name="nav_status_parity_rebuilt">Parity rebuilt</string>

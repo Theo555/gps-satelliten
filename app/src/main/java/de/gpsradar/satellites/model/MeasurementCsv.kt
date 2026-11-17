@@ -17,7 +17,12 @@ data class CsvMeta(
     val device: String,
     val android: String,
     val app: String,
-    val exportedAtUtc: String
+    val exportedAtUtc: String,
+    /**
+     * Was das Gerät kann – trennt „kann nicht“ von „kam gerade nicht“.
+     * Null lässt die Zeilen weg (ältere Aufrufer, Tests).
+     */
+    val capabilities: DeviceCapabilities? = null
 )
 
 /**
@@ -62,6 +67,13 @@ object MeasurementCsv {
         lines += comment("hinweis", "adr_m ist die aufsummierte Trägerphase in Metern seit dem letzten Lock-Verlust (kumulativ, jeder Satellit ab eigenem Nullpunkt, keine absolute Phase) · vier Nachkommastellen = 0,1 mm · adr_state Bit 1 gesetzt bedeutet gültig", profile)
         lines += comment("oszillator", "adr_m und doppler_mps werden gegen den Empfängeroszillator gemessen und tragen dessen Frequenzversatz · beim S20 FE rund 500 ns/s (0,5 ppm, das sind etwa 150 m/s) · Korrektur: Phase minus c · Summe(drift_nsps · 1e-9 · Epochenabstand), Doppler minus c · drift_nsps · 1e-9 · pseudorange_m ist nicht betroffen, sie kommt aus full_bias_ns · ohne diese Korrektur läuft die Phase schneller als der Code und ist für Auswertungen nicht brauchbar", profile)
         lines += comment("flags", "state_flags: GnssMeasurement.getState() · adr_state: accumulatedDeltaRangeState · code_lock/tow_known/msec_ambiguous: 1 ja, 0 nein · pr_status: ok, no_clock, no_time oder implausible", profile)
+        // Was das Gerät grundsätzlich kann. Erst zusammen mit "geliefert" lässt
+        // sich eine leere Zelle deuten: kann es nicht, oder kam es nicht?
+        meta.capabilities?.let { caps ->
+            lines += comment("faehigkeiten", caps.csvSummary(), profile)
+            lines += comment("signale", caps.csvSignals(), profile)
+            lines += comment("antenne", caps.csvAntenna(), profile)
+        }
         lines += comment("geliefert", deliverySummary(epochs), profile)
 
         lines += HEADER.joinToString(profile.delimiter.toString())

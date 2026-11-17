@@ -394,6 +394,23 @@
     <string name="quality_weak">Schwach</string>
     <string name="quality_none">Kein Signal</string>
     <string name="meas_quality_none">Qualität · Gerät meldet keine Merkmale</string>
+
+    <!-- Was das Gerät kann: erst damit ist eine leere Zelle deutbar. -->
+    <string name="meas_caps_title">Gerät</string>
+    <string name="meas_caps_phase">Trägerphase %1$s</string>
+    <string name="meas_caps_signals_count">%1$d Signalwege</string>
+    <string name="meas_caps_old_system">Gerät · Fähigkeiten erst ab Android 12 abfragbar</string>
+    <string name="meas_caps_old_system_hint">Ab Android 12 meldet der Empfänger, was er kann. Darunter zeigt es erst die Messung – siehe „geliefert“ im CSV-Kopf.</string>
+    <string name="meas_caps_row">%1$s: %2$s</string>
+    <string name="meas_caps_row_raw">Rohmessungen</string>
+    <string name="meas_caps_row_phase">Trägerphase</string>
+    <string name="meas_caps_row_nav">Navigationsnachrichten</string>
+    <string name="meas_caps_row_corrections">Korrekturdienste</string>
+    <string name="meas_caps_signals">Signalwege:</string>
+    <string name="meas_caps_antenna">Antenne:</string>
+    <string name="meas_caps_yes">ja</string>
+    <string name="meas_caps_no">nein</string>
+    <string name="meas_caps_unknown">unklar</string>
     <string name="meas_quality_fmt">Qualität · Lock %1$d/%2$d · TOW %3$d/%4$d · %5$d ms-mehrdeutig · Phase %6$d/%7$d</string>
     <string name="nav_status_parity_ok">Parität OK</string>
     <string name="nav_status_parity_rebuilt">Parität rekonstruiert</string>

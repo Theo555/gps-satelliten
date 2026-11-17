@@ -2,6 +2,8 @@ package de.gpsradar.satellites.gps
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.location.GnssAntennaInfo
+import android.location.GnssCapabilities
 import android.location.GnssClock
 import android.location.GnssMeasurement
 import android.location.GnssMeasurementsEvent
@@ -11,9 +13,12 @@ import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
 import android.util.Log
+import de.gpsradar.satellites.model.AntennaSpec
 import de.gpsradar.satellites.model.BufferStats
+import de.gpsradar.satellites.model.CapabilityState
 import de.gpsradar.satellites.model.CapturePhase
 import de.gpsradar.satellites.model.Constellation
+import de.gpsradar.satellites.model.DeviceCapabilities
 import de.gpsradar.satellites.model.EpochBuffer
 import de.gpsradar.satellites.model.MultipathState
 import de.gpsradar.satellites.model.MeasurementCsv
@@ -24,6 +29,7 @@ import de.gpsradar.satellites.model.RawClockSnapshot
 import de.gpsradar.satellites.model.RawEpoch
 import de.gpsradar.satellites.model.RawMeasurement
 import de.gpsradar.satellites.model.SatelliteInfo
+import de.gpsradar.satellites.model.SupportedSignal
 import de.gpsradar.satellites.model.gnssBandLabel
 import de.gpsradar.satellites.model.gnssBandShort
 import java.util.concurrent.Executor
@@ -88,6 +94,18 @@ class RawGnssManager(
     private val _supportsRawMeasurements = MutableStateFlow(false)
     val supportsRawMeasurements: StateFlow<Boolean> = _supportsRawMeasurements.asStateFlow()
 
+    private val _capabilities = MutableStateFlow(DeviceCapabilities(sdkInt = Build.VERSION.SDK_INT))
+
+    /**
+     * Was dieses Gerät kann – einmal je [start] ermittelt.
+     *
+     * Damit lässt sich vor der ersten Messung sagen, ob etwa Trägerphase
+     * überhaupt zu erwarten ist oder welche Signalwege der Chip kennt.
+     * Wo die Plattform die Frage nicht beantwortet, bleibt der Zustand
+     * `UNKNOWN` – Angebotenes wird dann nicht ausgeblendet.
+     */
+    val capabilities: StateFlow<DeviceCapabilities> = _capabilities.asStateFlow()
+
     private val _measurements = MutableStateFlow<List<RawMeasurement>>(emptyList())
     val measurements: StateFlow<List<RawMeasurement>> = _measurements.asStateFlow()
 
@@ -132,11 +150,19 @@ class RawGnssManager(
         }
         startedAt = SystemClock.elapsedRealtime()
 
-        // Ab Android 10 sagt die Plattform die Fähigkeit direkt. Der Rückgabewert
+        // Fähigkeiten dieses Geräts einsammeln (Details: model/DeviceCapabilities).
+        val caps = readCapabilities(lm)
+        _capabilities.value = caps
+
+        // Ab Android 12 sagt die Plattform die Fähigkeit direkt. Der Rückgabewert
         // der Registrierung ist unzuverlässig: kurz nach dem Prozessstart oder
         // wenn die GNSS-Engine gerade steht, liefert er false – das Gerät kann
-        // Rohdaten trotzdem. Deshalb nicht daran die Anzeige festmachen.
-        _supportsRawMeasurements.value = capabilitySupported(lm) ?: registered
+        // Rohdaten trotzdem. Deshalb nur bei klarer Auskunft darauf hören.
+        _supportsRawMeasurements.value = when (caps.rawMeasurements) {
+            CapabilityState.SUPPORTED -> true
+            CapabilityState.UNSUPPORTED -> false
+            CapabilityState.UNKNOWN -> registered
+        }
 
         // Wachhund: Registrierung klappt, aber der Empfänger kann trotzdem
         // schweigen. Erst neu registrieren, nach mehreren Fehlversuchen den
@@ -148,22 +174,91 @@ class RawGnssManager(
         handler.postDelayed(stallWatchdog, STALL_CHECK_MS)
     }
 
-    /** Rohdaten-Fähigkeit laut Plattform (ab API 31); null, wenn nicht ermittelbar.
-     *  Auf Android 10/11 verlangt der Aufruf LOCATION_HARDWARE – eine Signatur-
-     *  Berechtigung, die normale Apps nicht bekommen. Dort entscheidet die
-     *  Registrierung.
+    /**
+     * Liest, was die Plattform über dieses Gerät verrät.
+     *
+     * Die Wachen sind je Methodengruppe gesetzt, nicht pauschal: `GnssCapabilities`
+     * gibt es zwar ab API 30, die brauchbaren Abfragen aber erst ab 31
+     * (`hasMeasurements`, `hasNavigationMessages`, `hasAntennaInfo`) und
+     * `hasAccumulatedDeltaRange`/`getGnssSignalTypes` erst ab 34. Ein zu früher
+     * Aufruf wäre kein `Exception`, sondern ein `NoSuchMethodError` – deshalb
+     * steht jeder Block einzeln und fängt `Throwable`: Hardware-Angaben dürfen
+     * nie einen Absturz auslösen. Was nicht lesbar ist, bleibt `UNKNOWN` und
+     * wird damit weiterhin angeboten.
      */
-    private fun capabilitySupported(lm: LocationManager): Boolean? =
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            try {
-                lm.gnssCapabilities.hasMeasurements()
-            } catch (e: Exception) {
-                Log.d(TAG, "gnssCapabilities nicht lesbar", e)
-                null
+    @SuppressLint("MissingPermission")
+    private fun readCapabilities(lm: LocationManager): DeviceCapabilities {
+        val sdk = Build.VERSION.SDK_INT
+        var caps = DeviceCapabilities(sdkInt = sdk)
+
+        if (sdk >= Build.VERSION_CODES.S) {
+            caps = try {
+                val platform = lm.gnssCapabilities
+                caps.copy(
+                    rawMeasurements = platform.hasMeasurements().toCapabilityState(),
+                    navigationMessages = platform.hasNavigationMessages().toCapabilityState(),
+                    antennaInfo = platform.hasAntennaInfo().toCapabilityState()
+                )
+            } catch (e: Throwable) {
+                Log.d(TAG, "gnssCapabilities (API 31) nicht lesbar", e)
+                caps
             }
-        } else {
-            null
         }
+
+        if (sdk >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            caps = try {
+                val platform = lm.gnssCapabilities
+                caps.copy(
+                    accumulatedDeltaRange = platform.hasAccumulatedDeltaRange().toCapabilityState(),
+                    corrections = platform.hasMeasurementCorrections().toCapabilityState(),
+                    signals = platform.gnssSignalTypes.orEmpty().map {
+                        SupportedSignal(
+                            constellation = Constellation.fromTypeId(it.constellationType),
+                            carrierFrequencyHz = it.carrierFrequencyHz.toLong(),
+                            codeType = it.codeType?.takeIf { code -> code.isNotBlank() }
+                        )
+                    }
+                )
+            } catch (e: Throwable) {
+                Log.d(TAG, "gnssCapabilities (API 34) nicht lesbar", e)
+                caps
+            }
+        }
+
+        if (sdk >= Build.VERSION_CODES.S) {
+            caps = try {
+                caps.copy(antennas = lm.gnssAntennaInfos.orEmpty().map { it.toAntennaSpec() })
+            } catch (e: Throwable) {
+                Log.d(TAG, "gnssAntennaInfos nicht lesbar", e)
+                caps
+            }
+        }
+
+        Log.i(TAG, "Fähigkeiten: ${caps.csvSummary()}")
+        return caps
+    }
+
+    /** `GnssCapabilities` meldet Ja/Nein/Unbekannt als Zahlen. */
+    private fun Int.toCapabilityState(): CapabilityState = when (this) {
+        GnssCapabilities.CAPABILITY_SUPPORTED -> CapabilityState.SUPPORTED
+        GnssCapabilities.CAPABILITY_UNSUPPORTED -> CapabilityState.UNSUPPORTED
+        else -> CapabilityState.UNKNOWN
+    }
+
+    /** `hasX()` liefert nur wahr/falsch – „nein“ ist hier eine belastbare Auskunft. */
+    private fun Boolean.toCapabilityState(): CapabilityState =
+        if (this) CapabilityState.SUPPORTED else CapabilityState.UNSUPPORTED
+
+    private fun GnssAntennaInfo.toAntennaSpec(): AntennaSpec {
+        val offset = phaseCenterOffset
+        return AntennaSpec(
+            carrierFrequencyHz = (carrierFrequencyMHz * 1_000_000.0).toLong(),
+            offsetXMm = offset.xOffsetMm,
+            offsetYMm = offset.yOffsetMm,
+            offsetZMm = offset.zOffsetMm,
+            hasVariationCorrections = phaseCenterVariationCorrections != null
+        )
+    }
 
     @SuppressLint("MissingPermission")
     private fun registerIfPossible() {

@@ -161,6 +161,7 @@ fun GpsAppMainScreen(
     val supportsRawMeasurements by viewModel.supportsRawMeasurements.collectAsState()
     val rawMeasurements by viewModel.rawMeasurements.collectAsState()
     val rawClock by viewModel.rawClock.collectAsState()
+    val deviceCapabilities by viewModel.deviceCapabilities.collectAsState()
     val rawCapturePhase by viewModel.rawCapturePhase.collectAsState()
     val rawBufferStats by viewModel.rawBufferStats.collectAsState()
     val rawCaptureEndsAt by viewModel.rawCaptureEndsAtMillis.collectAsState()
@@ -504,6 +505,7 @@ fun GpsAppMainScreen(
                         MeasurementScreen(
                             measurements = rawMeasurements,
                             clock = rawClock,
+                            capabilities = deviceCapabilities,
                             capturePhase = rawCapturePhase,
                             bufferStats = rawBufferStats,
                             captureEndsAtMillis = rawCaptureEndsAt,

@@ -1,8 +1,10 @@
 package de.gpsradar.satellites
 
 import de.gpsradar.satellites.model.Constellation
+import de.gpsradar.satellites.model.CapabilityState
 import de.gpsradar.satellites.model.CsvMeta
 import de.gpsradar.satellites.model.CsvProfile
+import de.gpsradar.satellites.model.DeviceCapabilities
 import de.gpsradar.satellites.model.MeasurementCsv
 import de.gpsradar.satellites.model.MultipathState
 import de.gpsradar.satellites.model.Pseudorange
@@ -10,6 +12,7 @@ import de.gpsradar.satellites.model.PseudorangeStatus
 import de.gpsradar.satellites.model.RawClockSnapshot
 import de.gpsradar.satellites.model.RawEpoch
 import de.gpsradar.satellites.model.RawMeasurement
+import de.gpsradar.satellites.model.SupportedSignal
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -104,6 +107,41 @@ class MeasurementCsvTest {
         assertTrue(row.startsWith("1;7;GPS;L1;"))
         assertTrue(row.contains(";38,2;"))
         assertTrue(row.contains("23145678,912"))
+    }
+
+    /**
+     * „Kann nicht“ und „kam gerade nicht“ müssen auseinanderzuhalten sein:
+     * die Fähigkeitszeilen stehen deshalb vor `geliefert`.
+     */
+    @Test
+    fun capabilityLinesSeparateCannotFromDidNotDeliver() {
+        val caps = DeviceCapabilities(
+            sdkInt = 33,
+            rawMeasurements = CapabilityState.SUPPORTED,
+            accumulatedDeltaRange = CapabilityState.UNSUPPORTED,
+            signals = listOf(SupportedSignal(Constellation.GPS, 1_575_420_032L, "C"))
+        )
+        val csv = MeasurementCsv.toCsv(
+            listOf(epoch(measurement())),
+            meta.copy(capabilities = caps),
+            CsvProfile.UNIVERSAL
+        )
+
+        assertTrue(csv.contains("# faehigkeiten = Android SDK 33"))
+        assertTrue(csv.contains("Trägerphase nein"))
+        assertTrue(csv.contains("# signale = GPS L1 C"))
+        assertTrue(csv.contains("# antenne = vom Gerät nicht gemeldet"))
+        assertTrue(csv.indexOf("# faehigkeiten") < csv.indexOf("# geliefert"))
+    }
+
+    /** Ohne Fähigkeitsangabe bleiben die Zeilen weg – ältere Aufrufer brechen nicht. */
+    @Test
+    fun capabilityLinesAreOptional() {
+        val csv = MeasurementCsv.toCsv(listOf(epoch(measurement())), meta, CsvProfile.UNIVERSAL)
+
+        assertFalse(csv.contains("# faehigkeiten"))
+        assertFalse(csv.contains("# signale"))
+        assertFalse(csv.contains("# antenne"))
     }
 
     @Test
