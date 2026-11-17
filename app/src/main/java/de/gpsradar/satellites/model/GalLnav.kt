@@ -72,7 +72,10 @@ object GalLnav {
 
     private const val P2_5 = 1.0 / 32.0
     private const val P2_8 = 1.0 / 256.0
+    private const val P2_9 = 1.0 / 512.0
+    private const val P2_14 = 1.0 / 16384.0
     private const val P2_15 = 1.0 / 32768.0
+    private const val P2_16 = 1.0 / 65536.0
     private const val P2_19 = 1.0 / 524288.0
     private const val P2_29 = 1.0 / 536870912.0
     private const val P2_30 = 1.0 / 1073741824.0
@@ -81,6 +84,7 @@ object GalLnav {
     private const val P2_33 = 1.0 / 8589934592.0
     private const val P2_34 = 1.0 / 17179869184.0
     private const val P2_43 = 1.0 / 8796093022208.0
+    private const val P2_38 = 1.0 / 274877906944.0
     private const val P2_46 = 1.0 / 70368744177664.0
     private const val P2_50 = 1.0 / 1125899906842624.0
     private const val P2_59 = 1.0 / 576460752303423488.0
@@ -251,6 +255,70 @@ object GalLnav {
 
     /** Versatz der Galileo-Wochenzählung gegenüber der GPS-Woche. */
     const val GAL_WEEK_OFFSET = 1024
+
+    /**
+     * Worttyp 7: Almanach-Bahnsatz für SVID1 — ohne Uhr.
+     *
+     * Die Uhr folgt im nächsten Wort (Typ 8), M₀ ist hier aber schon dabei.
+     * Positionen aus ICD-Tabelle 46, 1-basiert, hier um sieben verringert
+     * (sechs Bit Worttyp plus die Zählung ab eins).
+     *
+     * Gegenprobe am Mitschnitt vom 17.11.2026 (C05 sendet den Almanach von
+     * C13): √A = 5440,6116 — Galileo liegt bei 5440,6; Bahnneigung 57,09°,
+     * also 56° Nominalwert plus 1,09° Abweichung; t_oa = 209 400 s.
+     */
+    fun almanacReference(bits: String): GalAlmanac? {
+        if (bits.length < 121) return null
+        val svid = unsigned(bits, 16, 6).toInt()
+        if (svid !in 1..36) return null
+        return GalAlmanac(
+            svid = svid,
+            iodA = unsigned(bits, 0, 4).toInt(),
+            weekBits = unsigned(bits, 4, 2).toInt(),
+            referenceSeconds = (unsigned(bits, 6, 10) * 600L).toInt(),
+            sqrtA = GalAlmanac.SQRT_A_NOMINAL + signed(bits, 22, 13) * P2_9,
+            eccentricity = unsigned(bits, 35, 11) * P2_16,
+            argumentOfPerigee = signed(bits, 46, 16) * P2_15 * PI,
+            inclination = GalAlmanac.INCLINATION_NOMINAL + signed(bits, 62, 11) * P2_14 * PI,
+            ascendingNode = signed(bits, 73, 16) * P2_15 * PI,
+            nodeRate = signed(bits, 89, 11) * P2_33 * PI,
+            meanAnomaly = signed(bits, 100, 16) * P2_15 * PI
+        )
+    }
+
+    /**
+     * Worttyp 8, erster Teil: Uhr für den Satelliten aus dem vorangehenden
+     * Worttyp 7. Der Satellit steht dort, nicht hier — deshalb [svid].
+     */
+    fun almanacClock(bits: String, svid: Int): GalAlmanac? {
+        if (bits.length < 39 || svid <= 0) return null
+        return GalAlmanac(
+            svid = svid,
+            iodA = unsigned(bits, 0, 4).toInt(),
+            clockBias = signed(bits, 4, 16) * P2_19,
+            clockRate = signed(bits, 20, 13) * P2_38
+        )
+    }
+
+    /**
+     * Worttyp 8, zweiter Teil: Bahnsatz für SVID2 — ohne M₀ und ohne
+     * Bezugszeit (die kommen in Worttyp 9).
+     */
+    fun almanacSecond(bits: String): GalAlmanac? {
+        if (bits.length < 121) return null
+        val svid = unsigned(bits, 37, 6).toInt()
+        if (svid !in 1..36) return null
+        return GalAlmanac(
+            svid = svid,
+            iodA = unsigned(bits, 0, 4).toInt(),
+            sqrtA = GalAlmanac.SQRT_A_NOMINAL + signed(bits, 43, 13) * P2_9,
+            eccentricity = unsigned(bits, 56, 11) * P2_16,
+            argumentOfPerigee = signed(bits, 67, 16) * P2_15 * PI,
+            inclination = GalAlmanac.INCLINATION_NOMINAL + signed(bits, 83, 11) * P2_14 * PI,
+            ascendingNode = signed(bits, 94, 16) * P2_15 * PI,
+            nodeRate = signed(bits, 110, 11) * P2_33 * PI
+        )
+    }
 
     private fun unsigned(bits: String, pos: Int, length: Int): Long =
         java.lang.Long.parseLong(bits.substring(pos, pos + length), 2)

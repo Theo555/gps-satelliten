@@ -328,7 +328,14 @@ internal fun navDumpLine(
     status: Int,
     data: ByteArray?
 ): String? {
-    if (type == GnssNavigationMessage.TYPE_GAL_I) return null
+    // Galileo: Die Worttypen 1–6 sind ausgewertet (Bahn, Uhr, Iono, UTC), die
+    // Almanachswörter 7–10 noch nicht — nur die werden mitgeschrieben. Ohne
+    // diese Ausnahme war der Almanach im Mitschnitt unsichtbar, obwohl das
+    // Gerät ihn sendet (17.11.2026: 6 Sats, 109 Meldungen in 10 Minuten).
+    if (type == GnssNavigationMessage.TYPE_GAL_I) {
+        val wordType = data?.firstOrNull()?.toInt()?.and(0xFF) ?: return null
+        if (wordType in 1..6) return null
+    }
     if (data == null || data.isEmpty()) return null
     if (type == GnssNavigationMessage.TYPE_GLO_L1CA && !isGloUtcString(data)) {
         return null

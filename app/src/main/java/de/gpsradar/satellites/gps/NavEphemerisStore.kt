@@ -2,6 +2,7 @@ package de.gpsradar.satellites.gps
 
 import android.location.GnssNavigationMessage
 import de.gpsradar.satellites.model.Almanac
+import de.gpsradar.satellites.model.GalAlmanac
 import de.gpsradar.satellites.model.BdsAlmanac
 import de.gpsradar.satellites.model.BdsClock
 import de.gpsradar.satellites.model.BdsEphemeris
@@ -128,6 +129,17 @@ class NavEphemerisStore {
      * wurde, gilt er als empfangen.
      */
     private val bdsAlmanacStimmen = mutableMapOf<Int, MutableMap<BdsAlmanac, Int>>()
+
+    /**
+     * Almanach-Teile je Satellit, bis der Satz vollstaendig ist.
+     *
+     * Bei Galileo liegt die Bahn in einem Wort und die Uhr im naechsten --
+     * anders als bei GPS und BeiDou passt der Satz nicht in eine Meldung.
+     */
+    private val galAlmanacTeile = mutableMapOf<Int, GalAlmanac>()
+
+    /** Satellit aus dem letzten Worttyp 7 — dorthin gehoert die Uhr aus Worttyp 8. */
+    private var galAlmanacPendingSvid = 0
     private val bdsEphemerides = mutableMapOf<Int, BdsEphemeris>()
 
     private class GalTeile {
@@ -205,6 +217,8 @@ class NavEphemerisStore {
         galEphemerides.clear()
         almanac.clear()
         bdsAlmanacStimmen.clear()
+        galAlmanacTeile.clear()
+        galAlmanacPendingSvid = 0
         gpsIono = null
         gpsUtc = null
         gloUtc = null
@@ -517,6 +531,63 @@ class NavEphemerisStore {
      * Geräte, deren HAL Galileo anders packt (Note 9 mit Android 10), hier
      * nichts Falsches einliefern, sondern gar nichts.
      */
+    /**
+     * Almanach-Teil aus einem Galileo-Wort ablegen und — wenn vollstaendig —
+     * veroeffentlichen.
+     *
+     * Worttyp 7 traegt den Bahnsatz fuer SVID1, Worttyp 8 dessen Uhr und den
+     * Bahnsatz fuer SVID2. Die Typen 9 und 10 (Rest fuer SVID2 und SVID3)
+     * sind noch nicht ausgewertet: im Mitschnitt vom 17.11.2026 kamen bei 15
+     * Minuten Aufnahme nur ein Wort von Typ 7 und eines von Typ 8 an.
+     */
+    private fun galAlmanac(wordType: Int, bits: String, nowMillis: Long): Boolean {
+        var changed = false
+        when (wordType) {
+            7 -> {
+                val teil = GalLnav.almanacReference(bits) ?: return false
+                galAlmanacPendingSvid = teil.svid
+                changed = mergeGalAlmanac(teil, nowMillis)
+            }
+            8 -> {
+                if (galAlmanacPendingSvid > 0) {
+                    val uhr = GalLnav.almanacClock(bits, galAlmanacPendingSvid)
+                    if (uhr != null) changed = mergeGalAlmanac(uhr, nowMillis) || changed
+                }
+                val zweiter = GalLnav.almanacSecond(bits)
+                if (zweiter != null) changed = mergeGalAlmanac(zweiter, nowMillis) || changed
+            }
+            else -> return false
+        }
+        return changed
+    }
+
+    private fun mergeGalAlmanac(teil: GalAlmanac, nowMillis: Long): Boolean {
+        if (teil.svid <= 0) return false
+        val vorher = galAlmanacTeile[teil.svid]
+        val zusammen = vorher?.merge(teil) ?: teil
+        galAlmanacTeile[teil.svid] = zusammen
+        if (!zusammen.isComplete) return vorher != zusammen
+        val referenz = zusammen.referenceSeconds ?: return false
+        val satz = zusammen.toAlmanac(galWeekOf(nowMillis, referenz)) ?: return false
+        val fach = almanac.getOrPut(satz.system) { mutableMapOf() }
+        val changed = fach[satz.svid] != satz
+        fach[satz.svid] = satz
+        return changed
+    }
+
+    /**
+     * Galileo-Woche, in die ein Almanach-Bezug faellt.
+     *
+     * Die Galileo-Zeit laeuft 1024 Wochen hinter der GPS-Zeit her; im Signal
+     * stehen von der Woche nur die zwei niederwertigsten Bit.
+     */
+    private fun galWeekOf(nowMillis: Long, referenceSeconds: Int): Int {
+        val secondsSinceEpoch = (nowMillis - GPS_EPOCH_MILLIS) / 1000L
+        val week = (secondsSinceEpoch / 604_800L).toInt() - GalLnav.GAL_WEEK_OFFSET
+        val sow = (secondsSinceEpoch % 604_800L).toInt()
+        return if (referenceSeconds - sow > 302_400) week - 1 else week
+    }
+
     private fun addGal(svid: Int, wordType: Int, data: ByteArray, nowMillis: Long): Boolean {
         if (wordType != GalLnav.wordType(data)) return false
         val bits = GalLnav.contentBits(data) ?: return false
@@ -527,6 +598,9 @@ class NavEphemerisStore {
             galUtc = utc
             return true
         }
+        // Worttypen 7–10 tragen den Almanach. Er gehoert nicht in die
+        // Navigationsdatei und wird getrennt gesammelt.
+        if (wordType in 7..10) return galAlmanac(wordType, bits, nowMillis)
         val t = galTeile.getOrPut(svid) { GalTeile() }
         var korrekturGeaendert = false
         when (wordType) {

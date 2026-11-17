@@ -65,16 +65,35 @@ class NavDumpTest {
     }
 
     @Test
-    fun galileoWirdNichtMitgeschrieben() {
-        // Seit dem 16.11.2026 gibt es einen I/NAV-Dekoder; die Meldungen würden
-        // die Ausgabe nur noch überschwemmen.
+    fun galileoAusgewerteteWorttypenBleibenDraussen() {
+        // Seit dem 16.11.2026 gibt es einen I/NAV-Dekoder fuer die Worttypen
+        // 1–6 (Bahn, Uhr, Iono, UTC); die wuerden die Ausgabe nur ueberschwemmen.
         assertNull(
             navDumpLine(
                 seq = 8, type = GnssNavigationMessage.TYPE_GAL_I, svid = 11,
                 messageId = 2, submessageId = 2, status = 1,
-                data = hex("00FE")
+                data = hex("02FE")
             )
         )
+    }
+
+    /**
+     * Die Almanachswörter 7–10 werden dagegen mitgeschrieben: Für sie gab es am
+     * 17.11.2026 noch keinen Dekoder, und ohne sie war der Almanach im
+     * Mitschnitt unsichtbar — obwohl das Gerät ihn sendet (6 Sats, 109
+     * Meldungen in zehn Minuten).
+     */
+    @Test
+    fun galileoAlmanachsworteWerdenMitgeschrieben() {
+        val line = navDumpLine(
+            seq = 9, type = GnssNavigationMessage.TYPE_GAL_I, svid = 5,
+            messageId = 24, submessageId = 7, status = 1,
+            data = hex("07D5")
+        )
+
+        assertNotNull(line)
+        assertTrue(line!!.contains("type=Galileo I/NAV"))
+        assertTrue(line.contains("sub=7"))
     }
 
     @Test
