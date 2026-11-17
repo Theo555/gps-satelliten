@@ -115,7 +115,7 @@ Alle Bilder sind Vorschaubilder – **anklicken** öffnet das jeweilige Bild in 
   </tr>
   <tr>
     <td align="center"><a href="screenshots/kompass-pruefung.jpg"><img src="screenshots/kompass-pruefung.jpg" width="150" alt="Kompass-Prüfung" /></a><br /><sub>Kompass<br />Drehtest gegen<br />den Kreisel</sub></td>
-    <td></td>
+    <td align="center"><a href="screenshots/empfang.jpg"><img src="screenshots/empfang.jpg" width="150" alt="Empfang" /></a><br /><sub>Empfang<br />was das Gerät kann,<br />welche Bahndaten da sind</sub></td>
   </tr>
 </table>
 

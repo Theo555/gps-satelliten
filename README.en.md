@@ -115,7 +115,7 @@ All images are thumbnails – **click one** to open it at full size.
   </tr>
   <tr>
     <td align="center"><a href="screenshots/en/kompass-pruefung.jpg"><img src="screenshots/en/kompass-pruefung.jpg" width="150" alt="Compass check" /></a><br /><sub>Compass<br />rotation test</sub></td>
-    <td></td>
+    <td align="center"><a href="screenshots/en/empfang.jpg"><img src="screenshots/en/empfang.jpg" width="150" alt="Reception" /></a><br /><sub>Reception<br />what the device can do,<br />which orbit data is in</sub></td>
   </tr>
 </table>
 
