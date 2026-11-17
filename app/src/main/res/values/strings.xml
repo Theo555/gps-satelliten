@@ -426,7 +426,14 @@
     <string name="empfang_ability_antenna">Antenna</string>
     <string name="empfang_no_abilities">Device reports nothing</string>
     <string name="empfang_no_orbits">No orbit data received yet</string>
-    <string name="empfang_counts">%1$d ephemerides · %2$d almanac</string>
+    <plurals name="empfang_ephemerides">
+        <item quantity="one">%1$d ephemeris</item>
+        <item quantity="other">%1$d ephemerides</item>
+    </plurals>
+    <plurals name="empfang_almanac">
+        <item quantity="one">%1$d almanac</item>
+        <item quantity="other">%1$d almanac</item>
+    </plurals>
     <string name="empfang_ionosphere">Ionosphere</string>
     <string name="empfang_utc">UTC</string>
     <string name="empfang_unknown_hint">“unknown” means this Android does not answer the question – not that the device cannot do it.</string>

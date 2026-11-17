@@ -427,7 +427,17 @@
     <string name="empfang_ability_antenna">Antenne</string>
     <string name="empfang_no_abilities">Gerät meldet nichts</string>
     <string name="empfang_no_orbits">Noch keine Bahndaten empfangen</string>
-    <string name="empfang_counts">%1$d Ephemeriden · %2$d Almanach</string>
+    <!-- Zwei plurals statt einer Zeichenkette: bei Eins muss „1 Ephemeride“
+         stehen. „1 Ephemeriden“ stand am 17.11.2026 auf dem Note 9. Der
+         Trenner „ · “ steht im Code, wie in systemList(). -->
+    <plurals name="empfang_ephemerides">
+        <item quantity="one">%1$d Ephemeride</item>
+        <item quantity="other">%1$d Ephemeriden</item>
+    </plurals>
+    <plurals name="empfang_almanac">
+        <item quantity="one">%1$d Almanach</item>
+        <item quantity="other">%1$d Almanach</item>
+    </plurals>
     <string name="empfang_ionosphere">Ionosphäre</string>
     <string name="empfang_utc">UTC</string>
     <string name="empfang_unknown_hint">„unklar“ heißt: dieses Android beantwortet die Frage nicht – nicht, dass das Gerät es nicht kann.</string>

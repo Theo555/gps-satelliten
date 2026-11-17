@@ -20,6 +20,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -87,9 +88,13 @@ fun EmpfangScreen(summary: EmpfangSummary) {
                     Zeile(
                         label = counts.constellation.shortName,
                         value = if (hatDaten) {
-                            stringResource(
-                                R.string.empfang_counts,
+                            pluralStringResource(
+                                R.plurals.empfang_ephemerides,
                                 counts.ephemerides,
+                                counts.ephemerides
+                            ) + " · " + pluralStringResource(
+                                R.plurals.empfang_almanac,
+                                counts.almanac,
                                 counts.almanac
                             )
                         } else {
