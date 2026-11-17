@@ -52,11 +52,16 @@ object BdsLnav {
     private const val PREAMBLE = "11100010010"
 
     private const val P2_6 = 1.0 / 64.0
+    private const val P2_11 = 1.0 / 2048.0
     private const val P2_19 = 1.0 / 524288.0
+    private const val P2_20 = 1.0 / 1048576.0
+    private const val P2_21 = 1.0 / 2097152.0
+    private const val P2_23 = 1.0 / 8388608.0
     private const val P2_30 = 1.0 / 1073741824.0
     private const val P2_31 = 1.0 / 2147483648.0
     private const val P2_33 = 1.0 / 8589934592.0
     private const val P2_43 = 1.0 / 8796093022208.0
+    private const val P2_38 = 1.0 / 274877906944.0
     private const val P2_50 = 1.0 / 1125899906842624.0
     private const val P2_66 = 1.0 / 7.378697629483821e19
 
@@ -204,6 +209,49 @@ object BdsLnav {
             weekNumberLsf = unsigned(bits, 74, 8).toInt(),
             dayNumber = 0
         )
+    }
+
+    /**
+     * Almanach eines Satelliten aus Unterrahmen 4 oder 5.
+     *
+     * Die Seite trägt den Almanach eines **anderen** Satelliten als des
+     * Senders: Unterrahmen 4 Seiten 1–24 gehören zu SV 1–24, Unterrahmen 5
+     * Seiten 1–6 zu SV 25–30. Der erweiterte Almanach für SV 31–63 (Seiten
+     * 11–23, gesteuert über AmEpID/AmID) hat eine eigene Belegung und wird
+     * hier bewusst nicht ausgewertet.
+     *
+     * Bitpositionen aus der ICD-Abbildung „Bit allocation for subframe 4、5",
+     * 1-basiert gezählt und hier um eins verringert. Die Lücken sind keine
+     * Willkür: Wort 1 hat 26 Datenbits, die Wörter 2–10 nur 22 — der Rest ist
+     * Parität.
+     */
+    fun almanac(bits: String): BdsAlmanac? {
+        val frame = frameId(bits)
+        if (frame != 4 && frame != 5) return null
+        // Keine Prüfung auf AmEpID: Am 17.11.2026 trug eine gewöhnliche Seite
+        // (Unterrahmen 4, Seite 3) den Wert „11" in diesem Feld. Die erweiterten
+        // Sätze liegen ohnehin auf Unterrahmen 5, Seiten 11–23 und fallen damit
+        // schon durch die Seitenprüfung heraus.
+        val page = pageNumber(bits)
+        val svid = when (frame) {
+            4 -> if (page in 1..24) page else return null
+            else -> if (page in 1..6) 24 + page else return null
+        }
+        return BdsAlmanac(
+            svid = svid,
+            subframe = frame,
+            page = page,
+            sqrtA = unsigned2(bits, 50, 2, 60, 22) * P2_11,
+            eccentricity = unsigned(bits, 152, 17) * P2_21,
+            deltaInclination = signed2(bits, 169, 3, 180, 13) * P2_19 * PI,
+            ascendingNode = signed2(bits, 120, 22, 150, 2) * P2_23 * PI,
+            argumentOfPerigee = signed2(bits, 226, 6, 240, 18) * P2_23 * PI,
+            meanAnomaly = signed2(bits, 258, 4, 270, 20) * P2_23 * PI,
+            nodeRate = signed2(bits, 201, 1, 210, 16) * P2_38 * PI,
+            referenceSeconds = (unsigned(bits, 193, 8) * 4096L).toInt(),
+            clockBias = signed(bits, 101, 11) * P2_20,
+            clockRate = signed(bits, 90, 11) * P2_38
+        ).takeIf { it.isPlausible }
     }
 
     private fun unsigned(bits: String, pos: Int, length: Int): Long =

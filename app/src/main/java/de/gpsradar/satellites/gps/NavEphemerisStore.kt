@@ -2,6 +2,7 @@ package de.gpsradar.satellites.gps
 
 import android.location.GnssNavigationMessage
 import de.gpsradar.satellites.model.Almanac
+import de.gpsradar.satellites.model.BdsAlmanac
 import de.gpsradar.satellites.model.BdsClock
 import de.gpsradar.satellites.model.BdsEphemeris
 import de.gpsradar.satellites.model.BdsLnav
@@ -121,6 +122,12 @@ class NavEphemerisStore {
     }
 
     private val bdsTeile = mutableMapOf<Int, BdsTeile>()
+
+    /**
+     * Stimmen je Zielsatellit: erst wenn derselbe Satz zweimal gleich dekodiert
+     * wurde, gilt er als empfangen.
+     */
+    private val bdsAlmanacStimmen = mutableMapOf<Int, MutableMap<BdsAlmanac, Int>>()
     private val bdsEphemerides = mutableMapOf<Int, BdsEphemeris>()
 
     private class GalTeile {
@@ -197,6 +204,7 @@ class NavEphemerisStore {
         galTeile.clear()
         galEphemerides.clear()
         almanac.clear()
+        bdsAlmanacStimmen.clear()
         gpsIono = null
         gpsUtc = null
         gloUtc = null
@@ -395,10 +403,50 @@ class NavEphemerisStore {
      *   landete ein Füllmuster als Uhrversatz in der Datei — und zwar bei allen
      *   Satelliten derselbe Wert.
      */
+    /**
+     * Almanach-Seite auswerten und — nach Mehrheitsentscheidung — ablegen.
+     *
+     * Liefert true, wenn ein neuer Satz veroeffentlicht wurde.
+     *
+     * `internal` statt `private`: Die Stimmenzählung ist die eigentliche Logik
+     * dieses Schritts und muss ohne Android-Meldungsobjekt prüfbar bleiben.
+     */
+    internal fun bdsAlmanac(bits: String, nowMillis: Long): Boolean {
+        val alm = BdsLnav.almanac(bits) ?: return false
+        val stimmen = bdsAlmanacStimmen.getOrPut(alm.svid) { mutableMapOf() }
+        val zahl = (stimmen[alm] ?: 0) + 1
+        stimmen[alm] = zahl
+        if (zahl < BDS_ALMANAC_VOTES) return false
+        val satz = alm.toAlmanac(week = bdsWeekOf(nowMillis, alm.referenceSeconds))
+        val fach = almanac.getOrPut(satz.system) { mutableMapOf() }
+        val changed = fach[satz.svid] != satz
+        fach[satz.svid] = satz
+        return changed
+    }
+
+    /**
+     * BeiDou-Woche, in die ein Almanach-Bezug faellt.
+     *
+     * Wie bei GPS traegt die Almanach-Seite nur Sekunden seit Wochenbeginn.
+     * Die Woche kommt aus der Empfangszeit; liegt der Bezug mehr als eine halbe
+     * Woche “in der Zukunft”, gehoert er zur Vorwoche.
+     */
+    private fun bdsWeekOf(nowMillis: Long, referenceSeconds: Int): Int {
+        val secondsSinceEpoch = (nowMillis - BDT_EPOCH_MILLIS) / 1000L
+        val week = (secondsSinceEpoch / 604_800L).toInt()
+        val sow = (secondsSinceEpoch % 604_800L).toInt()
+        return if (referenceSeconds - sow > 302_400) week - 1 else week
+    }
+
     private fun addBds(svid: Int, data: ByteArray, nowMillis: Long): Boolean {
         val bits = BdsLnav.dataBits(data) ?: return false
-        // Unterrahmen 5, Seite 10 traegt nur den Zeitbezug zu UTC.
-        if (BdsLnav.frameId(bits) == 5) {
+        val frame = BdsLnav.frameId(bits)
+        if (frame == 4 || frame == 5) {
+            // Unterrahmen 4/5 tragen keinen Bahn- oder Uhrsatz, sondern den
+            // Almanach eines anderen Satelliten — oder, auf Seite 10, den
+            // Zeitbezug zu UTC. Beides schliesst sich aus.
+            if (bdsAlmanac(bits, nowMillis)) return true
+            if (frame == 4) return false
             val utc = BdsLnav.utc(bits) ?: return false
             if (!utc.isUsable || utc == bdsUtc) return false
             bdsUtc = utc
@@ -536,6 +584,20 @@ class NavEphemerisStore {
     private companion object {
         /** Beginn der GPS-Zeit in Millisekunden seit 1970 (6. Januar 1980). */
         const val GPS_EPOCH_MILLIS = 315_964_800_000L
+
+        /** Beginn der BeiDou-Zeit (1. Januar 2006) in Millisekunden seit 1970. */
+        const val BDT_EPOCH_MILLIS = 1_136_073_600_000L
+
+        /**
+         * So oft muss derselbe Almanach-Satz gleich dekodiert ankommen, bevor
+         * er veroeffentlicht wird.
+         *
+         * Grund: Im Mitschnitt vom 17.11.2026 hatten nur 6 von 10
+         * Almanachsmeldungen eine gueltige Seitenkennung, und dieselbe Seite
+         * kam zweimal mit verschiedenen Werten. Eine einzelne Meldung ist kein
+         * Beleg — die Mehrheitsentscheidung ist das, was Empfaenger ohnehin tun.
+         */
+        const val BDS_ALMANAC_VOTES = 2
 
         /**
          * Ein vollständiger Durchlauf über die Strings 1–4 dauert 8 Sekunden,
