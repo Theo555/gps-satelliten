@@ -50,6 +50,14 @@ if [ "${2:-}" = "--url" ]; then
     exit 2
   fi
   TAG="$3"
+  # Der Release-Name ist der Tag selbst, also "v1.3.14" — nicht "1.3.14".
+  # Alle Releases bis 1.3.13 heissen so; ein Titel ohne "v" faellt in der
+  # Liste sofort auf (17.11.2026 genau so passiert).
+  case "$TAG" in
+    v*) ;;
+    *) echo "WARNUNG: Tag '${TAG}' beginnt nicht mit 'v'." >&2
+       echo "         Die bisherigen Releases heissen v1.3.13, v1.3.12, ..." >&2 ;;
+  esac
   # Die Adresse füllt Tag, Titel und Notizen vor – es bleibt ein Klick auf
   # "Publish release". Ein Token für die API gibt es auf diesem Rechner nicht.
   REPO_URL="$(git remote get-url origin | sed -E 's#^.*github\.com[:/]##; s#\.git$##')"
@@ -60,9 +68,8 @@ from urllib.parse import quote
 
 tag, repo = sys.argv[1], sys.argv[2]
 body = os.environ["BODY"].strip()
-title = tag[1:] if tag.startswith("v") else tag
 print(f"https://github.com/{repo}/releases/new"
-      f"?tag={tag}&title={quote(title)}&body={quote(body)}")
+      f"?tag={tag}&title={quote(tag)}&body={quote(body)}")
 PY
 else
   printf '%s\n' "$BODY"
