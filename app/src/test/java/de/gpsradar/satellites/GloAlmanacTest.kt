@@ -21,10 +21,11 @@ import org.junit.Test
  *
  * ## Warum trotz Geräteprüfung synthetische Strings
  *
- * Am Gerät geprüft wurde der **Inhalt** (S20 FE, 18.11.2026: `ΔT` ergibt für
- * alle Satelliten 40 544 s Periode, `tλ`, `ω` und `Hn` liegen in ihren
- * Bereichen). Die Tests hier prüfen die **Mechanik**: Breiten, Skalen,
- * Vorzeichenbehandlung und das Zusammensetzen der beiden Hälften. Ein
+ * Am Gerät geprüft wurde der **Inhalt** (S20 FE, 18.11.2026, Aufnahme im Büro
+ * am Fenster — für die Werte selbst unerheblich, für Aussagen über die Ausbeute
+ * nicht): `ΔT` ergibt für alle Satelliten 40 544 s Periode, `tλ`, `ω` und `Hn`
+ * liegen in ihren Bereichen. Die Tests hier prüfen die **Mechanik**: Breiten,
+ * Skalen, Vorzeichenbehandlung und das Zusammensetzen der beiden Hälften. Ein
  * Mitschnitt ist dafür zu grob — er zeigt keine Grenzwerte.
  */
 class GloAlmanacTest {
@@ -200,10 +201,12 @@ class GloAlmanacTest {
      * Ein echtes Paar aus dem Rohbit-Mitschnitt — die Gegenprobe zu allen
      * synthetischen Tests.
      *
-     * Aufnahme: S20 FE, 18.11.2026, Rahmen 3, Strings 6 und 7. Rahmen 3 trägt
-     * die Plätze 11–15, das erste Paar gehört also Platz 11 — und genau den
-     * nennt der gerade String selbst (`nA = 11`). Beide Kennungen stimmen
-     * überein, der Satz ist damit vollständig und plausibel.
+     * Aufnahme: S20 FE, 18.11.2026, Rahmen 3, Strings 6 und 7 (drinnen am
+     * Bürofenster — die Werte sind bitgeprüft, nur die Ausbeute wäre draußen
+     * höher). Rahmen 3 trägt die Plätze 11–15, das erste Paar gehört also
+     * Platz 11 — und genau den nennt der gerade String selbst (`nA = 11`).
+     * Beide Kennungen stimmen überein, der Satz ist damit vollständig und
+     * plausibel.
      *
      * Die entscheidende Zahl ist [GloAlmanac.draconianPeriodSeconds]:
      * 43 200 − 2 655,5 = 40 544,5 s. GLONASS umläuft die Erde in 11 h 15 min

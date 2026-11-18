@@ -258,6 +258,12 @@ object GloLnav {
      * Periode von 40 544 s — genau die Umlaufzeit von GLONASS. `tλ` liegt
      * zwischen 0 und 44 100 s, `ω` in ±π, und `Hn` liefert nur gültige Kanäle
      * (0…6 sowie 25…31 für −7…−1). Eine zufällige Bitstelle erfüllt das nicht.
+     *
+     * Die Aufnahme entstand **drinnen** (Büro, Fensterbank). Für die Bitprüfung
+     * ist das unerheblich — die Felder stammen aus Meldungen, deren Parität das
+     * Gerät geprüft hat, und die Übereinstimmung über 24 Satelliten ist der
+     * eigentliche Beweis. Als Aussage über die **Ausbeute** (wie viele Sätze in
+     * welcher Zeit) taugt sie dagegen nicht.
      */
     fun almanacOrbit(bits: String): GloAlmanac? {
         val id = stringId(bits)
