@@ -30,4 +30,9 @@ if [ -x tools/check-screenshots.sh ]; then
   tools/check-screenshots.sh || exit 1
 fi
 
+# Schichtgrenzen: model/ bleibt Android-frei, gps/ kennt keine Darstellung.
+if [ -x tools/check-architecture.sh ]; then
+  tools/check-architecture.sh || exit 1
+fi
+
 exit 0

@@ -10,6 +10,9 @@ dürfen deshalb im öffentlichen Repository liegen.
 | `tag-release.sh` | legt einen Release-Tag **immer auf `main`** an und prüft ihn |
 | `release-notes.sh` | baut die Release-Notizen aus beiden Changelogs (deutsch oben, englischer Teil ausklappbar) und auf Wunsch die vorausgefüllte Release-Adresse |
 | `check-public-refs.sh` | prüft lokale Tags und die Refs auf `origin` gegen `main` |
+| `check-screenshots.sh` | Bildordner und READMEs müssen zusammenpassen |
+| `check-architecture.sh` | `model/` bleibt Android-frei, `gps/` kennt keine Darstellung |
+| `git-hooks/pre-commit` | ruft beide Prüfskripte auf und blockiert den Austausch-Ordner |
 | `git-hooks/pre-push` | blockiert Pushes von Refs, die nicht von `main` erreichbar sind |
 
 ## Einmalig einrichten

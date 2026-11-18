@@ -49,6 +49,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import de.gpsradar.satellites.ui.theme.color
 import de.gpsradar.satellites.R
 import de.gpsradar.satellites.model.Constellation
 import de.gpsradar.satellites.model.GnssNavMessage
@@ -91,7 +92,7 @@ fun SatelliteDetailDialog(
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Surface(
-                            color = satellite.constellation.badgeColor,
+                            color = satellite.constellation.color,
                             shape = RoundedCornerShape(8.dp),
                             modifier = Modifier.size(36.dp)
                         ) {

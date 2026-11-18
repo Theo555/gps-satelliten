@@ -58,6 +58,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import de.gpsradar.satellites.ui.theme.color
 import de.gpsradar.satellites.R
 import de.gpsradar.satellites.model.Constellation
 import de.gpsradar.satellites.model.GpsLocationState
@@ -426,7 +427,7 @@ private fun RadarCanvas(
             val satPos = Offset(sx, sy)
             satPositions.add(satPos to sat)
 
-            val badgeColor = sat.constellation.badgeColor
+            val badgeColor = sat.constellation.color
             val satRadius = 13.dp.toPx()
 
             // If used in fix: draw pulsing outer ring / halo
@@ -558,7 +559,7 @@ private fun ConstellationFilterRow(
                         Box(
                             modifier = Modifier
                                 .size(8.dp)
-                                .background(constellation.badgeColor, CircleShape)
+                                .background(constellation.color, CircleShape)
                         )
                     },
                     label = {
@@ -568,7 +569,7 @@ private fun ConstellationFilterRow(
                         )
                     },
                     colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = constellation.badgeColor.copy(alpha = 0.25f),
+                        selectedContainerColor = constellation.color.copy(alpha = 0.25f),
                         selectedLabelColor = Color.White
                     ),
                     modifier = Modifier.testTag("filter_${constellation.shortName}")

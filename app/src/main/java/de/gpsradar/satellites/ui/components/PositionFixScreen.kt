@@ -51,6 +51,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import de.gpsradar.satellites.ui.theme.color
 import de.gpsradar.satellites.R
 import de.gpsradar.satellites.model.Constellation
 import de.gpsradar.satellites.model.FixType
@@ -492,7 +493,7 @@ private fun ConstellationsBreakdownCard(state: GpsLocationState) {
                                 .fillMaxWidth()
                                 .height(6.dp)
                                 .clip(RoundedCornerShape(3.dp)),
-                            color = constellation.badgeColor,
+                            color = constellation.color,
                             trackColor = Color(0xFF0F1E42)
                         )
                     }

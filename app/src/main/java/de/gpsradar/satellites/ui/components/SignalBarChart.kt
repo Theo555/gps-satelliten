@@ -44,6 +44,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import de.gpsradar.satellites.ui.theme.color
 import de.gpsradar.satellites.R
 import de.gpsradar.satellites.model.Constellation
 import de.gpsradar.satellites.model.GpsLocationState
@@ -242,7 +243,7 @@ private fun SatelliteSignalBar(
 
         // SVID pill
         Surface(
-            color = sat.constellation.badgeColor,
+            color = sat.constellation.color,
             shape = RoundedCornerShape(4.dp),
             modifier = Modifier.width(36.dp).height(20.dp)
         ) {
@@ -361,12 +362,12 @@ private fun SignalFilterRow(
                         Box(
                             modifier = Modifier
                                 .size(8.dp)
-                                .background(constellation.badgeColor, CircleShape)
+                                .background(constellation.color, CircleShape)
                         )
                     },
                     label = { Text("${constellation.shortName} ($count)", fontSize = 11.sp) },
                     colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = constellation.badgeColor.copy(alpha = 0.25f),
+                        selectedContainerColor = constellation.color.copy(alpha = 0.25f),
                         selectedLabelColor = Color.White
                     )
                 )

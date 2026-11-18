@@ -51,6 +51,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import de.gpsradar.satellites.ui.theme.color
 import de.gpsradar.satellites.R
 import de.gpsradar.satellites.model.Constellation
 import de.gpsradar.satellites.model.GpsLocationState
@@ -181,12 +182,12 @@ fun SatelliteListScreen(
                             Box(
                                 modifier = Modifier
                                     .size(8.dp)
-                                    .background(constellation.badgeColor, CircleShape)
+                                    .background(constellation.color, CircleShape)
                             )
                         },
                         label = { Text("${constellation.shortName} ($count)", fontSize = 11.sp) },
                         colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = constellation.badgeColor.copy(alpha = 0.25f),
+                            selectedContainerColor = constellation.color.copy(alpha = 0.25f),
                             selectedLabelColor = Color.White
                         )
                     )
@@ -256,7 +257,7 @@ private fun SatelliteItemCard(
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Surface(
-                        color = sat.constellation.badgeColor,
+                        color = sat.constellation.color,
                         shape = RoundedCornerShape(6.dp),
                         modifier = Modifier.size(28.dp)
                     ) {

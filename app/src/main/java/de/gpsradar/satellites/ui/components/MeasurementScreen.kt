@@ -52,6 +52,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import de.gpsradar.satellites.ui.theme.color
 import de.gpsradar.satellites.R
 import de.gpsradar.satellites.model.BufferStats
 import de.gpsradar.satellites.model.CapabilityState
@@ -836,7 +837,7 @@ private fun FlagText(text: String) {
 private fun SatelliteBadge(m: RawMeasurement) {
     val textColor = if (m.constellation == Constellation.BEIDOU || m.constellation == Constellation.GALILEO) Color.Black else Color.White
     Surface(
-        color = m.constellation.badgeColor,
+        color = m.constellation.color,
         shape = RoundedCornerShape(6.dp)
     ) {
         Text(
