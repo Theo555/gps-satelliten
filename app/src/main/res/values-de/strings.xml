@@ -110,7 +110,7 @@
     <string name="about_raw_more_label">Mehr Rohdaten:</string>
     <string name="about_raw_more_text">In den Android-Entwickleroptionen gibt es „Vollst. GNSS-Messung erzwingen“. Damit trackt der Chip dauerhaft vollständig – auf Kosten des Akkuverbrauchs.</string>
     <string name="about_pseudorange_label">Pseudorange:</string>
-    <string name="about_pseudorange_text">Wird nur berechnet, wenn die Zeitbasis stimmt. Für GLONASS und BeiDou bleibt sie deshalb leer – die App schätzt nichts.</string>
+    <string name="about_pseudorange_text">Wird nur berechnet, wenn die Zeitbasis stimmt; jede Konstellation bringt ihre eigene mit (GLONASS zählt ab dem Systemtag, BeiDou liegt 14 s hinter GPS). Lässt sie sich nicht berechnen, steht der Grund im CSV-Export – die App schätzt nichts.</string>
     <string name="about_docs_title">Dokumentation &amp; Projekt</string>
     <string name="about_docs_para">Die Erläuterungen hier sind bewusst kurz gehalten und funktionieren ohne Netz. Tiefergehende Details – Rohdaten-Export und CSV-Spalten, Profile, Bauhinweise, Voraussetzungen – stehen in der README auf GitHub.</string>
     <string name="about_docs_btn">Ausführliche Doku (README)</string>

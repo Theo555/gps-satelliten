@@ -87,28 +87,35 @@ fun PositionFixScreen(
         FixStatusCard(state = state)
 
         // Coordinates Card
+        // Die Texte stehen hier und nicht im Klick: So folgen sie einem
+        // Sprachwechsel (Lint: „nicht konfigurationsbewusst“).
+        val textCopied = stringResource(R.string.toast_copied)
+        val textShareChooser = stringResource(R.string.share_chooser)
+        val textShare = if (state.latitude != null && state.longitude != null) {
+            stringResource(
+                R.string.share_position_text,
+                state.formattedCoordinatesDecimal,
+                state.latitude.toString(),
+                state.longitude.toString()
+            )
+        } else {
+            null
+        }
         CoordinatesCard(
             state = state,
             onCopyCoordinates = {
                 val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                 val text = "${state.formattedCoordinatesDecimal}\n${state.formattedCoordinatesDms}\n${state.formattedCoordinatesDdm}"
                 clipboard.setPrimaryClip(ClipData.newPlainText("GPS Position", text))
-                Toast.makeText(context, context.getString(R.string.toast_copied), Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, textCopied, Toast.LENGTH_SHORT).show()
             },
             onSharePosition = {
-                val lat = state.latitude ?: return@CoordinatesCard
-                val lon = state.longitude ?: return@CoordinatesCard
-                val text = context.getString(
-                    R.string.share_position_text,
-                    state.formattedCoordinatesDecimal,
-                    lat.toString(),
-                    lon.toString()
-                )
+                val text = textShare ?: return@CoordinatesCard
                 val sendIntent = Intent(Intent.ACTION_SEND).apply {
                     type = "text/plain"
                     putExtra(Intent.EXTRA_TEXT, text)
                 }
-                context.startActivity(Intent.createChooser(sendIntent, context.getString(R.string.share_chooser)))
+                context.startActivity(Intent.createChooser(sendIntent, textShareChooser))
             }
         )
 

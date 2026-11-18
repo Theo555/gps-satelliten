@@ -110,7 +110,7 @@
     <string name="about_raw_more_label">More raw data:</string>
     <string name="about_raw_more_text">Android\'s developer options offer “Force full GNSS measurements”. That makes the chip track fully all the time – at the cost of battery life.</string>
     <string name="about_pseudorange_label">Pseudorange:</string>
-    <string name="about_pseudorange_text">Only computed when the time base is valid. For GLONASS and BeiDou it therefore stays empty – the app does not guess.</string>
+    <string name="about_pseudorange_text">Computed only when the time base is valid; each constellation brings its own (GLONASS counts from the system day, BeiDou is 14 s behind GPS). If it cannot be computed, the reason is recorded in the CSV export – the app does not guess.</string>
     <string name="about_docs_title">Documentation &amp; project</string>
     <string name="about_docs_para">The explanations here are deliberately short and work without a network. Deeper details – raw data export and CSV columns, profiles, build instructions, requirements – are in the README on GitHub.</string>
     <string name="about_docs_btn">Full documentation (README)</string>

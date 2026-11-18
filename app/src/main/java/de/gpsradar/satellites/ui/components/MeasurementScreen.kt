@@ -45,6 +45,7 @@ import android.content.res.Resources
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -281,7 +282,10 @@ private fun CompactHeader(count: Int, clock: RawClockSnapshot?, onOpenExport: ()
         )
         if (clock != null) {
             Spacer(modifier = Modifier.width(8.dp))
-            val time = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date(clock.receivedAtMillis))
+            // Sprache aus der Konfiguration lesen, nicht aus Locale.getDefault():
+            // Nur so wird die Zeile bei einem Sprachwechsel neu gebaut.
+            val locale = LocalConfiguration.current.locales[0]
+            val time = SimpleDateFormat("HH:mm:ss", locale).format(Date(clock.receivedAtMillis))
             Text(text = time, fontSize = 11.sp, color = Color(0xFF94A3B8))
         }
         Spacer(modifier = Modifier.weight(1f))
@@ -663,6 +667,8 @@ private fun CaptureStatusLine(
 
     val context = LocalContext.current
     var now by remember { mutableStateOf(System.currentTimeMillis()) }
+    // In der Komposition auflösen: Ein Sprachwechsel soll den Text mitnehmen.
+    val recordDoneText = stringResource(R.string.toast_record_done)
     LaunchedEffect(phase) {
         while (phase == CapturePhase.CAPTURING) {
             now = System.currentTimeMillis()
@@ -671,7 +677,7 @@ private fun CaptureStatusLine(
     }
     LaunchedEffect(phase) {
         if (phase == CapturePhase.FINISHED) {
-            Toast.makeText(context, context.getString(R.string.toast_record_done), Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, recordDoneText, Toast.LENGTH_SHORT).show()
         }
     }
 

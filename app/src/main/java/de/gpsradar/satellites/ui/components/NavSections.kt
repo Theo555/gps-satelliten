@@ -83,15 +83,21 @@ internal fun FilesSection(
         }
     }
 
+    // Texte in der Komposition auflösen statt im Klick: So folgen sie einem
+    // Sprachwechsel, und Lint erkennt sie als konfigurationsbewusst.
+    val textExportFailed = stringResource(R.string.toast_export_failed)
+    val textJsonExported = stringResource(R.string.toast_json_exported)
+
     val exportGpxLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
         uri?.let { u ->
             val count = onExportGpx(u)
             Toast.makeText(
                 context,
                 if (count > 0) {
+                    // Mehrzahl erst hier: die Anzahl kennt man vorher nicht.
                     context.resources.getQuantityString(R.plurals.export_files, count, count)
                 } else {
-                    context.getString(R.string.toast_export_failed)
+                    textExportFailed
                 },
                 Toast.LENGTH_SHORT
             ).show()
@@ -103,7 +109,7 @@ internal fun FilesSection(
             val ok = onExportJson(u)
             Toast.makeText(
                 context,
-                if (ok) context.getString(R.string.toast_json_exported) else context.getString(R.string.toast_export_failed),
+                if (ok) textJsonExported else textExportFailed,
                 Toast.LENGTH_SHORT
             ).show()
         }
