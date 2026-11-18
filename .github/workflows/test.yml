@@ -59,3 +59,85 @@ jobs:
           path: app/build/reports/tests/testDebugUnitTest
           if-no-files-found: ignore
           retention-days: 14
+
+  # Zwei Prüfungen, die bisher nur im lokalen pre-commit-Hook hingen. Ein Hook
+  # lässt sich mit --no-verify umgehen und läuft in einem frischen Klon gar
+  # nicht (core.hooksPath wird pro Klon gesetzt) – hier gelten sie immer.
+  ordnung:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Schichtgrenzen (model/ bleibt Android-frei)
+        run: tools/check-architecture.sh
+
+      - name: Bildordner und READMEs
+        run: tools/check-screenshots.sh
+
+  # Lint findet, was Tests nicht finden: API-Aufrufe ohne Versionswache
+  # (Absturz auf Android 7), nicht konfigurationsbewusste Texte und dergleichen.
+  # Am 18.11.2026 fand genau das einen echten Fehler: GnssMeasurement.getCodeType
+  # (ab API 29) stand als einziger Aufruf ohne Wache und hätte auf Android 7–9
+  # geworfen.
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Lint
+        run: ./gradlew lintDebug --console=plain
+
+      - name: Lint-Bericht hochladen
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lint-bericht
+          path: app/build/reports/lint-results-debug.html
+          if-no-files-found: ignore
+          retention-days: 14
+
+  # R8 und das Ressourcen-Schrumpfen laufen nur im Release-Build. Bisher wurde
+  # der erst beim Veröffentlichen gebaut – ein Fehler in den ProGuard-Regeln fiel
+  # damit erst dann auf. Ohne Keystore entsteht eine unsignierte APK; signiert
+  # wird weiterhin nur im Release-Workflow.
+  release-bau:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Release bauen (ohne Signatur)
+        run: ./gradlew assembleRelease --console=plain
+
+      - name: Ergebnis prüfen
+        run: |
+          set -e
+          apk=app/build/outputs/apk/release/app-release-unsigned.apk
+          test -f "$apk" || { echo "Keine Release-APK entstanden"; exit 1; }
+          ls -l "$apk"
