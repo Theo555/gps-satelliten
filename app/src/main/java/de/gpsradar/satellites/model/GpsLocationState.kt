@@ -25,7 +25,8 @@ data class GpsLocationState(
     /**
      * Herkunft der Position. Im öffentlichen Build immer [FixOrigin.GNSS];
      * eine zweite Ortsquelle kennzeichnet ihre Meldungen mit
-     * [FixOrigin.ALTERNATIVE], siehe `gps/LocationSources`. Mehr im Test.
+     * [FixOrigin.ALTERNATIVE], siehe `gps/LocationSources`.
+     * `LocationSourceTest` hält diese Vorgabe fest.
      */
     val fixOrigin: FixOrigin = FixOrigin.GNSS,
     val satellites: List<SatelliteInfo> = emptyList(),
