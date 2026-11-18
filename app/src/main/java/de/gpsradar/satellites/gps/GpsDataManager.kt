@@ -257,10 +257,17 @@ class GpsDataManager(private val context: Context) {
 
             try {
                 if (locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
+                    // minDistance = 0: Auch im Stand muss die Anzeige der
+                    // Wahrheit folgen. Mit 0,5 m kam bei einem liegenden Gerät
+                    // **gar keine** neue Position mehr — die Positionskarte
+                    // zeigte dann minutenalte Werte als aktuelle (am 18.11.
+                    // stand dort ±12,0 m, während der Empfänger längst ±8,0 m
+                    // und vier Satelliten mehr hatte). Punktwolken entstehen
+                    // dadurch nicht: Der TrackRecorder filtert selbst auf 5 m.
                     locationManager.requestLocationUpdates(
                         LocationManager.GPS_PROVIDER,
                         1000L,
-                        0.5f,
+                        0f,
                         locationListener,
                         Looper.getMainLooper()
                     )
