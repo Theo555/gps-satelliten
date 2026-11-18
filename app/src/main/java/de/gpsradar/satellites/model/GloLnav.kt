@@ -241,6 +241,25 @@ object GloLnav {
      * Enthält Durchgangszeit des Knotens, Draconische Periode samt Änderung,
      * Argument des Perigäums und den Frequenzkanal. Die Platznummer fehlt hier
      * bewusst — sie steht nur in der anderen Hälfte.
+     *
+     * ## ⚠ UNGEPRÜFT: Diese Positionen passen nicht zu dem, was Geräte liefern
+     *
+     * Am 18.11.2026 gegen echte Meldungen vom Note 9 geprüft (Rohbit-Mitschnitt
+     * der Strings 5–15): Die **gerade** Hälfte stimmt (Platznummer, Knotenlänge,
+     * Neigungsabweichung, Exzentrizität, Uhr, Gesundheit — alles plausibel), die
+     * **ungerade** ergibt an den Positionen aus ICD-Tabelle 4.11 nur Unsinn:
+     * tλ ≈ 1,3 · 10⁶ statt höchstens 44 100 s, ΔT ≈ −7 · 10⁸ s statt ±3 600 s.
+     *
+     * Ausgeschlossen wurde: alle 21-Bit-Fenster des ganzen Strings, Bitver-
+     * schiebungen bis 24 Bit, Bit- und Byteumkehr, invertierte Bits, andere
+     * Rahmennummern. Zwei Meldungen derselben Rahmennummer unterscheiden sich
+     * zudem mitten im Datenbereich (Bits 42, 62, 63, 70), was nach einer anderen
+     * Verschränkung der Prüfbits aussieht.
+     *
+     * Folge: Der Sammler setzt nie beide Hälften zusammen, gibt also **keine**
+     * GLONASS-Almanachsätze frei — lieber nichts als eine falsche Bahn. Wer das
+     * weiterverfolgt, braucht zuerst eine Referenz (Almanach für denselben Tag
+     * aus einer erreichbaren Quelle), nicht weitere Bit-Suche.
      */
     fun almanacOrbit(bits: String): GloAlmanac? {
         val id = stringId(bits)
