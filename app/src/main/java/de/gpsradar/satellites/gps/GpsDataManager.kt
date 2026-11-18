@@ -21,6 +21,8 @@ import de.gpsradar.satellites.model.GnssNavMessage
 import de.gpsradar.satellites.model.GpsLocationState
 import de.gpsradar.satellites.model.Navigation
 import de.gpsradar.satellites.model.SatelliteInfo
+import de.gpsradar.satellites.model.ScreenshotPosition
+import de.gpsradar.satellites.model.displayedPosition
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -93,6 +95,12 @@ class GpsDataManager(private val context: Context) {
 
     private var isTracking = false
     private var isSimulated = false
+
+    /**
+     * Ersatz-Koordinate für Bildschirmaufnahmen, nur im Debug-Build gesetzt.
+     * Siehe [ScreenshotPosition].
+     */
+    private var screenshotPosition: ScreenshotPosition? = null
 
     /**
      * Zuletzt gemeldete Satellitenlage – nur für den Rohdatenexport.
@@ -202,10 +210,19 @@ class GpsDataManager(private val context: Context) {
                 } else {
                     FixType.FIX_2D
                 }
+                // Nur Debug-Build: für Bildschirmaufnahmen kann die Koordinate
+                // durch einen bekannten Ort ersetzt werden. Alles andere an
+                // dieser Meldung bleibt gemessen.
+                val anzeige = displayedPosition(
+                    screenshotPosition,
+                    location.latitude,
+                    location.longitude,
+                    if (location.hasAltitude()) location.altitude else null
+                )
                 current.copy(
-                    latitude = location.latitude,
-                    longitude = location.longitude,
-                    altitudeMeters = if (location.hasAltitude()) location.altitude else null,
+                    latitude = anzeige.latitude,
+                    longitude = anzeige.longitude,
+                    altitudeMeters = anzeige.altitudeMeters,
                     speedKmh = if (location.hasSpeed()) location.speed * 3.6f else null,
                     bearingDegrees = if (location.hasBearing()) location.bearing else null,
                     accuracyMeters = if (location.hasAccuracy()) location.accuracy else null,
@@ -354,6 +371,18 @@ class GpsDataManager(private val context: Context) {
 
     fun toggleDemoMode() {
         enableDemoMode(!isSimulated)
+    }
+
+    /**
+     * Ersatz-Koordinate für Bildschirmaufnahmen setzen (`null` = aus).
+     *
+     * Wirkt nur auf die Anzeige: Genauigkeit, Tempo, Kurs und Satelliten bleiben
+     * gemessen. Angeboten wird der Schalter ausschließlich im Debug-Build, siehe
+     * [de.gpsradar.satellites.model.ScreenshotPosition]. Ein Neustart setzt ihn
+     * zurück, weil er nur im Arbeitsspeicher steht.
+     */
+    fun setScreenshotPosition(place: ScreenshotPosition?) {
+        screenshotPosition = place
     }
 
     fun enableDemoMode(enable: Boolean) {

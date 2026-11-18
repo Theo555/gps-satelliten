@@ -123,6 +123,10 @@
     <string name="about_tech_sensors_text">Kompass aus Beschleunigungs- und Magnetfeldsensor</string>
     <string name="about_tech_map_label">Karte:</string>
     <string name="about_tech_map_text">wird an eine installierte Karten-App übergeben</string>
+    <!-- Nur Debug-Build: Ersatzkoordinate für Bildschirmaufnahmen. -->
+    <string name="about_screenshot_title">Screenshot-Position (nur Debug)</string>
+    <string name="about_screenshot_hint">Ersetzt die angezeigte Position durch einen bekannten Ort, damit eine veröffentlichte Aufnahme nicht verrät, wo sie entstand. Genauigkeit, Tempo, Kurs und Satelliten bleiben gemessen. Ein währenddessen aufgezeichneter Track enthält die falschen Koordinaten. Ein Neustart hebt die Ersetzung auf.</string>
+    <string name="about_screenshot_off">aus</string>
     <string name="about_license_title">Lizenz</string>
     <string name="about_license_line">MIT-Lizenz · © 2026 TK</string>
     <string name="about_license_text">Der Quelltext ist frei einsehbar und darf unter den Bedingungen der MIT-Lizenz weiterverwendet werden.</string>

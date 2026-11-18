@@ -29,6 +29,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import de.gpsradar.satellites.R
+import de.gpsradar.satellites.model.ScreenshotPosition
 import de.gpsradar.satellites.ui.theme.AccentCyan
 import de.gpsradar.satellites.ui.theme.CardNavy
 
@@ -36,13 +37,20 @@ import de.gpsradar.satellites.ui.theme.CardNavy
  * "Über die App" — eigene Seite wie Radar/Signale/…, erreichbar über das
  * Fragezeichen in der Kopfzeile. Bewusst ohne eigenen Eintrag in der unteren
  * Leiste, damit diese bei ihren sechs Zielen bleibt.
+ *
+ * [onCycleScreenshotPlace] ist nur im Debug-Build gesetzt. Der Aufrufer gibt im
+ * Release `null` weiter — dann existiert der Schalter für
+ * Bildschirmaufnahmen gar nicht. Siehe
+ * [de.gpsradar.satellites.model.ScreenshotPosition].
  */
 @Composable
 fun AboutScreen(
     versionName: String,
     versionCode: Long,
     onOpenRepository: () -> Unit,
-    onOpenReadme: () -> Unit
+    onOpenReadme: () -> Unit,
+    screenshotPlace: ScreenshotPosition? = null,
+    onCycleScreenshotPlace: (() -> Unit)? = null
 ) {
     Column(
         modifier = Modifier
@@ -133,6 +141,23 @@ fun AboutScreen(
                 stringResource(R.string.about_tech_map_label),
                 stringResource(R.string.about_tech_map_text)
             )
+        }
+
+        if (onCycleScreenshotPlace != null) {
+            AboutCard(stringResource(R.string.about_screenshot_title)) {
+                AboutParagraph(stringResource(R.string.about_screenshot_hint))
+                TextButton(
+                    onClick = onCycleScreenshotPlace,
+                    modifier = Modifier.testTag("about_screenshot_btn")
+                ) {
+                    Text(
+                        text = screenshotPlace?.placeName
+                            ?: stringResource(R.string.about_screenshot_off),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
         }
 
         AboutCard(stringResource(R.string.about_license_title)) {

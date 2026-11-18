@@ -47,3 +47,26 @@ nur an ein *veröffentlichtes* Release (ein Tag-Push allein startet ihn nicht).
 - Der Hook prüft nur, was gerade gepusht wird. Er kann nicht verhindern,
   dass jemand einen anderen Klon ohne Hook verwendet.
 - `check-public-refs.sh` braucht Netzwerkzugriff für den Teil zu `origin`.
+
+## Bildschirmaufnahmen
+
+Die Aufnahmen in `screenshots/` zeigen einen echten Empfang, aber keinen echten
+Ort: Die Positionsseite würde sonst verraten, wo das Gerät stand.
+
+Dafür gibt es im **Debug-Build** einen Schalter auf der Info-Seite (Fragezeichen
+in der Kopfzeile), Karte „Screenshot-Position": Er ersetzt die angezeigte
+Koordinaten durch einen bekannten Ort (Brandenburger Tor, Deutsches Museum,
+Atomium) und schaltet im Ring weiter, bis wieder „aus" steht. Ein Release-Build
+zeigt die Karte nicht — dort gibt es den Rückruf nicht, den sie braucht.
+
+Was dabei echt bleibt: Genauigkeit, Tempo, Kurs, Satelliten, C/N₀ und DOP. Die
+Höhe stammt vom gewählten Ort. Ein **Track**, der währenddessen aufgezeichnet
+wird, enthält die falschen Koordinaten — die Aufzeichnung also vorher beenden.
+Die Ersetzung steht nur im Arbeitsspeicher und endet mit dem Neustart der App.
+
+Vorher prüfen, nachher kontrollieren:
+
+```bash
+tools/check-screenshots.sh          # Ordner und READMEs passen zusammen
+```
+

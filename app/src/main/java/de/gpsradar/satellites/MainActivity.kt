@@ -142,6 +142,16 @@ fun GpsAppMainScreen(
     } else {
         null
     }
+
+    // Ersatz-Koordinate für Bildschirmaufnahmen: ebenfalls nur im Debug-Build.
+    // Im Release bleibt der Rückruf null, und die Info-Seite zeigt die Karte
+    // gar nicht erst an.
+    val screenshotPlace by viewModel.screenshotPosition.collectAsState()
+    val cycleScreenshotPlace: (() -> Unit)? = if (isDebuggable) {
+        { viewModel.cycleScreenshotPosition() }
+    } else {
+        null
+    }
     var showCompassCheck by rememberSaveable { mutableStateOf(false) }
     val displayedSatellites by viewModel.displayedSatellites.collectAsState()
     val selectedFilter by viewModel.selectedFilter.collectAsState()
@@ -444,7 +454,9 @@ fun GpsAppMainScreen(
                         versionName = versionName,
                         versionCode = versionCode,
                         onOpenRepository = { openUrl(context, REPOSITORY_URL) },
-                        onOpenReadme = { openUrl(context, README_URL) }
+                        onOpenReadme = { openUrl(context, README_URL) },
+                        screenshotPlace = screenshotPlace,
+                        onCycleScreenshotPlace = cycleScreenshotPlace
                     )
                 } else if (showEmpfang) {
                     EmpfangScreen(

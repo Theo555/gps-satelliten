@@ -123,6 +123,10 @@
     <string name="about_tech_sensors_text">Compass from accelerometer and magnetometer</string>
     <string name="about_tech_map_label">Map:</string>
     <string name="about_tech_map_text">handed over to an installed map app</string>
+    <!-- Debug-Build only: replaced coordinate for screen captures. -->
+    <string name="about_screenshot_title">Screenshot position (debug only)</string>
+    <string name="about_screenshot_hint">Replaces the displayed position with a well-known place so a published capture does not reveal where it was taken. Accuracy, speed, heading and satellites stay measured. A track recorded meanwhile will contain the wrong coordinates. A restart clears the replacement.</string>
+    <string name="about_screenshot_off">off</string>
     <string name="about_license_title">License</string>
     <string name="about_license_line">MIT License · © 2026 TK</string>
     <string name="about_license_text">The source code is freely viewable and may be reused under the terms of the MIT License.</string>

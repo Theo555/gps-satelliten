@@ -46,6 +46,7 @@ import de.gpsradar.satellites.model.RawMeasurement
 import de.gpsradar.satellites.model.ReceiverHealth
 import de.gpsradar.satellites.model.RinexNav
 import de.gpsradar.satellites.model.SatelliteInfo
+import de.gpsradar.satellites.model.ScreenshotPosition
 import de.gpsradar.satellites.model.SkipReason
 import de.gpsradar.satellites.model.Track
 import de.gpsradar.satellites.model.TrackEndAlert
@@ -185,6 +186,14 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
     val selectedFilter = MutableStateFlow<Constellation?>(null)
     val selectedSort = MutableStateFlow(SatelliteSort.SIGNAL_DESC)
     val selectedSatellite = MutableStateFlow<SatelliteInfo?>(null)
+
+    /**
+     * Ersatz-Koordinate für Bildschirmaufnahmen (`null` = aus).
+     *
+     * Wird nur im Debug-Build angeboten; siehe
+     * [de.gpsradar.satellites.model.ScreenshotPosition].
+     */
+    val screenshotPosition = MutableStateFlow<ScreenshotPosition?>(null)
 
     val selectedSatelliteNavMessages: StateFlow<List<GnssNavMessage>> = combine(
         gpsDataManager.navigationMessages,
@@ -519,6 +528,18 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
 
     fun toggleDemoMode() {
         gpsDataManager.toggleDemoMode()
+    }
+
+    /**
+     * Nur Debug-Build: weiter zum nächsten Ersatzort für Bildschirmaufnahmen.
+     *
+     * Der Wert lebt im Arbeitsspeicher — nach einem Neustart ist die Ersetzung
+     * aus. Siehe [de.gpsradar.satellites.model.ScreenshotPosition].
+     */
+    fun cycleScreenshotPosition() {
+        val next = ScreenshotPosition.next(screenshotPosition.value)
+        screenshotPosition.value = next
+        gpsDataManager.setScreenshotPosition(next)
     }
 
     fun setFilter(constellation: Constellation?) {
