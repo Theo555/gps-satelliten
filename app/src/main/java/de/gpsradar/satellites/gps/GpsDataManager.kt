@@ -102,6 +102,9 @@ class GpsDataManager(private val context: Context) {
      */
     private var screenshotPosition: ScreenshotPosition? = null
 
+    /** Zuletzt gemeldete Position — nötig, um den Ersatzort sofort anzuwenden. */
+    private var lastLocation: Location? = null
+
     /**
      * Zuletzt gemeldete Satellitenlage – nur für den Rohdatenexport.
      *
@@ -204,34 +207,8 @@ class GpsDataManager(private val context: Context) {
                 courseModeActive = true
             }
             if (location.hasBearing()) lastBearingDegrees = location.bearing
-            _gpsState.update { current ->
-                val fix = if (current.satellitesInFix >= 4 || location.hasAltitude()) {
-                    FixType.FIX_3D
-                } else {
-                    FixType.FIX_2D
-                }
-                // Nur Debug-Build: für Bildschirmaufnahmen kann die Koordinate
-                // durch einen bekannten Ort ersetzt werden. Alles andere an
-                // dieser Meldung bleibt gemessen.
-                val anzeige = displayedPosition(
-                    screenshotPosition,
-                    location.latitude,
-                    location.longitude,
-                    if (location.hasAltitude()) location.altitude else null
-                )
-                current.copy(
-                    latitude = anzeige.latitude,
-                    longitude = anzeige.longitude,
-                    altitudeMeters = anzeige.altitudeMeters,
-                    speedKmh = if (location.hasSpeed()) location.speed * 3.6f else null,
-                    bearingDegrees = if (location.hasBearing()) location.bearing else null,
-                    accuracyMeters = if (location.hasAccuracy()) location.accuracy else null,
-                    timeMillis = location.time,
-                    fixType = fix,
-                    headingReferenceDegrees = headingReferenceDegrees(),
-                    lastUpdateTime = System.currentTimeMillis()
-                )
-            }
+            lastLocation = location
+            anzeigen(location)
         }
 
         override fun onProviderEnabled(provider: String) {
@@ -383,6 +360,48 @@ class GpsDataManager(private val context: Context) {
      */
     fun setScreenshotPosition(place: ScreenshotPosition?) {
         screenshotPosition = place
+        // Sofort nachziehen: Eine neue Position kommt nur bei mindestens 0,5 m
+        // Bewegung an. Ohne diese Zeile sähe der Schalter bei einem still
+        // liegenden Gerät wirkungslos aus.
+        lastLocation?.let { anzeigen(it) }
+    }
+
+    /**
+     * Eine Position in den Anzeigezustand übernehmen.
+     *
+     * Getrennt von [locationListener], weil der Ersatzort für
+     * Bildschirmaufnahmen auch **ohne** neue Meldung greifen muss (siehe
+     * [setScreenshotPosition]).
+     */
+    private fun anzeigen(location: Location) {
+        _gpsState.update { current ->
+            val fix = if (current.satellitesInFix >= 4 || location.hasAltitude()) {
+                FixType.FIX_3D
+            } else {
+                FixType.FIX_2D
+            }
+            // Nur Debug-Build: für Bildschirmaufnahmen kann die Koordinate
+            // durch einen bekannten Ort ersetzt werden. Alles andere an dieser
+            // Meldung bleibt gemessen.
+            val anzeige = displayedPosition(
+                screenshotPosition,
+                location.latitude,
+                location.longitude,
+                if (location.hasAltitude()) location.altitude else null
+            )
+            current.copy(
+                latitude = anzeige.latitude,
+                longitude = anzeige.longitude,
+                altitudeMeters = anzeige.altitudeMeters,
+                speedKmh = if (location.hasSpeed()) location.speed * 3.6f else null,
+                bearingDegrees = if (location.hasBearing()) location.bearing else null,
+                accuracyMeters = if (location.hasAccuracy()) location.accuracy else null,
+                timeMillis = location.time,
+                fixType = fix,
+                headingReferenceDegrees = headingReferenceDegrees(),
+                lastUpdateTime = System.currentTimeMillis()
+            )
+        }
     }
 
     fun enableDemoMode(enable: Boolean) {
