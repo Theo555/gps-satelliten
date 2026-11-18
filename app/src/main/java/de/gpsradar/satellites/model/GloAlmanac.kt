@@ -21,8 +21,8 @@ import kotlin.math.PI
  *
  * Nach den Strings 1–4 (Ephemeride des *sendenden* Satelliten) trägt jeder
  * Rahmen fünf Almanachsätze für **fremde** Satelliten, je zwei Strings:
- * der gerade String die Bahn ([nodeSeconds] bis [argumentOfPerigee]), der
- * ungerade die Kennung ([svid] bis [health]). Rahmen 1–4 decken die Plätze 1–20
+ * der gerade String die Kennung ([svid] bis [health]), der ungerade die Bahn
+ * ([nodeSeconds] bis [argumentOfPerigee]). Rahmen 1–4 decken die Plätze 1–20
  * ab, Rahmen 5 die Plätze 21–24. Die Zuordnung Rahmen/String → Platznummer
  * rechnet [GloLnav.almanacSlot] aus; der Satz nennt seine Platznummer zusätzlich
  * selbst, und der Sammler vergleicht beides.
@@ -58,8 +58,13 @@ data class GloAlmanac(
      * 31 bis 25 (Tabelle 4.10); [GloLnav] rechnet das um.
      */
     val frequencyChannel: Int? = null,
-    /** Durchgangszeit `tλ` des aufsteigenden Knotens am Tag NA, in Sekunden. */
-    val nodeSeconds: Int? = null,
+    /**
+     * Durchgangszeit `tλ` des aufsteigenden Knotens am Tag NA, in Sekunden.
+     *
+     * Auflösung 1/32 s (Skalenfaktor `2⁻⁵`, Tabelle 4.9) — deshalb keine ganze
+     * Zahl.
+     */
+    val nodeSeconds: Double? = null,
     /** Länge `λ` des aufsteigenden Knotens um 0h des Tages NA (Radiant). */
     val longitude: Double? = null,
     /** Abweichung `Δi` von der mittleren Bahnneigung (Radiant). */
@@ -133,7 +138,7 @@ data class GloAlmanac(
             val omg = argumentOfPerigee ?: return false
             return t in 39_600.0..46_800.0 &&
                 e in 0.0..0.03 &&
-                node in 0..44_100 &&
+                node in 0.0..44_100.0 &&
                 kotlin.math.abs(lon) <= PI &&
                 kotlin.math.abs(inc) <= 0.067 * PI &&
                 kotlin.math.abs(omg) <= PI &&

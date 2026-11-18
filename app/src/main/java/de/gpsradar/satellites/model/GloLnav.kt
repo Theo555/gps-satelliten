@@ -66,6 +66,8 @@ object GloLnav {
     /** Schrittweite des `tb`-Index in String 2: 15 Minuten. */
     const val TB_STEP_SECONDS = 900
 
+    private const val P2_5 = 1.0 / 32.0
+    private const val P2_9 = 1.0 / 512.0
     private const val P2_11 = 1.0 / 2048.0
     private const val P2_14 = 1.0 / 16_384.0
     private const val P2_15 = 1.0 / 32_768.0
@@ -242,32 +244,28 @@ object GloLnav {
      * Argument des Perigäums und den Frequenzkanal. Die Platznummer fehlt hier
      * bewusst — sie steht nur in der anderen Hälfte.
      *
-     * ## ⚠ UNGEPRÜFT: Diese Positionen passen nicht zu dem, was Geräte liefern
+     * ## Skalen: durch 32 und durch 512, nicht mal
      *
-     * Am 18.11.2026 gegen echte Meldungen vom Note 9 geprüft (Rohbit-Mitschnitt
-     * der Strings 5–15): Die **gerade** Hälfte stimmt (Platznummer, Knotenlänge,
-     * Neigungsabweichung, Exzentrizität, Uhr, Gesundheit — alles plausibel), die
-     * **ungerade** ergibt an den Positionen aus ICD-Tabelle 4.11 nur Unsinn:
-     * tλ ≈ 1,3 · 10⁶ statt höchstens 44 100 s, ΔT ≈ −7 · 10⁸ s statt ±3 600 s.
+     * Tabelle 4.9 nennt als Skalenfaktor `2⁻⁵` für `tλ` und `2⁻⁹` für `ΔT`.
+     * Ein Skalenfaktor ist der **Wert je Schritt**, nicht die Anzahl Schritte je
+     * Sekunde — der Rohwert ist also zu *teilen*. Am 18.11.2026 stand hier
+     * umgekehrt ein `* 32` und ein `* 512`; damit wurde aus dem Almanach Zahlen
+     * jenseits jedes physikalischen Bereichs, und der Schluss lag nahe, die
+     * Bitlagen selbst seien falsch. Sie waren von Anfang an richtig.
      *
-     * Ausgeschlossen wurde: alle 21-Bit-Fenster des ganzen Strings, Bitver-
-     * schiebungen bis 24 Bit, Bit- und Byteumkehr, invertierte Bits, andere
-     * Rahmennummern. Zwei Meldungen derselben Rahmennummer unterscheiden sich
-     * zudem mitten im Datenbereich (Bits 42, 62, 63, 70), was nach einer anderen
-     * Verschränkung der Prüfbits aussieht.
-     *
-     * Folge: Der Sammler setzt nie beide Hälften zusammen, gibt also **keine**
-     * GLONASS-Almanachsätze frei — lieber nichts als eine falsche Bahn. Wer das
-     * weiterverfolgt, braucht zuerst eine Referenz (Almanach für denselben Tag
-     * aus einer erreichbaren Quelle), nicht weitere Bit-Suche.
+     * **Belegt am Gerät** (S20 FE, 18.11.2026, Rohbit-Mitschnitt der Strings
+     * 5–15): `ΔT` ergibt für **alle** Satelliten −2656 s, also eine Draconische
+     * Periode von 40 544 s — genau die Umlaufzeit von GLONASS. `tλ` liegt
+     * zwischen 0 und 44 100 s, `ω` in ±π, und `Hn` liefert nur gültige Kanäle
+     * (0…6 sowie 25…31 für −7…−1). Eine zufällige Bitstelle erfüllt das nicht.
      */
     fun almanacOrbit(bits: String): GloAlmanac? {
         val id = stringId(bits)
         if (id !in 7..15 || id % 2 != 1) return null
         return GloAlmanac(
             frequencyChannel = frequencyChannel(unsigned(bits, 72, 5).toInt()),
-            nodeSeconds = unsigned(bits, 22, 21).toInt() * 32,
-            draconianPeriodCorrection = signMagnitude(bits, 43, 22) * 512.0,
+            nodeSeconds = unsigned(bits, 22, 21) * P2_5,
+            draconianPeriodCorrection = signMagnitude(bits, 43, 22) * P2_9,
             draconianPeriodRate = signMagnitude(bits, 65, 7) * P2_14,
             argumentOfPerigee = signMagnitude(bits, 6, 16) * P2_15 * PI
         )

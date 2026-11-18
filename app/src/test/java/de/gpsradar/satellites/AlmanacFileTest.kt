@@ -2,6 +2,7 @@ package de.gpsradar.satellites
 
 import de.gpsradar.satellites.model.Almanac
 import de.gpsradar.satellites.model.AlmanacFile
+import de.gpsradar.satellites.model.GloAlmanac
 import kotlin.math.PI
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -53,5 +54,46 @@ class AlmanacFileTest {
     fun leereListeErgibtNurKopf() {
         val datei = AlmanacFile.write(emptyList())
         assertTrue(datei.lines().all { it.startsWith("#") || it.isEmpty() })
+    }
+
+    /**
+     * GLONASS bekommt einen eigenen Block: Der Satz hat keine Halbachse und
+     * kein `M0`, dafür Knotenzeit und Draconische Periode. Die Knotenzeit hat
+     * 1/32 s Auflösung — sie darf nicht auf ganze Sekunden gerundet werden.
+     */
+    @Test
+    fun glonassBlockHatEigeneSpalten() {
+        val glo = GloAlmanac(
+            svid = 11,
+            frequencyChannel = 0,
+            nodeSeconds = 39_543.34375,
+            longitude = 0.1778968,
+            inclinationCorrection = 0.0279232,
+            draconianPeriodCorrection = -2_655.5215,
+            draconianPeriodRate = -0.001708984,
+            eccentricity = 0.000469208,
+            argumentOfPerigee = -2.0,
+            clockCorrection = 0.0,
+            satelliteType = 1,
+            health = 1
+        )
+
+        val datei = AlmanacFile.write(listOf(satz()), gloAlmanac = listOf(glo))
+        val zeilen = datei.lines()
+        assertTrue(zeilen.any { it.startsWith("# spalten: system svid t_lambda_s") })
+        val werte = zeilen.last { it.isNotBlank() && !it.startsWith("#") }
+        val spalten = werte.trim().split(Regex("\\s+"))
+        assertEquals(11, spalten.size)
+        assertEquals("GLO", spalten[0])
+        assertEquals("11", spalten[1])
+        assertEquals("39543.34", spalten[2])
+        assertEquals("10.1927", spalten[3])
+        assertEquals("1.5999", spalten[4])
+        // 43200 − 2655,5215
+        assertEquals("40544", spalten[5])
+        assertEquals("-1.709e-03", spalten[6])
+        assertEquals("0", spalten[8])
+        assertEquals("1", spalten[9])
+        assertEquals("1", spalten[10])
     }
 }

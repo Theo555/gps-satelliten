@@ -71,7 +71,7 @@ object AlmanacFile {
                         Locale.US, "%-3s %2d %5s %9s %8s %8s %10s %12s %3s %2s %s\n",
                         "GLO",
                         a.svid ?: 0,
-                        a.nodeSeconds?.toString() ?: "-",
+                        a.nodeSeconds?.let { zahl(it, "%.2f") } ?: "-",
                         a.longitude?.let { zahl(grad(it), "%.4f") } ?: "-",
                         a.inclinationCorrection?.let { zahl(grad(it), "%.4f") } ?: "-",
                         a.draconianPeriodSeconds?.let { zahl(it, "%.0f") } ?: "-",
