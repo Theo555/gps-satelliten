@@ -8,7 +8,6 @@ import android.os.VibrationEffect
 import android.os.Vibrator
 import android.util.Log
 import androidx.annotation.StringRes
-import androidx.documentfile.provider.DocumentFile
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import de.gpsradar.satellites.R
@@ -54,6 +53,7 @@ import de.gpsradar.satellites.model.TrackPoint
 import de.gpsradar.satellites.model.TrackRecorder
 import de.gpsradar.satellites.model.TrackStore
 import de.gpsradar.satellites.model.Waypoint
+import de.gpsradar.satellites.io.ExportFiles
 import de.gpsradar.satellites.model.WaypointCodec
 import de.gpsradar.satellites.model.groupWaypoints
 import kotlinx.coroutines.Job
@@ -922,11 +922,7 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun importWaypoints(uri: Uri): ImportResult {
-        val bytes = try {
-            getApplication<Application>().contentResolver.openInputStream(uri)?.use { it.readBytes() }
-        } catch (e: Exception) {
-            null
-        }
+        val bytes = ExportFiles.readBytes(getApplication(), uri)
 
         if (bytes == null) {
             return ImportResult(emptyList(), emptyList(), emptyList(), listOf(SkipReason.FileUnreadable))
@@ -953,36 +949,13 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
      * (Cache, Route bzw. freie Position). Gibt die Anzahl geschriebener Dateien zurück.
      */
     fun exportGpx(treeUri: Uri): Int {
-        return try {
-            val files = WaypointCodec.toGpxFiles(waypoints.value, tracks.value)
-            if (files.isEmpty()) return 0
-            val app = getApplication<Application>()
-            val root = DocumentFile.fromTreeUri(app, treeUri) ?: return 0
-            val resolver = app.contentResolver
-            var written = 0
-            files.forEach { f ->
-                val file = root.createFile("application/gpx+xml", f.fileName) ?: return@forEach
-                resolver.openOutputStream(file.uri)?.use {
-                    it.write(f.content.toByteArray(Charsets.UTF_8))
-                }
-                written++
-            }
-            written
-        } catch (e: Exception) {
-            0
-        }
+        val files = WaypointCodec.toGpxFiles(waypoints.value, tracks.value)
+        if (files.isEmpty()) return 0
+        return ExportFiles.writeGpxFiles(getApplication(), treeUri, files)
     }
 
-    fun exportJson(uri: Uri): Boolean {
-        return try {
-            val content = WaypointCodec.toJson(waypoints.value)
-            getApplication<Application>().contentResolver.openOutputStream(uri)?.use {
-                it.write(content.toByteArray(Charsets.UTF_8))
-            } != null
-        } catch (e: Exception) {
-            false
-        }
-    }
+    fun exportJson(uri: Uri): Boolean =
+        ExportFiles.writeText(getApplication(), uri, WaypointCodec.toJson(waypoints.value))
 
     /**
      * Exportiert den Pufferinhalt als CSV: Kommentarkopf, dann eine Zeile pro
@@ -999,14 +972,16 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
     fun exportRawCsv(ordner: Uri, dateiName: String, profile: CsvProfile): Boolean {
         val app = getApplication<Application>()
         val meta = CsvMeta(
-            device = "${Build.MANUFACTURER} ${Build.MODEL} · hardware ${Build.HARDWARE} · board ${Build.BOARD}",
-            android = "${Build.VERSION.RELEASE} (SDK ${Build.VERSION.SDK_INT})",
+            device = deviceLine(),
+            android = androidLine(),
             app = appVersionName(),
             exportedAtUtc = utcNow(),
             capabilities = rawGnssManager.capabilities.value
         )
         val content = MeasurementCsv.toCsv(rawGnssManager.epochSnapshot(), meta, profile)
-        return schreibeInOrdner(ordner, ExportFolder.MESSUNGEN, dateiName, "text/csv", content)
+        return ExportFiles.writeInFolder(
+            app, ordner, ExportFolder.MESSUNGEN, dateiName, "text/csv", content
+        )
     }
 
     /**
@@ -1028,22 +1003,22 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
         if (!brauchbar) return false
         // Eigener MIME-Typ statt "text/plain": Android haengt sonst die Endung
         // des MIME-Typs an (.txt) und aus navigation_….rnx wuerde .rnx.txt.
-        val geschrieben = schreibeInOrdner(
-            ordner, ExportFolder.NAVIGATION, dateiName, "application/rnx",
+        val geschrieben = ExportFiles.writeInFolder(
+            getApplication(), ordner, ExportFolder.NAVIGATION, dateiName, "application/rnx",
             RinexNav.write(nav.gps, nav.glo, nav.bds, nav.gal, nav.corrections)
         )
         if (nav.almanac.isNotEmpty()) {
             val almanachName = dateiName
                 .substringAfter("navigation_", dateiName)
                 .substringBeforeLast(".")
-            schreibeInOrdner(
-                ordner, ExportFolder.NAVIGATION, "almanach_$almanachName.txt",
+            ExportFiles.writeInFolder(
+                getApplication(), ordner, ExportFolder.NAVIGATION, "almanach_$almanachName.txt",
                 "text/plain",
                 AlmanacFile.write(
                     nav.almanac,
                     listOf(
                         "geraet = ${Build.MANUFACTURER} ${Build.MODEL}",
-                        "android = ${Build.VERSION.RELEASE} (SDK ${Build.VERSION.SDK_INT})",
+                        "android = ${androidLine()}",
                         "exportiert = ${utcNow()}"
                     ),
                     gloAlmanac = nav.gloAlmanac
@@ -1051,39 +1026,6 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
             )
         }
         return geschrieben
-    }
-
-    /**
-     * Eine Datei in einem vom Nutzer freigegebenen Ordner anlegen und füllen.
-     *
-     * [unterordner] wird im Ziel angelegt, falls er fehlt — so liegen Messungen
-     * und Navigationsdateien getrennt, ohne dass der Nutzer selbst sortieren
-     * muss. Ist `unterordner` null, wird direkt ins Ziel geschrieben.
-     */
-    private fun schreibeInOrdner(
-        ordner: Uri,
-        unterordner: String?,
-        dateiName: String,
-        mimeType: String,
-        inhalt: String
-    ): Boolean {
-        return try {
-            val app = getApplication<Application>()
-            val ziel = DocumentFile.fromTreeUri(app, ordner) ?: return false
-            val ablage = if (unterordner == null) {
-                ziel
-            } else {
-                ziel.findFile(unterordner) ?: ziel.createDirectory(unterordner)
-            } ?: return false
-            val datei = ablage.findFile(dateiName) ?: ablage.createFile(mimeType, dateiName)
-            if (datei == null) return false
-            app.contentResolver.openOutputStream(datei.uri)?.use {
-                it.write(inhalt.toByteArray(Charsets.UTF_8))
-            } != null
-        } catch (e: Exception) {
-            Log.w(TAG_RAW, "Schreiben von $dateiName fehlgeschlagen", e)
-            false
-        }
     }
 
     /** Startet eine zeitlich begrenzte Aufzeichnung; sie endet selbst. */
@@ -1119,6 +1061,17 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
             "?"
         }
     }
+
+    /**
+     * Gerätezeile für die Kopfzeilen der Exportdateien.
+     *
+     * Bewusst hier und nicht im Exportdienst: Es ist nur eine Zeichenkette aus
+     * Systemangaben, kein Dateizugriff.
+     */
+    private fun deviceLine(): String =
+        "${Build.MANUFACTURER} ${Build.MODEL} · hardware ${Build.HARDWARE} · board ${Build.BOARD}"
+
+    private fun androidLine(): String = "${Build.VERSION.RELEASE} (SDK ${Build.VERSION.SDK_INT})"
 
     private fun utcNow(): String {
         val fmt = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US)
