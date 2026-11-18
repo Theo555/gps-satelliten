@@ -16,6 +16,7 @@ import de.gpsradar.satellites.model.CompassSpinState
 import de.gpsradar.satellites.model.CompassWalkState
 import de.gpsradar.satellites.model.Constellation
 import de.gpsradar.satellites.model.ExportGeometry
+import de.gpsradar.satellites.model.FixOrigin
 import de.gpsradar.satellites.model.FixType
 import de.gpsradar.satellites.model.GnssNavMessage
 import de.gpsradar.satellites.model.GpsLocationState
@@ -97,6 +98,13 @@ class GpsDataManager(private val context: Context) {
     private var isSimulated = false
 
     /**
+     * Zusätzliche Ortsquellen dieses Builds — im öffentlichen keine, siehe
+     * [LocationSources]. Sie werden genau wie GNSS angemeldet und landen in
+     * derselben Anzeige, nur mit anderer Herkunft ([FixOrigin]).
+     */
+    private val extraSources: List<LocationSource> = LocationSources.create()
+
+    /**
      * Ersatz-Koordinate für Bildschirmaufnahmen, nur im Debug-Build gesetzt.
      * Siehe [ScreenshotPosition].
      */
@@ -104,6 +112,9 @@ class GpsDataManager(private val context: Context) {
 
     /** Zuletzt gemeldete Position — nötig, um den Ersatzort sofort anzuwenden. */
     private var lastLocation: Location? = null
+
+    /** Herkunft der zuletzt gemeldeten Position (siehe [lastLocation]). */
+    private var lastOrigin = FixOrigin.GNSS
 
     /**
      * Zuletzt gemeldete Satellitenlage – nur für den Rohdatenexport.
@@ -198,6 +209,10 @@ class GpsDataManager(private val context: Context) {
     private val locationListener = object : LocationListener {
         override fun onLocationChanged(location: Location) {
             if (isSimulated) return
+            // Im öffentlichen Build ist extraSources leer, damit ist dies hier
+            // immer null und die Meldung stammt vom GNSS-Empfänger.
+            val source = extraSources.firstOrNull { it.provider == location.provider }
+            if (source != null && source.shouldDefer(_gpsState.value.satellitesInFix)) return
             // Pfeil-Referenz: bei ausreichender Bewegung übernimmt der GPS-Kurs,
             // im Stand der Kompass (Hysterese gegen Flackern an der Schwelle).
             val speedMps = if (location.hasSpeed()) location.speed else 0f
@@ -208,7 +223,8 @@ class GpsDataManager(private val context: Context) {
             }
             if (location.hasBearing()) lastBearingDegrees = location.bearing
             lastLocation = location
-            anzeigen(location)
+            lastOrigin = source?.origin ?: FixOrigin.GNSS
+            anzeigen(location, lastOrigin)
         }
 
         override fun onProviderEnabled(provider: String) {
@@ -276,7 +292,23 @@ class GpsDataManager(private val context: Context) {
                 // Ignore missing provider
             }
 
-            // Rein offline: nur GNSS-Position verwenden.
+            // Weiteren Ortsquellen dasselbe Recht einräumen. Ohne Rückfall in die
+            // GNSS-Anmeldung: Fehlt ein Anbieter, bleibt es beim Empfänger.
+            extraSources.forEach { source ->
+                try {
+                    if (locationManager.isProviderEnabled(source.provider)) {
+                        locationManager.requestLocationUpdates(
+                            source.provider,
+                            source.minTimeMillis,
+                            source.minDistanceMeters,
+                            locationListener,
+                            Looper.getMainLooper()
+                        )
+                    }
+                } catch (e: Exception) {
+                    // Anbieter fehlt oder ist gesperrt.
+                }
+            }
         }
 
         // Kein automatischer Simulationsmodus: erfundene Satelliten und eine
@@ -370,7 +402,7 @@ class GpsDataManager(private val context: Context) {
         // Sofort nachziehen: Eine neue Position kommt nur bei mindestens 0,5 m
         // Bewegung an. Ohne diese Zeile sähe der Schalter bei einem still
         // liegenden Gerät wirkungslos aus.
-        lastLocation?.let { anzeigen(it) }
+        lastLocation?.let { anzeigen(it, lastOrigin) }
     }
 
     /**
@@ -380,7 +412,7 @@ class GpsDataManager(private val context: Context) {
      * Bildschirmaufnahmen auch **ohne** neue Meldung greifen muss (siehe
      * [setScreenshotPosition]).
      */
-    private fun anzeigen(location: Location) {
+    private fun anzeigen(location: Location, origin: FixOrigin) {
         _gpsState.update { current ->
             val fix = if (current.satellitesInFix >= 4 || location.hasAltitude()) {
                 FixType.FIX_3D
@@ -404,6 +436,7 @@ class GpsDataManager(private val context: Context) {
                 bearingDegrees = if (location.hasBearing()) location.bearing else null,
                 accuracyMeters = if (location.hasAccuracy()) location.accuracy else null,
                 timeMillis = location.time,
+                fixOrigin = origin,
                 fixType = fix,
                 headingReferenceDegrees = headingReferenceDegrees(),
                 lastUpdateTime = System.currentTimeMillis()
@@ -413,7 +446,10 @@ class GpsDataManager(private val context: Context) {
 
     fun enableDemoMode(enable: Boolean) {
         isSimulated = enable
-        _gpsState.update { it.copy(isDemoMode = enable) }
+        // Erfundene Werte sind keine Messung einer zweiten Quelle. Die Herkunft
+        // wird hier zurückgesetzt, damit eine stehengebliebene Kennzeichnung
+        // nicht in die Simulation hinüberwandert.
+        _gpsState.update { it.copy(isDemoMode = enable, fixOrigin = FixOrigin.GNSS) }
 
         if (enable) {
             demo.start()
@@ -428,7 +464,8 @@ class GpsDataManager(private val context: Context) {
                     longitude = null,
                     altitudeMeters = null,
                     speedKmh = null,
-                    accuracyMeters = null
+                    accuracyMeters = null,
+                    fixOrigin = FixOrigin.GNSS
                 )
             }
         }

@@ -22,6 +22,12 @@ data class GpsLocationState(
     val bearingDegrees: Float? = null,
     val accuracyMeters: Float? = null,
     val timeMillis: Long? = null,
+    /**
+     * Herkunft der Position. Im öffentlichen Build immer [FixOrigin.GNSS];
+     * eine zweite Ortsquelle kennzeichnet ihre Meldungen mit
+     * [FixOrigin.ALTERNATIVE], siehe `gps/LocationSources`. Mehr im Test.
+     */
+    val fixOrigin: FixOrigin = FixOrigin.GNSS,
     val satellites: List<SatelliteInfo> = emptyList(),
     val compassHeading: Float = 0f, // 0..360 from device orientation sensor
     val headingReferenceDegrees: Float = 0f, // Pfeil-Referenz: GPS-Kurs bei Bewegung, sonst Kompasskurs
