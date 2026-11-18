@@ -12,6 +12,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
+import androidx.annotation.RequiresApi
 import android.util.Log
 import de.gpsradar.satellites.model.AntennaSpec
 import de.gpsradar.satellites.model.BufferStats
@@ -188,10 +189,12 @@ class RawGnssManager(
      */
     @SuppressLint("MissingPermission")
     private fun readCapabilities(lm: LocationManager): DeviceCapabilities {
-        val sdk = Build.VERSION.SDK_INT
-        var caps = DeviceCapabilities(sdkInt = sdk)
+        var caps = DeviceCapabilities(sdkInt = Build.VERSION.SDK_INT)
 
-        if (sdk >= Build.VERSION_CODES.S) {
+        // Die Vergleiche stehen bewusst direkt auf Build.VERSION.SDK_INT: Lint
+        // kann einer lokalen Kopie der Versionsnummer nicht folgen und meldet
+        // dann jeden Aufruf darunter als Fehler (19 Fehlalarme am 18.11.2026).
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             caps = try {
                 val platform = lm.gnssCapabilities
                 caps.copy(
@@ -205,7 +208,7 @@ class RawGnssManager(
             }
         }
 
-        if (sdk >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             caps = try {
                 val platform = lm.gnssCapabilities
                 caps.copy(
@@ -225,7 +228,7 @@ class RawGnssManager(
             }
         }
 
-        if (sdk >= Build.VERSION_CODES.S) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             caps = try {
                 caps.copy(antennas = lm.gnssAntennaInfos.orEmpty().map { it.toAntennaSpec() })
             } catch (e: Throwable) {
@@ -239,6 +242,7 @@ class RawGnssManager(
     }
 
     /** `GnssCapabilities` meldet Ja/Nein/Unbekannt als Zahlen. */
+    @RequiresApi(Build.VERSION_CODES.R)
     private fun Int.toCapabilityState(): CapabilityState = when (this) {
         GnssCapabilities.CAPABILITY_SUPPORTED -> CapabilityState.SUPPORTED
         GnssCapabilities.CAPABILITY_UNSUPPORTED -> CapabilityState.UNSUPPORTED
@@ -249,6 +253,14 @@ class RawGnssManager(
     private fun Boolean.toCapabilityState(): CapabilityState =
         if (this) CapabilityState.SUPPORTED else CapabilityState.UNSUPPORTED
 
+    /**
+     * Antennenmaße in eigene Felder überführen.
+     *
+     * Die Annotation hält den Vertrag fest: Der Aufrufer muss die
+     * Versionswache stellen. Ohne sie meldet Lint hier jeden Zugriff als
+     * Fehler, ohne dass man sieht, woher die Pflicht kommt.
+     */
+    @RequiresApi(Build.VERSION_CODES.R)
     private fun GnssAntennaInfo.toAntennaSpec(): AntennaSpec {
         val offset = phaseCenterOffset
         return AntennaSpec(
@@ -550,7 +562,14 @@ class RawGnssManager(
         } else {
             null
         }
-        val code = codeType.takeIf { it.isNotEmpty() }
+        // Signalcode (C/A, L1C, L5 …) gibt es erst ab API 29. Ohne Wache warf
+        // der Aufruf auf Android 7–9 einen NoSuchMethodError — und der ist ein
+        // Error, kein Exception: Er hätte die ganze Messung mitgerissen.
+        val code = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            codeType.takeIf { it.isNotEmpty() }
+        } else {
+            null
+        }
 
         val satInfo = geometry[svid to constellation]
 
