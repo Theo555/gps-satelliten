@@ -47,6 +47,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -177,8 +178,9 @@ private fun FixStatusCard(state: GpsLocationState) {
                         color = fixColor
                     )
                     Text(
-                        text = stringResource(
-                            R.string.pos_used_sats,
+                        text = pluralStringResource(
+                            R.plurals.pos_used_sats,
+                            state.satellitesInView,
                             state.satellitesInFix,
                             state.satellitesInView
                         ),

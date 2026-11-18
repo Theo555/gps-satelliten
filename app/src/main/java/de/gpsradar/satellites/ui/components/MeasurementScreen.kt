@@ -326,7 +326,7 @@ private fun CapabilityLine(
                 null
             },
             caps.signals.size.takeIf { it > 0 }?.let {
-                stringResource(R.string.meas_caps_signals_count, it)
+                pluralStringResource(R.plurals.meas_caps_signals_count, it, it)
             }
         ).joinToString(" · ")
     }

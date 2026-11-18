@@ -76,10 +76,16 @@
     <!-- Geh-Test: Vergleich der Anzeige mit dem GPS-Kurs -->
     <string name="compass_walk_title">Geh-Test</string>
     <string name="compass_walk_instruction">Auf freier Strecke 90 Sekunden gerade gehen, Handy flach nach vorn. Verglichen wird die Anzeige mit dem GPS-Kurs – ablesen musst du nichts.</string>
-    <string name="compass_walk_running">Aufzeichnung · %1$d s · %2$d Proben</string>
+    <plurals name="compass_walk_running">
+        <item quantity="one">Aufzeichnung · %1$d s · %2$d Probe</item>
+        <item quantity="other">Aufzeichnung · %1$d s · %2$d Proben</item>
+    </plurals>
     <string name="compass_walk_start">Geh-Test starten</string>
     <string name="compass_walk_stop">Aufzeichnung beenden</string>
-    <string name="compass_walk_result_course">Anzeige gegen GPS-Kurs: %1$s° aus %2$d Messpunkten</string>
+    <plurals name="compass_walk_result_course">
+        <item quantity="one">Anzeige gegen GPS-Kurs: %1$s° aus %2$d Messpunkt</item>
+        <item quantity="other">Anzeige gegen GPS-Kurs: %1$s° aus %2$d Messpunkten</item>
+    </plurals>
     <string name="compass_walk_result_magnetic">Anzeige gegen Magnetkompass: %1$s°</string>
     <string name="compass_walk_saved">Abgelegt als %1$s</string>
     <string name="compass_walk_empty">Keine Auswertung – es kam kein GPS-Kurs an. War der Himmel frei genug?</string>
@@ -187,7 +193,10 @@
     <string name="toast_copied">Koordinaten in die Zwischenablage kopiert</string>
     <string name="share_position_text">Ich bin hier: %1$s\nhttps://maps.google.com/?q=%2$s,%3$s</string>
     <string name="share_chooser">Position teilen</string>
-    <string name="pos_used_sats">%1$d von %2$d Satelliten verwendet</string>
+    <plurals name="pos_used_sats">
+        <item quantity="one">%1$d von %2$d Satellit verwendet</item>
+        <item quantity="other">%1$d von %2$d Satelliten verwendet</item>
+    </plurals>
     <string name="label_ttff">TTFF: %1$ds</string>
     <string name="pos_geo_title">Geografische Position</string>
     <string name="btn_copy">Kopieren</string>
@@ -406,7 +415,10 @@
     <!-- Was das Gerät kann: erst damit ist eine leere Zelle deutbar. -->
     <string name="meas_caps_title">Gerät</string>
     <string name="meas_caps_phase">Trägerphase %1$s</string>
-    <string name="meas_caps_signals_count">%1$d Signalwege</string>
+    <plurals name="meas_caps_signals_count">
+        <item quantity="one">%1$d Signalweg</item>
+        <item quantity="other">%1$d Signalwege</item>
+    </plurals>
     <string name="meas_caps_old_system">Gerät · Fähigkeiten erst ab Android 12 abfragbar</string>
     <string name="meas_caps_old_system_hint">Ab Android 12 meldet der Empfänger, was er kann. Darunter zeigt es erst die Messung – siehe „geliefert“ im CSV-Kopf.</string>
     <string name="meas_caps_row">%1$s: %2$s</string>
@@ -440,7 +452,7 @@
     </plurals>
     <plurals name="empfang_almanac">
         <item quantity="one">%1$d Almanach</item>
-        <item quantity="other">%1$d Almanach</item>
+        <item quantity="other">%1$d Almanache</item>
     </plurals>
     <string name="empfang_ionosphere">Ionosphäre</string>
     <string name="empfang_utc">UTC</string>
@@ -486,7 +498,10 @@
     <string name="import_skip_json_entry_not_object">Eintrag %1$d ist kein JSON-Objekt</string>
     <string name="import_skip_json_waypoint_no_coords">Zielpunkt "%1$s" ohne gültige Koordinaten übersprungen</string>
     <string name="msg_track_too_short">Zu wenige Punkte für einen Track</string>
-    <string name="msg_track_saved">Track mit %1$d Punkten gespeichert</string>
+    <plurals name="msg_track_saved">
+        <item quantity="one">Track mit %1$d Punkt gespeichert</item>
+        <item quantity="other">Track mit %1$d Punkten gespeichert</item>
+    </plurals>
     <string name="msg_no_active_target">Kein aktives Ziel ausgewählt</string>
     <string name="msg_waypoint_projected">Projizierter Zielpunkt angelegt</string>
     <string name="msg_link_no_app">Keine App zum Öffnen des Links gefunden</string>

@@ -7,6 +7,7 @@ import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.util.Log
+import androidx.annotation.PluralsRes
 import androidx.annotation.StringRes
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -144,6 +145,10 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
     /** Kurzform für übersetzte Meldungen. */
     private fun str(@StringRes id: Int, vararg args: Any): String =
         getApplication<Application>().getString(id, *args)
+
+    /** Mehrzahlform; [count] wählt die Form, [args] füllen die Platzhalter. */
+    private fun pluralStr(@PluralsRes id: Int, count: Int, vararg args: Any): String =
+        getApplication<Application>().resources.getQuantityString(id, count, *args)
 
     val rawGpsState: StateFlow<GpsLocationState> = gpsDataManager.gpsState
     val compassSpinState: StateFlow<CompassSpinState> = gpsDataManager.spinState
@@ -801,6 +806,8 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
             val pattern = longArrayOf(0, 250, 150, 250, 150, 400)
             vibrator.vibrate(VibrationEffect.createWaveform(pattern, -1))
         } else {
+            // Unter API 26 gibt es VibrationEffect nicht – die alte Form ist dort
+            // der einzige Weg.
             @Suppress("DEPRECATION")
             vibrator.vibrate(500)
         }
@@ -860,7 +867,7 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
             points = points
         )
         tracks.value = tracks.value + trackStore.add(track)
-        return str(R.string.msg_track_saved, points.size)
+        return pluralStr(R.plurals.msg_track_saved, points.size, points.size)
     }
 
     fun deleteTrack(id: Long) {

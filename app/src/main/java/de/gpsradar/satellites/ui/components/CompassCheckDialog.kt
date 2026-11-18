@@ -18,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -201,7 +202,12 @@ private fun WalkSection(
     )
     when {
         walk.running -> Text(
-            text = stringResource(R.string.compass_walk_running, walk.secondsLeft, walk.samples),
+            text = pluralStringResource(
+                R.plurals.compass_walk_running,
+                walk.samples,
+                walk.secondsLeft,
+                walk.samples
+            ),
             fontSize = 14.sp,
             fontWeight = FontWeight.Medium,
             color = MaterialTheme.colorScheme.primary
@@ -239,8 +245,9 @@ private fun WalkResult(walk: CompassWalkState) {
     }
     if (course != null) {
         Text(
-            text = stringResource(
-                R.string.compass_walk_result_course,
+            text = pluralStringResource(
+                R.plurals.compass_walk_result_course,
+                walk.courseSamples,
                 signedDegrees(course),
                 walk.courseSamples
             ),

@@ -280,6 +280,9 @@ class RawGnssManager(
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                 lm.registerGnssMeasurementsCallback(mainExecutor, callback)
             } else {
+                // Der Executor-Zweig darueber gilt ab API 30. Darunter ist die
+                // alte Form der einzige Weg – sie bleibt bis minSdk 24 noetig
+                // und ist deshalb keine Schuld, sondern eine Grenze.
                 @Suppress("DEPRECATION")
                 lm.registerGnssMeasurementsCallback(callback)
             }
@@ -511,6 +514,9 @@ class RawGnssManager(
 
         // Seit API 34 als veraltet markiert, liefert aber auf allen
         // unterstuetzten Versionen weiterhin Werte.
+        // Seit API 34 abgekuendigt: Der Nachfolger verlangt einen Signaltyp je
+        // Messung, den es unter API 34 nicht gibt. Der Wert selbst wird weiter
+        // geliefert – er traegt die Phasenresets im Export.
         @Suppress("DEPRECATION")
         val phaseUncertainty =
             if (carrierPhaseUncertainty.isNaN()) null else carrierPhaseUncertainty

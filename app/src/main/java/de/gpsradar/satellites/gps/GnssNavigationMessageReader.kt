@@ -162,6 +162,8 @@ class GnssNavigationMessageReader(
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                 lm.registerGnssNavigationMessageCallback(mainExecutor, callback)
             } else {
+                // Wie bei den Rohmessungen: Der Executor-Zweig gilt ab API 30,
+                // darunter ist die alte Form der einzige Weg.
                 @Suppress("DEPRECATION")
                 lm.registerGnssNavigationMessageCallback(callback)
             }

@@ -61,6 +61,8 @@ class EmpfangScreenTest {
     fun mehrereBleibenImPlural() {
         zeige(ephemeriden = 5, almanach = 27)
 
-        compose.onNodeWithText("5 Ephemeriden · 27 Almanach").assertIsDisplayed()
+        // Bis zum 18.11.2026 stand hier „27 Almanach“: Die Mehrzahlform war
+        // versehentlich dieselbe wie die Einzahl.
+        compose.onNodeWithText("5 Ephemeriden · 27 Almanache").assertIsDisplayed()
     }
 }

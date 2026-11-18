@@ -42,7 +42,6 @@ class StringFormatTest {
     R.string.detail_id_fmt to arrayOf<Any>(7),
     R.string.detail_show_raw_n to arrayOf<Any>(3),
     R.string.raw_subtitle_fmt to arrayOf<Any>("GPS-7"),
-    R.string.pos_used_sats to arrayOf<Any>(8, 12),
     R.string.pos_fix_view to arrayOf<Any>(8, 12),
     R.string.label_ttff to arrayOf<Any>(5),
     R.string.share_position_text to arrayOf<Any>("52.520008° N, 13.404954° E", "52.520008", "13.404954"),
@@ -106,6 +105,34 @@ class StringFormatTest {
     assertEquals(
       "„Tour“ wird mit 1 Punkt gelöscht. Das lässt sich nicht rückgängig machen.",
       de.getQuantityString(R.plurals.dlg_delete_track_text, 1, "Tour", 1)
+    )
+
+    // Am 18.11.2026 als Fehler aufgefallen: „8 Almanach“ stand so auf dem
+    // Bildschirm, weil Ein- und Mehrzahl dieselbe Form hatten. Die folgenden
+    // Prüfungen halten die Einzahl mit fest — sie war in vier Texten falsch.
+    assertEquals("1 Almanach", de.getQuantityString(R.plurals.empfang_almanac, 1, 1))
+    assertEquals("8 Almanache", de.getQuantityString(R.plurals.empfang_almanac, 8, 8))
+    assertEquals("8 almanacs", context.resources.getQuantityString(R.plurals.empfang_almanac, 8, 8))
+    assertEquals(
+      "Track mit 1 Punkt gespeichert",
+      de.getQuantityString(R.plurals.msg_track_saved, 1, 1)
+    )
+    assertEquals("1 Signalweg", de.getQuantityString(R.plurals.meas_caps_signals_count, 1, 1))
+    assertEquals(
+      "Aufzeichnung · 3 s · 1 Probe",
+      de.getQuantityString(R.plurals.compass_walk_running, 1, 3, 1)
+    )
+    assertEquals(
+      "Anzeige gegen GPS-Kurs: 12° aus 1 Messpunkt",
+      de.getQuantityString(R.plurals.compass_walk_result_course, 1, "12", 1)
+    )
+    assertEquals(
+      "1 von 1 Satellit verwendet",
+      de.getQuantityString(R.plurals.pos_used_sats, 1, 1, 1)
+    )
+    assertEquals(
+      "1 of 1 satellite used",
+      context.resources.getQuantityString(R.plurals.pos_used_sats, 1, 1, 1)
     )
   }
 

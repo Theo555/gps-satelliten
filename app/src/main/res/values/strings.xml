@@ -1,4 +1,4 @@
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <string name="app_name">GPS Satelliten</string>
     <string name="tab_radar">Radar</string>
     <string name="tab_signals">Signals</string>
@@ -76,10 +76,16 @@
     <!-- Geh-Test: Vergleich der Anzeige mit dem GPS-Kurs -->
     <string name="compass_walk_title">Walking test</string>
     <string name="compass_walk_instruction">Walk straight for 90 seconds on open ground, phone flat and pointing ahead. The recording compares the display with the GPS course – nothing to read off.</string>
-    <string name="compass_walk_running">Recording · %1$d s · %2$d samples</string>
+    <plurals name="compass_walk_running">
+        <item quantity="one">Recording · %1$d s · %2$d sample</item>
+        <item quantity="other">Recording · %1$d s · %2$d samples</item>
+    </plurals>
     <string name="compass_walk_start">Start walking test</string>
     <string name="compass_walk_stop">Stop recording</string>
-    <string name="compass_walk_result_course">Display against GPS course: %1$s° from %2$d samples</string>
+    <plurals name="compass_walk_result_course">
+        <item quantity="one">Display against GPS course: %1$s° from %2$d sample</item>
+        <item quantity="other">Display against GPS course: %1$s° from %2$d samples</item>
+    </plurals>
     <string name="compass_walk_result_magnetic">Display against magnetic compass: %1$s°</string>
     <string name="compass_walk_saved">Saved as %1$s</string>
     <string name="compass_walk_empty">No result – no GPS course was received. Was the sky clear enough?</string>
@@ -187,7 +193,10 @@
     <string name="toast_copied">Coordinates copied to clipboard</string>
     <string name="share_position_text">I am here: %1$s\nhttps://maps.google.com/?q=%2$s,%3$s</string>
     <string name="share_chooser">Share position</string>
-    <string name="pos_used_sats">%1$d of %2$d satellites used</string>
+    <plurals name="pos_used_sats">
+        <item quantity="one">%1$d of %2$d satellite used</item>
+        <item quantity="other">%1$d of %2$d satellites used</item>
+    </plurals>
     <string name="label_ttff">TTFF: %1$ds</string>
     <string name="pos_geo_title">Geographic position</string>
     <string name="btn_copy">Copy</string>
@@ -405,7 +414,10 @@
     <!-- Was das Gerät kann: erst damit ist eine leere Zelle deutbar. -->
     <string name="meas_caps_title">Device</string>
     <string name="meas_caps_phase">Carrier phase %1$s</string>
-    <string name="meas_caps_signals_count">%1$d signal paths</string>
+    <plurals name="meas_caps_signals_count">
+        <item quantity="one">%1$d signal path</item>
+        <item quantity="other">%1$d signal paths</item>
+    </plurals>
     <string name="meas_caps_old_system">Device · capabilities can be queried from Android 12 on</string>
     <string name="meas_caps_old_system_hint">From Android 12 the receiver reports what it can do. Below that only the measurement shows it — see "geliefert" in the CSV header.</string>
     <string name="meas_caps_row">%1$s: %2$s</string>
@@ -436,7 +448,7 @@
     </plurals>
     <plurals name="empfang_almanac">
         <item quantity="one">%1$d almanac</item>
-        <item quantity="other">%1$d almanac</item>
+        <item quantity="other">%1$d almanacs</item>
     </plurals>
     <string name="empfang_ionosphere">Ionosphere</string>
     <string name="empfang_utc">UTC</string>
@@ -451,10 +463,13 @@
     <string name="cd_toggle_simulation">Toggle simulation mode</string>
 
     <!-- Import results and action messages -->
+    <!-- "skipped" ist in beiden Sprachen unveraenderlich ("uebersprungen"),
+         eine Pluralform haette also zweimal denselben Text - genau der Fehler,
+         der bei "Almanach" auf dem Geraet stand. Lint deshalb hier aus. -->
     <string name="import_summary_empty">No waypoints or tracks found in the file</string>
-    <string name="import_summary_none_valid">No valid waypoints or tracks found (%1$d skipped)</string>
+    <string name="import_summary_none_valid" tools:ignore="PluralsCandidate">No valid waypoints or tracks found (%1$d skipped)</string>
     <string name="import_summary_imported">%1$s imported</string>
-    <string name="import_summary_with_skipped">%1$s, %2$d skipped</string>
+    <string name="import_summary_with_skipped" tools:ignore="PluralsCandidate">%1$s, %2$d skipped</string>
     <string name="import_dialog_title">Import finished</string>
     <string name="import_dialog_skipped">These entries were not imported:</string>
     <string name="import_reason_repeat">%1$s (%2$d×)</string>
@@ -482,7 +497,10 @@
     <string name="import_skip_json_entry_not_object">Entry %1$d is not a JSON object</string>
     <string name="import_skip_json_waypoint_no_coords">Waypoint "%1$s" skipped – no valid coordinates</string>
     <string name="msg_track_too_short">Too few points for a track</string>
-    <string name="msg_track_saved">Track with %1$d points saved</string>
+    <plurals name="msg_track_saved">
+        <item quantity="one">Track with %1$d point saved</item>
+        <item quantity="other">Track with %1$d points saved</item>
+    </plurals>
     <string name="msg_no_active_target">No active target selected</string>
     <string name="msg_waypoint_projected">Projected waypoint created</string>
     <string name="msg_link_no_app">No app found to open the link</string>
