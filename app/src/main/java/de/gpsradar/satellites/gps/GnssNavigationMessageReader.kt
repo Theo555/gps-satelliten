@@ -337,7 +337,12 @@ internal fun navDumpLine(
         if (wordType in 1..6) return null
     }
     if (data == null || data.isEmpty()) return null
-    if (type == GnssNavigationMessage.TYPE_GLO_L1CA && !isGloUtcString(data)) {
+    // GLONASS: Die Strings 1–4 (Ephemeride) sind ausgewertet, die Strings 5–15
+    // tragen UTC-Bezug und Almanach — nur die werden mitgeschrieben. Vorher
+    // stand hier ausschließlich String 5; damit war unsichtbar, ob der
+    // Empfänger den Almanach überhaupt liefert (18.11.2026: Bei GLO stand
+    // „0 Almanach", und es ließ sich nicht sagen, woran es lag).
+    if (type == GnssNavigationMessage.TYPE_GLO_L1CA && !isGloNonEphemerisString(data)) {
         return null
     }
     if (type == GnssNavigationMessage.TYPE_GPS_L1CA && !isGpsIonoUtcPage(data)) {
@@ -347,10 +352,10 @@ internal fun navDumpLine(
         "sub=$submessageId status=$status data=${hexOf(data)}"
 }
 
-/** Ist das der GLONASS-String 5 (Zeitbezug zu UTC und Almanach-Bezugstag)? */
-internal fun isGloUtcString(data: ByteArray): Boolean {
+/** Ist das ein GLONASS-String mit UTC-Bezug oder Almanach (5–15)? */
+internal fun isGloNonEphemerisString(data: ByteArray): Boolean {
     val bits = GloLnav.dataBits(data) ?: return false
-    return GloLnav.stringId(bits) == 5
+    return GloLnav.stringId(bits) in 5..15
 }
 
 /** Rohbytes als Hex, durch Leerzeichen getrennt. */
