@@ -39,7 +39,7 @@ Der Ordner `f-droid/` ist frei gewählt und nur für uns.
    nicht mehr byte-gleich sind. Also nur an einer Stelle austauschen
    (`screenshots/`) und die fastlane-Kopie mitziehen.
 4. **Changelog**: `changelogs/<versionCode>.txt` – die Datei muss zur
-   Versionsnummer passen (aktuell `19.txt` für 1.3.14).
+   Versionsnummer passen (aktuell `20.txt` für 1.3.15).
 5. **E-Mail-Adresse** `t.kichtan@gmail.com` wird öffentlich sichtbar.
 
 ## Was man wissen sollte
