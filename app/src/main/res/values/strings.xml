@@ -437,6 +437,7 @@
     <string name="empfang_ionosphere">Ionosphere</string>
     <string name="empfang_utc">UTC</string>
     <string name="empfang_unknown_hint">“unknown” means this Android does not answer the question – not that the device cannot do it.</string>
+    <string name="empfang_iono_note">GLONASS broadcasts no ionosphere parameters – its navigation message has no model for it.</string>
     <string name="empfang_hint">What this receiver can do and which orbit data it has collected. Raw values are in the CSV export.</string>
     <string name="meas_quality_fmt">Quality · lock %1$d/%2$d · TOW %3$d/%4$d · %5$d ms ambiguous · phase %6$d/%7$d</string>
     <string name="nav_status_parity_ok">Parity OK</string>

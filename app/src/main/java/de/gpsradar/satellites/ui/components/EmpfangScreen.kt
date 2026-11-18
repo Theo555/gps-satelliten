@@ -116,6 +116,12 @@ fun EmpfangScreen(summary: EmpfangSummary) {
                 label = stringResource(R.string.empfang_utc),
                 value = systemList(summary.utcSystems)
             )
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = stringResource(R.string.empfang_iono_note),
+                fontSize = 11.sp,
+                color = Color(0xFF94A3B8)
+            )
         }
 
         Spacer(modifier = Modifier.height(10.dp))

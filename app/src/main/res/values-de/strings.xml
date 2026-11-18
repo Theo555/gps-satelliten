@@ -441,6 +441,7 @@
     <string name="empfang_ionosphere">Ionosphäre</string>
     <string name="empfang_utc">UTC</string>
     <string name="empfang_unknown_hint">„unklar“ heißt: dieses Android beantwortet die Frage nicht – nicht, dass das Gerät es nicht kann.</string>
+    <string name="empfang_iono_note">GLONASS sendet keine Ionosphärenparameter – seine Navigationsnachricht hat kein Modell dafür.</string>
     <string name="empfang_hint">Was dieser Empfänger kann und welche Bahndaten er gesammelt hat. Die Rohwerte stehen im CSV-Export.</string>
     <string name="meas_quality_fmt">Qualität · Lock %1$d/%2$d · TOW %3$d/%4$d · %5$d ms-mehrdeutig · Phase %6$d/%7$d</string>
     <string name="nav_status_parity_ok">Parität OK</string>
