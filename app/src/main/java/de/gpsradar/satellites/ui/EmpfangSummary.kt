@@ -112,6 +112,13 @@ object EmpfangSummaryBuilder {
     ): EmpfangSystemCounts = EmpfangSystemCounts(
         constellation = constellation,
         ephemerides = ephemerides,
-        almanac = nav.almanac.count { it.system == constellation.shortName }
+        // GLONASS führt seinen Almanach in einer eigenen Liste: Der Satz hat
+        // eine andere Form als der gemeinsame Typ (Knotenzeit und Draconische
+        // Periode statt Halbachse und M0).
+        almanac = if (constellation == Constellation.GLONASS) {
+            nav.gloAlmanac.size
+        } else {
+            nav.almanac.count { it.system == constellation.shortName }
+        }
     )
 }

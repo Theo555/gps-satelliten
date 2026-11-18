@@ -1024,7 +1024,8 @@ class GpsViewModel(application: Application) : AndroidViewModel(application) {
                         "geraet = ${Build.MANUFACTURER} ${Build.MODEL}",
                         "android = ${Build.VERSION.RELEASE} (SDK ${Build.VERSION.SDK_INT})",
                         "exportiert = ${utcNow()}"
-                    )
+                    ),
+                    gloAlmanac = nav.gloAlmanac
                 )
             )
         }

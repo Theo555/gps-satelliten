@@ -9,6 +9,7 @@ import de.gpsradar.satellites.model.BdsEphemeris
 import de.gpsradar.satellites.model.BdsLnav
 import de.gpsradar.satellites.model.BdsOrbitA
 import de.gpsradar.satellites.model.BdsOrbitB
+import de.gpsradar.satellites.model.GloAlmanac
 import de.gpsradar.satellites.model.GloAxis
 import de.gpsradar.satellites.model.GloClock
 import de.gpsradar.satellites.model.GloEphemeris
@@ -42,7 +43,13 @@ data class NavEphemerides(
      * Format kennt keinen Almanach — und werden deshalb als eigene Datei
      * geschrieben.
      */
-    val almanac: List<Almanac> = emptyList()
+    val almanac: List<Almanac> = emptyList(),
+    /**
+     * GLONASS-Almanach. Eigene Liste, weil ein GLONASS-Satz eine andere Form
+     * hat als [almanac]: keine Halbachse, kein M0, dafür Knotenzeit und
+     * Draconische Periode. Siehe [GloAlmanac].
+     */
+    val gloAlmanac: List<GloAlmanac> = emptyList()
 ) {
     val total: Int get() = gps.size + glo.size + bds.size + gal.size
 }
@@ -106,6 +113,12 @@ class NavEphemerisStore {
 
     private val gloTeile = mutableMapOf<Int, GloTeile>()
     private val gloEphemerides = mutableMapOf<Int, GloEphemeris>()
+
+    /** Angefangene GLONASS-Almanachsätze, je Platznummer eine Hälfte. */
+    private val gloAlmanacTeile = mutableMapOf<Int, GloAlmanac>()
+
+    /** Fertige GLONASS-Almanachsätze, je Platznummer. */
+    private val gloAlmanac = mutableMapOf<Int, GloAlmanac>()
 
     private class BdsTeile {
         var clock: BdsClock? = null
@@ -184,7 +197,8 @@ class NavEphemerisStore {
         val data = message.data ?: return false
         return when (message.type) {
             GnssNavigationMessage.TYPE_GPS_L1CA -> addGps(message.svid, data, nowMillis)
-            GnssNavigationMessage.TYPE_GLO_L1CA -> addGlo(message.svid, data, nowMillis)
+            GnssNavigationMessage.TYPE_GLO_L1CA ->
+                addGlo(message.svid, message.messageId, data, nowMillis)
             GnssNavigationMessage.TYPE_BDS_D1 -> addBds(message.svid, data, nowMillis)
             GnssNavigationMessage.TYPE_GAL_I ->
                 addGal(message.svid, message.submessageId, data, nowMillis)
@@ -209,7 +223,8 @@ class NavEphemerisStore {
         ),
         almanac = almanac.values
             .flatMap { it.values }
-            .sortedWith(compareBy({ it.system }, { it.svid }))
+            .sortedWith(compareBy({ it.system }, { it.svid })),
+        gloAlmanac = gloAlmanac.values.sortedBy { it.svid }
     )
 
     fun clear() {
@@ -222,6 +237,8 @@ class NavEphemerisStore {
         galTeile.clear()
         galEphemerides.clear()
         almanac.clear()
+        gloAlmanacTeile.clear()
+        gloAlmanac.clear()
         bdsAlmanacStimmen.clear()
         galAlmanacTeile.clear()
         galAlmanacPendingSvid = 0
@@ -313,7 +330,7 @@ class NavEphemerisStore {
 
     // ---- GLONASS ----
 
-    private fun addGlo(svid: Int, data: ByteArray, nowMillis: Long): Boolean {
+    private fun addGlo(svid: Int, frame: Int, data: ByteArray, nowMillis: Long): Boolean {
         val bits = GloLnav.dataBits(data) ?: return false
         val t = gloTeile.getOrPut(svid) { GloTeile() }
         when (GloLnav.stringId(bits)) {
@@ -347,18 +364,52 @@ class NavEphemerisStore {
                 t.clockAtMillis = nowMillis
             }
             else -> {
-                // Strings 5–15: String 5 trägt den Zeitbezug GLONASS→UTC(SU).
-                // Der Almanach der übrigen Strings wird nicht ausgewertet.
-                val utc = GloLnav.utc(bits) ?: return false
-                if (!utc.isUsable || utc == gloUtc) return false
-                gloUtc = utc
-                return true
+                val id = GloLnav.stringId(bits)
+                if (id == 5) {
+                    // String 5 trägt den Zeitbezug GLONASS→UTC(SU).
+                    val utc = GloLnav.utc(bits) ?: return false
+                    if (!utc.isUsable || utc == gloUtc) return false
+                    gloUtc = utc
+                    return true
+                }
+                // Strings 6–15: Almanach fremder Satelliten, zwei Strings je Satz.
+                return addGloAlmanac(frame, id, bits)
             }
         }
 
         val eph = complete(svid, t, nowMillis) ?: return false
         val changed = gloEphemerides[svid] != eph
         gloEphemerides[svid] = eph
+        return changed
+    }
+
+    /**
+     * Eine Almanach-Hälfte aufnehmen; bei Vollständigkeit den Satz freigeben.
+     *
+     * Die Platznummer steht nur in der geraden Hälfte. Welcher Platz gemeint
+     * ist, sagt der Rahmen ([GloLnav.almanacSlot]). Nennen die beiden
+     * verschiedene Nummern, ist die Zuordnung des Geräts falsch — dann lieber
+     * wegwerfen, als einen fremden Satz unter diesem Platz zu führen.
+     */
+    private fun addGloAlmanac(frame: Int, string: Int, bits: String): Boolean {
+        val slot = GloLnav.almanacSlot(frame, string) ?: return false
+        val half = (if (string % 2 == 0) GloLnav.almanacIdent(bits)
+        else GloLnav.almanacOrbit(bits)) ?: return false
+        if (half.svid != null && half.svid != slot) {
+            gloAlmanacTeile.remove(slot)
+            gloAlmanac.remove(slot)
+            return false
+        }
+        val merged = gloAlmanacTeile[slot]?.merge(half) ?: half
+        gloAlmanacTeile[slot] = merged
+        if (!merged.isComplete) return false
+        val satz = merged.copy(svid = merged.svid ?: slot)
+        if (!satz.isPlausible) {
+            gloAlmanacTeile.remove(slot)
+            return false
+        }
+        val changed = gloAlmanac[slot] != satz
+        gloAlmanac[slot] = satz
         return changed
     }
 

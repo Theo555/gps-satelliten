@@ -1,5 +1,7 @@
 package de.gpsradar.satellites.model
 
+import kotlin.math.PI
+
 /**
  * Dekodiert GLONASS-L1-Navigationsstrings (GNAV) aus den Rohdaten, die Android
  * als [android.location.GnssNavigationMessage] mit `TYPE_GLO_L1CA` liefert.
@@ -65,6 +67,9 @@ object GloLnav {
     const val TB_STEP_SECONDS = 900
 
     private const val P2_11 = 1.0 / 2048.0
+    private const val P2_14 = 1.0 / 16_384.0
+    private const val P2_15 = 1.0 / 32_768.0
+    private const val P2_18 = 1.0 / 262_144.0
     private const val P2_20 = 1.0 / 1_048_576.0
     private const val P2_30 = 1.0 / 1_073_741_824.0
     private const val P2_31 = 1.0 / 2_147_483_648.0
@@ -181,7 +186,73 @@ object GloLnav {
     /** Korrektur GPS−GLONASS (τGPS) aus String 5, in Sekunden. */
     fun gpsOffsetSeconds(bits: String): Double =
         if (stringId(bits) != 5) 0.0
-        else signMagnitude(bits, 56, 22) * P2_30 * SECONDS_PER_DAY
+        else signMagnitude(bits, 55, 22) * P2_30 * SECONDS_PER_DAY
+
+    /**
+     * Platznummer, die ein Almanachpaar im Rahmen beschreibt.
+     *
+     * Rahmen 1–4 tragen je fünf Sätze (Plätze 1–20), Rahmen 5 die Plätze 21–24.
+     * Das Paar zum Platz steht in zwei benachbarten Strings: gerade Strings
+     * (6, 8, 10, 12, 14) und der jeweils folgende ungerade. In Rahmen 5 ist das
+     * letzte Paar (Strings 14/15) frei — dort stehen B1/B2/KP (Tabelle 4.11).
+     *
+     * null heißt: Dieser String trägt keinen Almanachsatz.
+     */
+    fun almanacSlot(frame: Int, string: Int): Int? {
+        if (frame !in 1..5 || string !in 6..15) return null
+        val paar = (string - 6) / 2
+        if (frame == 5 && paar > 3) return null
+        return 5 * (frame - 1) + paar + 1
+    }
+
+    /**
+     * Trägerfrequenzkanal aus `Hn`.
+     *
+     * Die ICD (Tabelle 4.10) überträgt **−1 bis −7 als 31 bis 25**; 0 bis 13
+     * stehen für sich selbst. Wer hier nichts umrechnet, bekommt für die
+     * negativen Kanäle 25–31 und damit Frequenzen weit neben dem Band.
+     */
+    fun frequencyChannel(raw: Int): Int = if (raw >= 25) raw - 32 else raw
+
+    /**
+     * Kennungshälfte aus einem **geraden** String (6, 8, 10, 12, 14).
+     *
+     * Enthält Platznummer, Knotenlänge, Neigungsabweichung, Exzentrizität, Uhr
+     * und Gesundheit. Die Bahnwerte der anderen Hälfte fehlen noch — der
+     * Sammler setzt beide zusammen.
+     */
+    fun almanacIdent(bits: String): GloAlmanac? {
+        val id = stringId(bits)
+        if (id !in 6..15 || id % 2 != 0) return null
+        return GloAlmanac(
+            svid = unsigned(bits, 9, 5).toInt(),
+            longitude = signMagnitude(bits, 24, 21) * P2_20 * PI,
+            inclinationCorrection = signMagnitude(bits, 45, 18) * P2_20 * PI,
+            eccentricity = unsigned(bits, 63, 15) * P2_20,
+            clockCorrection = signMagnitude(bits, 14, 10) * P2_18,
+            satelliteType = unsigned(bits, 7, 2).toInt(),
+            health = unsigned(bits, 6, 1).toInt()
+        )
+    }
+
+    /**
+     * Bahnhälfte aus einem **ungeraden** String (7, 9, 11, 13, 15).
+     *
+     * Enthält Durchgangszeit des Knotens, Draconische Periode samt Änderung,
+     * Argument des Perigäums und den Frequenzkanal. Die Platznummer fehlt hier
+     * bewusst — sie steht nur in der anderen Hälfte.
+     */
+    fun almanacOrbit(bits: String): GloAlmanac? {
+        val id = stringId(bits)
+        if (id !in 7..15 || id % 2 != 1) return null
+        return GloAlmanac(
+            frequencyChannel = frequencyChannel(unsigned(bits, 72, 5).toInt()),
+            nodeSeconds = unsigned(bits, 22, 21).toInt() * 32,
+            draconianPeriodCorrection = signMagnitude(bits, 43, 22) * 512.0,
+            draconianPeriodRate = signMagnitude(bits, 65, 7) * P2_14,
+            argumentOfPerigee = signMagnitude(bits, 6, 16) * P2_15 * PI
+        )
+    }
 
     /** Uhr- und Kennungsdaten aus String 4. */
     fun clock(bits: String): GloClock = GloClock(

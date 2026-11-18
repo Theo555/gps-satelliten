@@ -281,8 +281,13 @@ class GloLnavTest {
         // NA = 1051: derselbe Tag bei allen Satelliten dieser Aufnahme.
         assertEquals(1051, GloLnav.almanacDayNumber(b))
 
-        // τGPS = +2,25 ms (GPS−GLONASS im Bruchteil).
-        assertEquals(2.253056e-3, GloLnav.gpsOffsetSeconds(b), 1e-9)
+        // τGPS = +1,126 ms (GPS−GLONASS im Bruchteil).
+        //
+        // Position 55, nicht 56: Die ICD nennt b10–b31, daraus folgt
+        // 85 − 31 + 1 = 55. Mit 56 kam der doppelte Feldwert (28 statt 14) —
+        // gefunden am 17.11.2026 beim Abgleich mit gnss-sdr, das dasselbe
+        // Feld an {55, 22} liest.
+        assertEquals(1.126528e-3, GloLnav.gpsOffsetSeconds(b), 1e-9)
 
         // Andere Strings liefern nichts.
         assertNull(GloLnav.utc(bits(sat1[0])))

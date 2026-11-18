@@ -5,6 +5,7 @@ import de.gpsradar.satellites.model.Almanac
 import de.gpsradar.satellites.model.CapabilityState
 import de.gpsradar.satellites.model.Constellation
 import de.gpsradar.satellites.model.DeviceCapabilities
+import de.gpsradar.satellites.model.GloAlmanac
 import de.gpsradar.satellites.model.KlobucharIono
 import de.gpsradar.satellites.model.NavCorrections
 import de.gpsradar.satellites.model.UtcCorrection
@@ -175,6 +176,24 @@ class EmpfangSummaryTest {
 
         assertEquals(listOf(Constellation.GPS), summary.ionosphereSystems)
         assertEquals(listOf(Constellation.GLONASS), summary.utcSystems)
+    }
+
+    @Test
+    fun glonassAlmanachWirdGezaehlt() {
+        val nav = NavEphemerides(
+            gloAlmanac = listOf(
+                GloAlmanac(svid = 3),
+                GloAlmanac(svid = 12),
+                GloAlmanac(svid = 21)
+            )
+        )
+
+        val summary = EmpfangSummaryBuilder.of(DeviceCapabilities(sdkInt = 33), nav)
+
+        val glo = summary.systems.single { it.constellation == Constellation.GLONASS }
+        assertEquals(3, glo.almanac)
+        assertEquals(0, glo.ephemerides)
+        assertTrue(summary.hasOrbitData)
     }
 
     @Test
