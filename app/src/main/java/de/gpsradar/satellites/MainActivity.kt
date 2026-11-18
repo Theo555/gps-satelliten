@@ -101,6 +101,16 @@ enum class AppTab(@StringRes val titleRes: Int, val icon: ImageVector, val tag: 
     MESSUNG(R.string.tab_measurement, Icons.Default.Speed, "tab_measurement")
 }
 
+/**
+ * Eine Seite, die sich über den jeweiligen Reiter legt.
+ *
+ * Bewusst eine Aufzählung statt zweier Ja/Nein-Schalter: Mit `showAbout` und
+ * `showEmpfang` waren vier Zustände möglich, von denen zwei keinen Sinn ergeben
+ * — standen beide auf wahr, gewann stillschweigend eine der Seiten. Hier gibt
+ * es genau einen Wert oder keinen.
+ */
+enum class Overlay { ABOUT, EMPFANG }
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -187,8 +197,7 @@ fun GpsAppMainScreen(
     // rememberSaveable: sonst springt die App nach jeder Activity-Neuerstellung
     // (z. B. Rückkehr aus dem Hintergrund) zurück auf "Radar".
     var currentTab by rememberSaveable { mutableStateOf(AppTab.RADAR) }
-    var showAbout by rememberSaveable { mutableStateOf(false) }
-    var showEmpfang by rememberSaveable { mutableStateOf(false) }
+    var overlay by rememberSaveable { mutableStateOf<Overlay?>(null) }
 
     // Nur im Mess-Tab darf der Rohdatenkanal von selbst neu angefahren werden:
     // dort kostet die Minute ohne Position nichts, beim Navigieren würde sie
@@ -269,12 +278,10 @@ fun GpsAppMainScreen(
         }
     }
 
-    // Back handler: schließt "Über die App", dann Satellite-Dialog, dann zurück zum Radar-Tab
-    BackHandler(enabled = showAbout || showEmpfang || selectedSatellite != null || currentTab != AppTab.RADAR) {
-        if (showAbout) {
-            showAbout = false
-        } else if (showEmpfang) {
-            showEmpfang = false
+    // Back handler: schließt „Über die App“ bzw. „Empfang“, dann Satellite-Dialog, dann zurück zum Radar-Tab
+    BackHandler(enabled = overlay != null || selectedSatellite != null || currentTab != AppTab.RADAR) {
+        if (overlay != null) {
+            overlay = null
         } else if (selectedSatellite != null) {
             viewModel.selectSatellite(null)
         } else if (currentTab != AppTab.RADAR) {
@@ -288,11 +295,10 @@ fun GpsAppMainScreen(
         topBar = {
             TopAppBar(
                 navigationIcon = {
-                    if (showAbout || showEmpfang) {
+                    if (overlay != null) {
                         IconButton(
                             onClick = {
-                                showAbout = false
-                                showEmpfang = false
+                                overlay = null
                             },
                             modifier = Modifier.testTag("about_back_btn")
                         ) {
@@ -330,25 +336,25 @@ fun GpsAppMainScreen(
                 actions = {
                     // Empfang: was dieses Gerät kann und welche Bahndaten es hat
                     IconButton(
-                        onClick = { showEmpfang = true },
+                        onClick = { overlay = Overlay.EMPFANG },
                         modifier = Modifier.size(40.dp).testTag("empfang_btn")
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.SettingsInputAntenna,
                             contentDescription = stringResource(R.string.cd_empfang),
-                            tint = if (showEmpfang) AccentCyan else Color(0xFF94A3B8),
+                            tint = if (overlay == Overlay.EMPFANG) AccentCyan else Color(0xFF94A3B8),
                             modifier = Modifier.size(20.dp)
                         )
                     }
                     // Über die App
                     IconButton(
-                        onClick = { showAbout = true },
+                        onClick = { overlay = Overlay.ABOUT },
                         modifier = Modifier.size(40.dp).testTag("about_btn")
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Outlined.HelpOutline,
                             contentDescription = stringResource(R.string.cd_about),
-                            tint = if (showAbout) AccentCyan else Color(0xFF94A3B8),
+                            tint = if (overlay == Overlay.ABOUT) AccentCyan else Color(0xFF94A3B8),
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -369,7 +375,7 @@ fun GpsAppMainScreen(
         bottomBar = {
             // Auf der Seite "Über die App" keine Navigationsleiste – der Zurück-Pfeil
             // in der Kopfzeile führt wieder heraus.
-            if (!showAbout) NavigationBar(
+            if (overlay != Overlay.ABOUT) NavigationBar(
                 containerColor = DeepNavy,
                 contentColor = Color.White
             ) {
@@ -427,7 +433,7 @@ fun GpsAppMainScreen(
             }
 
             // Permission and Status Banner (nicht auf der Info-Seite)
-            if (!showAbout) PermissionAndStatusBanner(
+            if (overlay != Overlay.ABOUT) PermissionAndStatusBanner(
                 state = gpsState,
                 onRequestPermission = {
                     permissionLauncher.launch(
@@ -449,8 +455,8 @@ fun GpsAppMainScreen(
                     .fillMaxWidth()
                     .weight(1f)
             ) {
-                if (showAbout) {
-                    AboutScreen(
+                when (overlay) {
+                    Overlay.ABOUT -> AboutScreen(
                         versionName = versionName,
                         versionCode = versionCode,
                         onOpenRepository = { openUrl(context, REPOSITORY_URL) },
@@ -458,107 +464,107 @@ fun GpsAppMainScreen(
                         screenshotPlace = screenshotPlace,
                         onCycleScreenshotPlace = cycleScreenshotPlace
                     )
-                } else if (showEmpfang) {
-                    EmpfangScreen(
+                    Overlay.EMPFANG -> EmpfangScreen(
                         summary = EmpfangSummaryBuilder.of(deviceCapabilities, navEphemerides)
                     )
-                } else when (currentTab) {
-                    AppTab.RADAR -> {
-                        RadarSkyView(
-                            state = gpsState,
-                            satellites = displayedSatellites,
-                            selectedFilter = selectedFilter,
-                            onFilterSelected = { viewModel.setFilter(it) },
-                            onToggleHeadingUp = { viewModel.toggleOrientationMode() },
-                            onSatelliteClick = { viewModel.selectSatellite(it) },
-                            onOpenCompassCheck = { showCompassCheck = true },
-                            targetBearing = targetBearing
-                        )
-                    }
-                    AppTab.SIGNALS -> {
-                        SignalBarChart(
-                            state = gpsState,
-                            satellites = displayedSatellites,
-                            selectedFilter = selectedFilter,
-                            onFilterSelected = { viewModel.setFilter(it) },
-                            onSatelliteClick = { viewModel.selectSatellite(it) }
-                        )
-                    }
-                    AppTab.LIST -> {
-                        SatelliteListScreen(
-                            state = gpsState,
-                            satellites = displayedSatellites,
-                            selectedFilter = selectedFilter,
-                            selectedSort = selectedSort,
-                            onFilterSelected = { viewModel.setFilter(it) },
-                            onSortSelected = { viewModel.setSort(it) },
-                            onSatelliteClick = { viewModel.selectSatellite(it) }
-                        )
-                    }
-                    AppTab.POSITION -> {
-                        PositionFixScreen(
-                            state = gpsState
-                        )
-                    }
-                    AppTab.NAVIGATION -> {
-                        NavigationScreen(
-                            state = gpsState,
-                            waypoints = waypoints,
-                            caches = caches,
-                            freeWaypoints = freeWaypoints,
-                            activeWaypointId = activeWaypointId,
-                            tracks = tracks,
-                            activeTrackId = activeTrackId,
-                            activeTrackProgress = activeTrackProgress,
-                            arrivalNotice = arrivalNotice,
-                            onAddCurrentPosition = { name, code -> viewModel.addWaypointAtCurrentPosition(name, code) },
-                            onAddManual = { name, code, lat, lon -> viewModel.addWaypoint(name, code, lat, lon) },
-                            onUpdateWaypoint = { wp -> viewModel.updateWaypoint(wp) },
-                            onProjectWaypoint = { name, bearing, dist -> viewModel.projectWaypoint(name, bearing, dist) },
-                            onToggleFound = { id -> viewModel.toggleFound(id) },
-                            onDeleteWaypoint = { id -> viewModel.deleteWaypoint(id) },
-                            onSetActiveWaypoint = { id -> viewModel.setActiveWaypoint(id) },
-                            onDeleteTrack = { id -> viewModel.deleteTrack(id) },
-                            onSetActiveTrack = { id -> viewModel.setActiveTrack(id) },
-                            expandedSection = navSection,
-                            onExpandedSectionChange = { id -> viewModel.setNavSection(id) },
-                            onImportWaypoints = { uri -> viewModel.importWaypoints(uri) },
-                            onExportGpx = { uri -> viewModel.exportGpx(uri) },
-                            onExportJson = { uri -> viewModel.exportJson(uri) },
-                            hintR13Map = hintR13Map,
-                            onToggleHintFormat = { key -> viewModel.toggleHintFormat(key) },
-                            isRecording = isRecording,
-                            isRecordingPaused = isRecordingPaused,
-                            recordingPointCount = recordingPoints.size,
-                            onStartRecording = { viewModel.startRecording() },
-                            onStopRecording = { name -> viewModel.stopRecording(name) },
-                            onDefaultRecordingName = { viewModel.defaultRecordingName() },
-                            onPauseRecording = { viewModel.pauseRecording() },
-                            onResumeRecording = { viewModel.resumeRecording() },
-                            onDiscardRecording = { viewModel.discardRecording() },
-                            onReverseTrack = { id -> viewModel.reverseTrack(id) }
-                        )
-                    }
-                    AppTab.MESSUNG -> {
-                        MeasurementScreen(
-                            measurements = rawMeasurements,
-                            clock = rawClock,
-                            capabilities = deviceCapabilities,
-                            capturePhase = rawCapturePhase,
-                            bufferStats = rawBufferStats,
-                            captureEndsAtMillis = rawCaptureEndsAt,
-                            rawStreamStalled = rawStreamStalled && gpsState.satellitesInView > 0,
-                            restartCountdown = rawRestartCountdown,
-                            onRestartRaw = { viewModel.restartRawChannel() },
-                            onCancelRestart = { viewModel.cancelRawRestart() },
-                            onExportCsv = { ordner, name, profile ->
-                                viewModel.exportRawCsv(ordner, name, profile)
-                            },
-                            onStartCapture = { viewModel.startRawCapture() },
-                            onCancelCapture = { viewModel.cancelRawCapture() },
-                            onDiscardCapture = { viewModel.discardRawCapture() },
-                            onExportNav = navExport
-                        )
+                    null -> when (currentTab) {
+                        AppTab.RADAR -> {
+                            RadarSkyView(
+                                state = gpsState,
+                                satellites = displayedSatellites,
+                                selectedFilter = selectedFilter,
+                                onFilterSelected = { viewModel.setFilter(it) },
+                                onToggleHeadingUp = { viewModel.toggleOrientationMode() },
+                                onSatelliteClick = { viewModel.selectSatellite(it) },
+                                onOpenCompassCheck = { showCompassCheck = true },
+                                targetBearing = targetBearing
+                            )
+                        }
+                        AppTab.SIGNALS -> {
+                            SignalBarChart(
+                                state = gpsState,
+                                satellites = displayedSatellites,
+                                selectedFilter = selectedFilter,
+                                onFilterSelected = { viewModel.setFilter(it) },
+                                onSatelliteClick = { viewModel.selectSatellite(it) }
+                            )
+                        }
+                        AppTab.LIST -> {
+                            SatelliteListScreen(
+                                state = gpsState,
+                                satellites = displayedSatellites,
+                                selectedFilter = selectedFilter,
+                                selectedSort = selectedSort,
+                                onFilterSelected = { viewModel.setFilter(it) },
+                                onSortSelected = { viewModel.setSort(it) },
+                                onSatelliteClick = { viewModel.selectSatellite(it) }
+                            )
+                        }
+                        AppTab.POSITION -> {
+                            PositionFixScreen(
+                                state = gpsState
+                            )
+                        }
+                        AppTab.NAVIGATION -> {
+                            NavigationScreen(
+                                state = gpsState,
+                                waypoints = waypoints,
+                                caches = caches,
+                                freeWaypoints = freeWaypoints,
+                                activeWaypointId = activeWaypointId,
+                                tracks = tracks,
+                                activeTrackId = activeTrackId,
+                                activeTrackProgress = activeTrackProgress,
+                                arrivalNotice = arrivalNotice,
+                                onAddCurrentPosition = { name, code -> viewModel.addWaypointAtCurrentPosition(name, code) },
+                                onAddManual = { name, code, lat, lon -> viewModel.addWaypoint(name, code, lat, lon) },
+                                onUpdateWaypoint = { wp -> viewModel.updateWaypoint(wp) },
+                                onProjectWaypoint = { name, bearing, dist -> viewModel.projectWaypoint(name, bearing, dist) },
+                                onToggleFound = { id -> viewModel.toggleFound(id) },
+                                onDeleteWaypoint = { id -> viewModel.deleteWaypoint(id) },
+                                onSetActiveWaypoint = { id -> viewModel.setActiveWaypoint(id) },
+                                onDeleteTrack = { id -> viewModel.deleteTrack(id) },
+                                onSetActiveTrack = { id -> viewModel.setActiveTrack(id) },
+                                expandedSection = navSection,
+                                onExpandedSectionChange = { id -> viewModel.setNavSection(id) },
+                                onImportWaypoints = { uri -> viewModel.importWaypoints(uri) },
+                                onExportGpx = { uri -> viewModel.exportGpx(uri) },
+                                onExportJson = { uri -> viewModel.exportJson(uri) },
+                                hintR13Map = hintR13Map,
+                                onToggleHintFormat = { key -> viewModel.toggleHintFormat(key) },
+                                isRecording = isRecording,
+                                isRecordingPaused = isRecordingPaused,
+                                recordingPointCount = recordingPoints.size,
+                                onStartRecording = { viewModel.startRecording() },
+                                onStopRecording = { name -> viewModel.stopRecording(name) },
+                                onDefaultRecordingName = { viewModel.defaultRecordingName() },
+                                onPauseRecording = { viewModel.pauseRecording() },
+                                onResumeRecording = { viewModel.resumeRecording() },
+                                onDiscardRecording = { viewModel.discardRecording() },
+                                onReverseTrack = { id -> viewModel.reverseTrack(id) }
+                            )
+                        }
+                        AppTab.MESSUNG -> {
+                            MeasurementScreen(
+                                measurements = rawMeasurements,
+                                clock = rawClock,
+                                capabilities = deviceCapabilities,
+                                capturePhase = rawCapturePhase,
+                                bufferStats = rawBufferStats,
+                                captureEndsAtMillis = rawCaptureEndsAt,
+                                rawStreamStalled = rawStreamStalled && gpsState.satellitesInView > 0,
+                                restartCountdown = rawRestartCountdown,
+                                onRestartRaw = { viewModel.restartRawChannel() },
+                                onCancelRestart = { viewModel.cancelRawRestart() },
+                                onExportCsv = { ordner, name, profile ->
+                                    viewModel.exportRawCsv(ordner, name, profile)
+                                },
+                                onStartCapture = { viewModel.startRawCapture() },
+                                onCancelCapture = { viewModel.cancelRawCapture() },
+                                onDiscardCapture = { viewModel.discardRawCapture() },
+                                onExportNav = navExport
+                            )
+                        }
                     }
                 }
             }
